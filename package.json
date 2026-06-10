@@ -2,6 +2,7 @@
   "name": "nam-quan-noi-that",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "NAM QUAN — Website nội thất cao cấp",
   "scripts": {
     "dev:fe": "cd frontend && npm run dev",

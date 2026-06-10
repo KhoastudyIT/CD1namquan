@@ -1,45 +1,43 @@
 /* ============ NAM QUAN — data ============ */
 
-// Interior / furniture imagery (Unsplash CDN — loads in-browser, <Img> handles fallback)
-const U = (id, w = 700) =>
-  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
+const I = (name) => `/images/${name}.jpg`;
 
 export const IMG = {
-  heroLiving:   U("1618219740975-d40978bb7378", 1600),
-  living1:      U("1586023492125-27b2c045efd7", 1200),
-  living2:      U("1567538096630-e0c55bd6374c", 1000),
-  modern:       U("1618220179428-22790b461013", 1000),
-  luxury:       U("1616137466211-f939a420be84", 1000),
-  minimal:      U("1567016432779-094069958ea5", 1000),
-  bigRoom:      U("1600210492486-724fe5c67fb0", 1600),
-  showroom:     U("1615875605825-5eb9bb5d52ac", 900),
-  ctaChair:     U("1586023492125-27b2c045efd7", 900),
-  footerChair:  U("1567538096630-e0c55bd6374c", 700),
-  catSofa:      U("1555041469-a586c61ea9bc", 500),
-  catChair:     U("1567538096630-e0c55bd6374c", 500),
-  catTable:     U("1577140917170-285929fb55b7", 500),
-  catBed:       U("1505693416388-ac5ce068fe85", 500),
-  catOutdoor:   U("1600121848594-d8644e57abab", 500),
-  catOffice:    U("1497366754035-f200968a6e72", 500),
-  catDecor:     U("1602874801007-bd458bb1b8b6", 500),
-  news1:        U("1567016376408-0226e4d0c1ea", 700),
-  news2:        U("1556228453-efd6c1ff04f6", 700),
-  news3:        U("1497366811353-6870744d04b2", 700),
+  heroLiving:  I("heroLiving"),
+  living1:     I("living1"),
+  living2:     I("living2"),
+  modern:      I("modern"),
+  luxury:      I("luxury"),
+  minimal:     I("minimal"),
+  bigRoom:     I("bigRoom"),
+  showroom:    I("showroom"),
+  ctaChair:    I("ctaChair"),
+  footerChair: I("footerChair"),
+  catSofa:     I("catSofa"),
+  catChair:    I("catChair"),
+  catTable:    I("catTable"),
+  catBed:      I("catBed"),
+  catOutdoor:  I("catOutdoor"),
+  catOffice:   I("catOffice"),
+  catDecor:    I("catDecor"),
+  news1:       I("news1"),
+  news2:       I("news2"),
+  news3:       I("news3"),
 };
 
 const P = {
-  sofaBeige:  U("1555041469-a586c61ea9bc", 600),
-  vaseGreen:  U("1602874801007-bd458bb1b8b6", 600),
-  armBlue:    U("1567538096630-e0c55bd6374c", 600),
-  rattan:     U("1503602642458-232111445657", 600),
-  bedClassic: U("1505693416388-ac5ce068fe85", 600),
-  tableBlack: U("1577140917170-285929fb55b7", 600),
-  sofaWhite:  U("1493663284031-b7e3aefcae8e", 600),
-  drawer:     U("1595428774223-ef52624120d2", 600),
-  deskWood:   U("1518455027359-f3f8164ba6bd", 600),
-  armBeige:   U("1586023492125-27b2c045efd7", 600),
-  sofaSlate:  U("1550254478-ead40cc54513", 600),
-  armPink:    U("1519947486511-46149fa0a254", 600),
+  sofaBeige:  I("sofaBeige"),
+  vaseGreen:  I("vaseGreen"),
+  armBlue:    I("armBlue"),
+  rattan:     I("rattan"),
+  bedClassic: I("bedClassic"),
+  tableBlack: I("tableBlack"),
+  sofaWhite:  I("sofaWhite"),
+  drawer:     I("drawer"),
+  deskWood:   I("deskWood"),
+  armBeige:   I("armBeige"),
+  sofaSlate:  I("sofaSlate"),
+  armPink:    I("armPink"),
 };
 
 export const cats = ["Phòng khách", "Phòng ngủ", "Bếp", "Văn phòng", "Decor"];
