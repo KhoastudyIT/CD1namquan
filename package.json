@@ -1,0 +1,13 @@
+{
+  "name": "nam-quan-noi-that",
+  "private": true,
+  "version": "1.0.0",
+  "description": "NAM QUAN — Website nội thất cao cấp",
+  "scripts": {
+    "dev:fe": "cd frontend && npm run dev",
+    "dev:be": "cd backend && npm run dev",
+    "install:fe": "cd frontend && npm install",
+    "install:be": "cd backend && npm install",
+    "install:all": "npm run install:fe && npm run install:be"
+  }
+}
