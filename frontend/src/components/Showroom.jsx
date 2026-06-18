@@ -1,16 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon, toast } from "./ui.jsx";
 import { ProductCard } from "./cards.jsx";
-import { products, cats } from "../data.js";
+import { api } from "../api.js";
 
 export function Showroom({ favs, onFav, onAdd }) {
   const [cat, setCat] = useState("Tất cả");
   const [sale, setSale] = useState(false);
-  const catList = ["Tất cả", ...cats];
+  const [cats, setCats] = useState([]);
+  const [list, setList] = useState([]);
   const filters = ["Loại sản phẩm", "Giá", "Màu sắc", "Phong cách", "Chất liệu", "Kích thước", "Thương hiệu"];
 
-  let list = products.filter((p) => cat === "Tất cả" || p.cat === cat);
-  if (sale) list = [...list].sort((a, b) => a.price - b.price);
+  useEffect(() => {
+    api.getCategories().then(data => {
+      if (data) setCats(data.map(c => c.name));
+    });
+  }, []);
+
+  useEffect(() => {
+    const params = { limit: 8 };
+    if (cat !== "Tất cả") params.category = cat;
+    if (sale) params.sort = "price_asc";
+    
+    api.getProducts(params).then(data => {
+      if (data) setList(data);
+    });
+  }, [cat, sale]);
+
+  const catList = ["Tất cả", ...cats];
 
   return (
     <section className="section showroom" id="showroom">

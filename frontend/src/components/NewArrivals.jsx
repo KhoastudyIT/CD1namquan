@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "./ui.jsx";
 import { ProductCard } from "./cards.jsx";
-import { products } from "../data.js";
+import { api } from "../api.js";
 
 export function NewArrivals({ favs, onFav, onAdd }) {
   const [tab, setTab] = useState(0);
+  const [list, setList] = useState([]);
   const tabs = ["Hàng mới về", "Bán chạy"];
-  const list = tab === 0
-    ? products.slice(0, 4)
-    : [...products].sort((a, b) => b.sold - a.sold).slice(0, 4);
+
+  useEffect(() => {
+    const sort = tab === 0 ? "newest" : "sold";
+    api.getProducts({ sort, limit: 4 }).then(data => {
+      if (data) setList(data.slice(0, 4));
+    });
+  }, [tab]);
+
+  if (!list.length) return null;
+
   return (
     <section className="section" style={{ paddingTop: 10 }}>
       <div className="wrap">

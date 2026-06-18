@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Icon } from "./ui.jsx";
 import { FlashCard } from "./cards.jsx";
-import { flash } from "../data.js";
+import { api } from "../api.js";
 
 function useCountdown(targetMs) {
   const [left, setLeft] = useState(targetMs);
@@ -19,7 +19,17 @@ function useCountdown(targetMs) {
 export function FlashSale({ favs, onFav, onAdd }) {
   const [h, m, s] = useCountdown(1 * 3600000 + 21 * 60000 + 56000);
   const [tab, setTab] = useState(0);
+  const [flash, setFlash] = useState([]);
   const tabs = ["12 - 15h 05/06", "20 - 06/06"];
+
+  useEffect(() => {
+    api.getFlashSales().then(data => {
+      if (data) setFlash(data);
+    });
+  }, []);
+
+  if (!flash.length) return null;
+
   return (
     <section className="section flash-sec" id="flash">
       <div className="wrap">
@@ -42,7 +52,7 @@ export function FlashSale({ favs, onFav, onAdd }) {
           </div>
           <div className="flash-grid">
             {flash.map((p) => (
-              <FlashCard key={p.id} p={p} fav={favs.has(p.id)} onFav={onFav} onAdd={onAdd} />
+              <FlashCard key={p.id} p={p} fav={favs.has(p.productId || p.id)} onFav={onFav} onAdd={onAdd} />
             ))}
           </div>
         </div>

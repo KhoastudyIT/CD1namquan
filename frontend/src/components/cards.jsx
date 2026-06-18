@@ -1,5 +1,6 @@
 /* ============ NAM QUAN — cards ============ */
 import { Img, Icon, Stars, ColorDots, vnd } from "./ui.jsx";
+import { Link } from "react-router-dom";
 
 export function FavBtn({ active, onClick }) {
   return (
@@ -18,7 +19,9 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
   return (
     <div className="pcard">
       <div className="pcard-media">
-        <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        <Link to={`/product/${p.id}`} style={{ display: 'block', height: '100%' }}>
+          <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.id)} />
           <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
@@ -28,7 +31,7 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
       </div>
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
-        <div className="pcard-name">{p.name}</div>
+        <Link to={`/product/${p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
         <div className="pcard-foot">
           <div className="pcard-meta">
             <Stars value={p.rating} />
@@ -42,12 +45,15 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
 }
 
 export function FlashCard({ p, fav, onFav, onAdd }) {
+  const oldPrice = p.old || p.originalPrice;
   const pct = Math.min(100, Math.round((p.sold / p.stock) * 100));
   return (
     <div className="pcard flash">
       <div className="pcard-media">
-        <span className="flash-tag">-{Math.round((1 - p.price / p.old) * 100)}%</span>
-        <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        <span className="flash-tag">-{Math.round((1 - p.price / oldPrice) * 100)}%</span>
+        <Link to={`/product/${p.productId || p.id}`} style={{ display: 'block', height: '100%' }}>
+          <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.id)} />
           <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
@@ -57,11 +63,11 @@ export function FlashCard({ p, fav, onFav, onAdd }) {
       </div>
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
-        <div className="pcard-name">{p.name}</div>
+        <Link to={`/product/${p.productId || p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
         <div className="pcard-foot" style={{ alignItems: "flex-end" }}>
           <Stars value={p.rating} />
           <div className="flash-prices">
-            <span className="flash-old">{vnd(p.old)}đ</span>
+            <span className="flash-old">{vnd(oldPrice)}đ</span>
             <span className="flash-now">{vnd(p.price)} <span>đ</span></span>
           </div>
         </div>
