@@ -359,6 +359,13 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           { name: 'sort',     in: 'query', schema: { type: 'string', enum: ['price_asc', 'price_desc', 'rating', 'sold', 'newest'], default: 'newest' }, description: 'Sắp xếp' },
           { name: 'page',     in: 'query', schema: { type: 'integer', minimum: 1, default: 1 },   description: 'Trang hiện tại' },
           { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 12 }, description: 'Số sản phẩm mỗi trang' },
+          { name: 'priceMin', in: 'query', schema: { type: 'integer', minimum: 0 }, description: 'Giá tối thiểu (VND)' },
+          { name: 'priceMax', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'Giá tối đa (VND)' },
+          { name: 'colors',   in: 'query', schema: { type: 'string' }, description: 'Lọc theo màu, nhiều giá trị cách nhau bởi dấu phẩy (vd: be,nau)' },
+          { name: 'styles',   in: 'query', schema: { type: 'string' }, description: 'Lọc theo phong cách, cách nhau bởi dấu phẩy (vd: Luxury,Hiện đại)' },
+          { name: 'materials',in: 'query', schema: { type: 'string' }, description: 'Lọc theo chất liệu, cách nhau bởi dấu phẩy' },
+          { name: 'sizes',    in: 'query', schema: { type: 'string' }, description: 'Lọc theo kích thước, cách nhau bởi dấu phẩy' },
+          { name: 'brands',   in: 'query', schema: { type: 'string' }, description: 'Lọc theo thương hiệu, cách nhau bởi dấu phẩy' },
         ],
         responses: {
           '200': {

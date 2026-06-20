@@ -1,7 +1,13 @@
 import { products, flashSales } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
 
-export function listProducts({ category, type, search, sort = 'newest', page = 1, limit = 12 }) {
+// "be,nau" -> ['be','nau']; empty/undefined -> []
+const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
+
+export function listProducts({
+  category, type, search, sort = 'newest', page = 1, limit = 12,
+  priceMin, priceMax, colors, styles, materials, sizes, brands,
+}) {
   let items = [...products.values()];
 
   if (category) items = items.filter(p => p.category === category);
@@ -10,6 +16,21 @@ export function listProducts({ category, type, search, sort = 'newest', page = 1
     const q = search.toLowerCase();
     items = items.filter(p => p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q));
   }
+
+  if (priceMin != null) items = items.filter(p => p.price >= priceMin);
+  if (priceMax != null) items = items.filter(p => p.price <= priceMax);
+
+  // Multi-select facets: OR within a facet, AND across facets.
+  const fColors = csv(colors);
+  if (fColors.length)    items = items.filter(p => (p.colors || []).some(c => fColors.includes(c)));
+  const fStyles = csv(styles);
+  if (fStyles.length)    items = items.filter(p => fStyles.includes(p.style));
+  const fMaterials = csv(materials);
+  if (fMaterials.length) items = items.filter(p => (p.materials || []).some(m => fMaterials.includes(m)));
+  const fSizes = csv(sizes);
+  if (fSizes.length)     items = items.filter(p => (p.sizes || []).some(s => fSizes.includes(s)));
+  const fBrands = csv(brands);
+  if (fBrands.length)    items = items.filter(p => fBrands.includes(p.brand));
 
   const sortFns = {
     price_asc:  (a, b) => a.price - b.price,

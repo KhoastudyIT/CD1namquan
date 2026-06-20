@@ -134,6 +134,11 @@ export function Shop() {
     if (category) params.category = category;
     if (priceMin > 0) params.priceMin = priceMin;
     if (priceMax < PRICE_MAX) params.priceMax = priceMax;
+    if (selectedColors.length) params.colors = selectedColors.join(",");
+    if (selectedStyles.length) params.styles = selectedStyles.join(",");
+    if (selectedMaterials.length) params.materials = selectedMaterials.join(",");
+    if (selectedSizes.length) params.sizes = selectedSizes.join(",");
+    if (selectedBrands.length) params.brands = selectedBrands.join(",");
 
     api.getProductsPaginated(params)
       .then(res => {
@@ -142,12 +147,14 @@ export function Shop() {
       })
       .catch(() => { })
       .finally(() => setLoading(false));
-  }, [search, category, sort, page, priceMin, priceMax]);
+  }, [search, category, sort, page, priceMin, priceMax, selectedColors, selectedStyles, selectedMaterials, selectedSizes, selectedBrands]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const toggle = (setter) => (key) =>
+  const toggle = (setter) => (key) => {
     setter(prev => prev.includes(key) ? prev.filter(v => v !== key) : [...prev, key]);
+    setPage(1);
+  };
 
   const clearAllFilters = () => {
     setSearch(""); setSearchInput(""); setCategory(""); setSort("newest");
