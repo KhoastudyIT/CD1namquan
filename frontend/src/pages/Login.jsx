@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { toast } from "../components/ui.jsx";
@@ -8,7 +8,9 @@ export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { setUser, fetchCart } = useAppContext();
+  const location = useLocation();
+  const { setUser, fetchCart, fetchNotifs } = useAppContext();
+  const from = location.state?.from || "/";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -18,8 +20,9 @@ export function Login() {
         localStorage.setItem('token', data.token);
         setUser(data.user);
         fetchCart();
+        fetchNotifs();
         toast("Đăng nhập thành công!");
-        navigate("/");
+        navigate(data.user?.role === 'admin' ? '/admin' : from, { replace: true });
       }
     } catch (err) {
       toast(err.message || "Đăng nhập thất bại");

@@ -33,6 +33,7 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
     { name: 'News',        description: 'Tin tức và bài viết' },
     { name: 'Cart',        description: 'Giỏ hàng — yêu cầu đăng nhập' },
     { name: 'Orders',      description: 'Đơn hàng — yêu cầu đăng nhập' },
+    { name: 'Notifications', description: 'Thông báo theo từng tài khoản' },
   ],
   components: {
     securitySchemes: {
@@ -844,6 +845,110 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
               },
             },
           },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/orders/admin/list': {
+      get: {
+        tags: ['Orders'],
+        summary: '[Admin] Danh sách tất cả đơn hàng',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Tất cả đơn hàng kèm thông tin khách (mới nhất trước)',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/Order' } } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+    },
+    '/api/v1/orders/{id}/status': {
+      put: {
+        tags: ['Orders'],
+        summary: '[Admin] Cập nhật trạng thái đơn hàng',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Order UUID' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['status'],
+                properties: {
+                  status: { type: 'string', enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'], example: 'confirmed' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Đã cập nhật trạng thái',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { $ref: '#/components/schemas/Order' } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/notifications': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'Danh sách thông báo của tôi',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Thông báo của người dùng (mới nhất trước)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+    '/api/v1/notifications/read-all': {
+      put: {
+        tags: ['Notifications'],
+        summary: 'Đánh dấu tất cả đã đọc',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Đã đánh dấu tất cả đã đọc', content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+    '/api/v1/notifications/{id}/read': {
+      put: {
+        tags: ['Notifications'],
+        summary: 'Đánh dấu một thông báo đã đọc',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Notification UUID' }],
+        responses: {
+          '200': { description: 'Đã đánh dấu đã đọc', content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } } },
           '401': { $ref: '#/components/responses/Unauthorized' },
           '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },

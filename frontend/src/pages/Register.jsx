@@ -9,7 +9,7 @@ export function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { setUser, fetchCart } = useAppContext();
+  const { setUser, fetchCart, fetchNotifs } = useAppContext();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -19,6 +19,7 @@ export function Register() {
         localStorage.setItem('token', data.token);
         setUser(data.user);
         fetchCart();
+        fetchNotifs();
         toast("Đăng ký thành công!");
         navigate("/");
       }

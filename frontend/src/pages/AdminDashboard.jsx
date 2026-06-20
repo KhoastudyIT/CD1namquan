@@ -297,7 +297,7 @@ export function AdminDashboard() {
                           <td style={{ fontWeight: 600, fontSize: 13, color: "var(--green-ink)" }}>
                             #{o.id.substring(0, 8)}...
                           </td>
-                          <td>Khách mua lẻ</td>
+                          <td>{o.customerName || "Khách mua lẻ"}</td>
                           <td style={{ color: "var(--muted)" }}>
                             {new Date(o.createdAt).toLocaleDateString("vi-VN", { hour: '2-digit', minute: '2-digit' })}
                           </td>
@@ -744,7 +744,7 @@ export function AdminDashboard() {
             
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 20, marginBottom: 20, fontSize: 13.5, background: "var(--paper-2)", padding: 14, borderRadius: 10 }}>
               <div>
-                <p style={{ margin: "0 0 6px" }}><b>Khách hàng:</b> Khách mua lẻ</p>
+                <p style={{ margin: "0 0 6px" }}><b>Khách hàng:</b> {selectedOrder.customerName || "Khách mua lẻ"}{selectedOrder.customerEmail ? ` (${selectedOrder.customerEmail})` : ""}</p>
                 <p style={{ margin: "0 0 6px" }}><b>Địa chỉ nhận hàng:</b> {selectedOrder.shippingAddress}</p>
                 <p style={{ margin: 0 }}><b>Ghi chú đơn:</b> {selectedOrder.note || "Không có"}</p>
               </div>

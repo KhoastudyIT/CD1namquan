@@ -38,7 +38,7 @@ export function Profile() {
               <Link to="/orders" style={{ padding: '10px 14px', color: 'var(--ink-2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, transition: '.2s' }} onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                 <Icon name="truck" size={18} /> Đơn hàng mua
               </Link>
-              <button onClick={logout} style={{ padding: '10px 14px', color: 'var(--red, #e6457a)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, transition: '.2s', textAlign: 'left', marginTop: 10, borderTop: '1px solid var(--line-2)', borderRadius: 0 }}>
+              <button onClick={logout} style={{ padding: '10px 14px', color: 'var(--red, #e6457a)', display: 'flex', alignItems: 'center', gap: 10, transition: '.2s', textAlign: 'left', marginTop: 10, borderTop: '1px solid var(--line-2)', borderRadius: 0 }}>
                 Đăng xuất
               </button>
             </div>

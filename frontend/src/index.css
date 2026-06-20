@@ -374,13 +374,11 @@
 .hfb{
   display:flex;
   align-items:center;
-  gap:0;
+  gap:6px 0;
   padding:10px 14px;
-  flex-wrap:nowrap;
-  overflow-x:auto;
-  scrollbar-width:none;
+  flex-wrap:wrap;
+  overflow:visible;
 }
-.hfb::-webkit-scrollbar{display:none;}
 
 /* Main "Bộ lọc" button */
 .hfb-main-btn{
@@ -547,7 +545,7 @@
 
 /* ── Responsive ── */
 @media(max-width:900px){
-  .hfb{flex-wrap:nowrap;overflow-x:auto;}
+  .hfb{flex-wrap:wrap;overflow:visible;}
   .shop-layout{grid-template-columns:1fr;}
   .shop-sidebar{position:static;}
 }

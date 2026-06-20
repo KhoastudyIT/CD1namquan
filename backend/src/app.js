@@ -15,6 +15,7 @@ import { collectionRouter } from './modules/collections/collection.routes.js';
 import { newsRouter }       from './modules/news/news.routes.js';
 import { cartRouter }       from './modules/cart/cart.routes.js';
 import { orderRouter }      from './modules/orders/order.routes.js';
+import { notificationRouter } from './modules/notifications/notification.routes.js';
 
 export function createApp() {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp() {
   app.use(`${v1}/news`,        newsRouter);
   app.use(`${v1}/cart`,        cartRouter);
   app.use(`${v1}/orders`,      orderRouter);
+  app.use(`${v1}/notifications`, notificationRouter);
 
   if (config.openapiEnabled) setupDocs(app);
 

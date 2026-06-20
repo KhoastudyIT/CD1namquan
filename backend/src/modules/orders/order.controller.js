@@ -13,3 +13,12 @@ export function create(req, res) {
   const order = orderService.createOrder(req.user.id, req.body);
   created(res, order, 'Đặt hàng thành công');
 }
+
+export function listAll(_req, res) {
+  ok(res, orderService.listAllOrders());
+}
+
+export function updateStatus(req, res) {
+  const order = orderService.updateOrderStatus(req.params.id, req.body.status);
+  ok(res, order, 'Đã cập nhật trạng thái đơn hàng');
+}

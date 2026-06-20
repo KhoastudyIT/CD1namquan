@@ -51,6 +51,11 @@ export const api = {
   removeCartItem: (productId) => fetchAPI(`/cart/items/${productId}`, { method: 'DELETE' }),
   clearCart: () => fetchAPI('/cart', { method: 'DELETE' }),
 
+  // Notifications
+  getNotifications: () => fetchAPI('/notifications'),
+  markNotificationRead: (id) => fetchAPI(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () => fetchAPI('/notifications/read-all', { method: 'PUT' }),
+
   // Orders
   getOrders: () => fetchAPI('/orders'),
   getOrderById: (id) => fetchAPI(`/orders/${id}`),

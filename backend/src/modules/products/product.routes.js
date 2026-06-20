@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as productController from './product.controller.js';
 import { authenticate } from '../../middleware/authenticate.js';
+import { authorize } from '../../middleware/authorize.js';
 import { validate, validateQuery } from '../../middleware/validate.js';
 import { createProductSchema, updateProductSchema, productQuerySchema } from './product.schema.js';
 
@@ -11,7 +12,7 @@ productRouter.get('/',            validateQuery(productQuerySchema), productCont
 productRouter.get('/flash-sales', productController.listFlashSales);
 productRouter.get('/:id',         productController.getById);
 
-// Protected routes (admin)
-productRouter.post('/',    authenticate, validate(createProductSchema), productController.create);
-productRouter.put('/:id',  authenticate, validate(updateProductSchema), productController.update);
-productRouter.delete('/:id', authenticate,                              productController.remove);
+// Protected routes (admin only)
+productRouter.post('/',      authenticate, authorize('admin'), validate(createProductSchema), productController.create);
+productRouter.put('/:id',    authenticate, authorize('admin'), validate(updateProductSchema), productController.update);
+productRouter.delete('/:id', authenticate, authorize('admin'),                                productController.remove);

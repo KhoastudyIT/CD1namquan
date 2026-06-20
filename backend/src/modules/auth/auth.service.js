@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import config from '../../config/index.js';
 import { users } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
+import { createNotification } from '../notifications/notification.service.js';
 
 export async function register({ name, email, password }) {
   const existing = [...users.values()].find(u => u.email === email);
@@ -19,6 +20,13 @@ export async function register({ name, email, password }) {
     createdAt: new Date().toISOString(),
   };
   users.set(user.id, user);
+
+  createNotification(user.id, {
+    type: 'welcome',
+    title: 'Chào mừng đến với NAM QUAN! 🎉',
+    message: 'Cảm ơn bạn đã đăng ký tài khoản. Khám phá bộ sưu tập nội thất cao cấp của chúng tôi ngay hôm nay.',
+    link: '/shop',
+  });
 
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role },

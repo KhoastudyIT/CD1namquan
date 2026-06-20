@@ -50,3 +50,4 @@ export const news = [
 export const users = new Map();
 export const carts = new Map();
 export const orders = new Map();
+export const notifications = new Map();
