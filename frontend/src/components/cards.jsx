@@ -45,13 +45,16 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
 }
 
 export function FlashCard({ p, fav, onFav, onAdd }) {
-  const oldPrice = p.old || p.originalPrice;
-  const pct = Math.min(100, Math.round((p.sold / p.stock) * 100));
+  const price = Number(p.price || 0);
+const oldPrice = Number(p.old || p.originalPrice || p.original_price || price || 0);
+const sold = Number(p.sold || 0);
+const stock = Number(p.stock || 1);
+const pct = Math.min(100, Math.round((sold / stock) * 100));
   return (
     <div className="pcard flash">
       <div className="pcard-media">
-        <span className="flash-tag">-{Math.round((1 - p.price / oldPrice) * 100)}%</span>
-        <Link to={`/product/${p.productId || p.id}`} style={{ display: 'block', height: '100%' }}>
+        <span className="flash-tag">-{oldPrice > 0 ? Math.round((1 - price / oldPrice) * 100) : 0}%</span>
+        <Link to={`/product/${p.product_id || p.productId || p.id}`} style={{ display: 'block', height: '100%' }}>
           <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
         </Link>
         <div className="pcard-tools">
@@ -63,7 +66,7 @@ export function FlashCard({ p, fav, onFav, onAdd }) {
       </div>
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
-        <Link to={`/product/${p.productId || p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
+        <Link to={`/product/${p.product_id || p.productId || p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
         <div className="pcard-foot" style={{ alignItems: "flex-end" }}>
           <Stars value={p.rating} />
           <div className="flash-prices">

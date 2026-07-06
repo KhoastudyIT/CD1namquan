@@ -1,5 +1,6 @@
-import { categories } from '../../db/store.js';
+import db from '../../db/index.js';
 
-export function listCategories() {
-  return categories;
+export async function listCategories() {
+  const res = await db.query('SELECT * FROM categories ORDER BY id ASC');
+  return res.rows;
 }

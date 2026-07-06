@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Icon } from "./ui.jsx";
 import { FlashCard } from "./cards.jsx";
 import { api } from "../api.js";
 
@@ -20,15 +19,55 @@ export function FlashSale({ favs, onFav, onAdd }) {
   const [h, m, s] = useCountdown(1 * 3600000 + 21 * 60000 + 56000);
   const [tab, setTab] = useState(0);
   const [flash, setFlash] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const tabs = ["12 - 15h 05/06", "20 - 06/06"];
 
   useEffect(() => {
-    api.getFlashSales().then(data => {
-      if (data) setFlash(data);
-    });
+    setLoading(true);
+    setError(false);
+    api.getFlashSales()
+      .then(data => {
+        // API có thể trả về array trực tiếp hoặc { data: [...] }
+        if (Array.isArray(data)) setFlash(data);
+        else if (data?.data && Array.isArray(data.data)) setFlash(data.data);
+      })
+      .catch(err => {
+        console.error("FlashSale fetch error:", err);
+        setError(true);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  if (!flash.length) return null;
+  if (loading) return (
+    <section className="section flash-sec" id="flash">
+      <div className="wrap">
+        <div className="flash-shell">
+          <div className="skel-block" style={{ height: 340, borderRadius: 12 }} />
+        </div>
+      </div>
+    </section>
+  );
+
+  if (error) return (
+    <section className="section flash-sec" id="flash">
+      <div className="wrap">
+        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "#fff" }}>
+          <p>Không thể tải dữ liệu Flash Sale. Vui lòng thử lại sau.</p>
+        </div>
+      </div>
+    </section>
+  );
+
+  if (!flash.length) return (
+    <section className="section flash-sec" id="flash">
+      <div className="wrap">
+        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "#fff" }}>
+          <p>Hiện không có chương trình Flash Sale nào đang diễn ra.</p>
+        </div>
+      </div>
+    </section>
+  );
 
   return (
     <section className="section flash-sec" id="flash">
@@ -52,7 +91,13 @@ export function FlashSale({ favs, onFav, onAdd }) {
           </div>
           <div className="flash-grid">
             {flash.map((p) => (
-              <FlashCard key={p.id} p={p} fav={favs.has(p.productId || p.id)} onFav={onFav} onAdd={onAdd} />
+              <FlashCard
+                key={p.id}
+                p={p}
+                fav={favs.has(p.product_id || p.productId || p.id)}
+                onFav={onFav}
+                onAdd={onAdd}
+              />
             ))}
           </div>
         </div>

@@ -97,4 +97,16 @@ export const news = [
     excerpt: "Tối ưu công năng sử dụng với hệ thống bàn ghế linh hoạt, tạo cảm hứng cho không gian làm việc." },
 ];
 
-export const partners = ["MOHO", "HOMIE", "NHÀ XINH", "HAVEN", "HALO", "HAPPYFOOD", "ECOBOO"];
+export const partners = [
+  { name: "Logo 1", img: "/images/partner1.png" },
+  { name: "Logo 2", img: "/images/partner2.png" },
+  { name: "Logo 3", img: "/images/partner3.png" },
+  { name: "Logo 4", img: "/images/partner4.png" },
+  { name: "Logo 5", img: "/images/partner5.png" },
+  { name: "HAPPYFOOD", img: "/images/partner6.png" },
+  { name: "ECOBOO", img: "/images/partner7.png" },
+  { name: "COMOON", img: "/images/partner8.png" },
+  { name: "BÌNH MINH SÀI GÒN", img: "/images/partner9.png" },
+  { name: "VẠN TƯỜNG", img: "/images/partner10.png" },
+  { name: "ÂU LẠC HUẾ", img: "/images/partner11.png" },
+];

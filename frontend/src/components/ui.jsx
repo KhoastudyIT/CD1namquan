@@ -81,15 +81,32 @@ export function ColorDots({ colors = ["#c9bfa6","#2f6b46","#1d2722"] }) {
 /* scroll reveal hook — call once in App */
 export function useReveal() {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
         if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
       });
     }, { threshold: 0.12 });
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  });
+
+    // Observe any .reveal already in the DOM
+    const observe = (root = document) => {
+      root.querySelectorAll(".reveal:not(.in)").forEach((el) => io.observe(el));
+    };
+    observe();
+
+    // Also observe .reveal elements added later (after async API calls)
+    const mo = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+          if (node.classList?.contains("reveal") && !node.classList.contains("in")) io.observe(node);
+          node.querySelectorAll?.(".reveal:not(.in)").forEach((el) => io.observe(el));
+        });
+      });
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => { io.disconnect(); mo.disconnect(); };
+  }, []); // run only once on mount
 }
 
 /* toast — lazily creates its own DOM node */

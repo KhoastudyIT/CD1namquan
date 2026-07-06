@@ -518,24 +518,24 @@ CREATE TABLE page_views (
 -- =============================================================
 -- INDEXES
 -- =============================================================
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_products_slug ON products(slug);
-CREATE INDEX idx_products_category_id ON products(category_id);
-CREATE INDEX idx_products_collection_id ON products(collection_id);
-CREATE INDEX idx_products_brand_id ON products(brand_id);
-CREATE INDEX idx_products_featured ON products(featured) WHERE featured = TRUE;
-CREATE INDEX idx_products_search ON products USING GIN (to_tsvector('simple', unaccent(name || ' ' || type || ' ' || category || ' ' || short_desc)));
-CREATE INDEX idx_news_slug ON news(slug);
-CREATE INDEX idx_orders_user ON orders(user_id);
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read);
-CREATE INDEX idx_favorites_user ON favorites(user_id);
-CREATE INDEX idx_search_keyword ON search_history(keyword);
-CREATE INDEX idx_banners_position ON banners(position);
-CREATE INDEX idx_showrooms_active ON showrooms(active);
-CREATE INDEX idx_reviews_product ON reviews(product_id);
-CREATE INDEX idx_page_views_product ON page_views(product_id);
+--CREATE INDEX idx_users_email ON users(email);
+--CREATE INDEX idx_products_slug ON products(slug);
+--CREATE INDEX idx_products_category_id ON products(category_id);
+--CREATE INDEX idx_products_collection_id ON products(collection_id);
+--CREATE INDEX idx_products_brand_id ON products(brand_id);
+--CREATE INDEX idx_products_featured ON products(featured) WHERE featured = TRUE;
+--CREATE INDEX idx_products_search ON products USING GIN (to_tsvector('simple', unaccent(name || ' ' || type || ' ' || category || ' ' || short_desc)));
+--CREATE INDEX idx_news_slug ON news(slug);
+--CREATE INDEX idx_orders_user ON orders(user_id);
+--CREATE INDEX idx_orders_status ON orders(status);
+--CREATE INDEX idx_notifications_user ON notifications(user_id);
+--CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read);
+--CREATE INDEX idx_favorites_user ON favorites(user_id);
+--CREATE INDEX idx_search_keyword ON search_history(keyword);
+--CREATE INDEX idx_banners_position ON banners(position);
+--CREATE INDEX idx_showrooms_active ON showrooms(active);
+--CREATE INDEX idx_reviews_product ON reviews(product_id);
+--CREATE INDEX idx_page_views_product ON page_views(product_id);
 
 -- =============================================================
 -- TRIGGER UPDATED_AT
@@ -573,8 +573,8 @@ CREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXEC
 -- SEED DATA
 -- =============================================================
 INSERT INTO users (id, name, email, phone, password, role, email_verified) VALUES
-('11111111-1111-1111-1111-111111111111','Admin Nam Quan','admin@namquan.vn','0900000000','$2b$10$demo_hash_replace_in_backend','admin',TRUE),
-('22222222-2222-2222-2222-222222222222','Khách hàng Demo','customer@namquan.vn','0911111111','$2b$10$demo_hash_replace_in_backend','customer',TRUE);
+('11111111-1111-1111-1111-111111111111','Admin Nam Quan','admin@namquan.vn','0900000000','$2a$10$L1YPWvKFccX/CnrvNOw6FOIOYlhGvJrbS/GfV6U9Zn7IqrloOt59C','admin',TRUE),
+('22222222-2222-2222-2222-222222222222','Khách hàng Demo','customer@namquan.vn','0911111111','$2a$10$L1YPWvKFccX/CnrvNOw6FOIOYlhGvJrbS/GfV6U9Zn7IqrloOt59C','customer',TRUE);
 
 INSERT INTO user_addresses (user_id, receiver_name, receiver_phone, province, district, ward, address, is_default) VALUES
 ('22222222-2222-2222-2222-222222222222','Khách hàng Demo','0911111111','TP. Hồ Chí Minh','Quận 1','Phường Bến Nghé','12 Nguyễn Huệ',TRUE);

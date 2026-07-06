@@ -1,10 +1,18 @@
 import * as newsService from './news.service.js';
 import { ok } from '../../utils/response.js';
 
-export function list(_req, res) {
-  ok(res, newsService.listNews());
+export async function list(_req, res, next) {
+  try {
+    ok(res, await newsService.listNews());
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function getById(req, res) {
-  ok(res, newsService.getNewsById(req.params.id));
+export async function getById(req, res, next) {
+  try {
+    ok(res, await newsService.getNewsById(req.params.id));
+  } catch (error) {
+    next(error);
+  }
 }

@@ -4,12 +4,28 @@ import { api } from "../api.js";
 
 export function Collections() {
   const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getCollections().then(data => {
-      if (data) setCollections(data);
-    });
+    setLoading(true);
+    api.getCollections()
+      .then(data => {
+        if (Array.isArray(data)) setCollections(data);
+        else if (data?.data) setCollections(data.data);
+      })
+      .catch(err => console.error("Collections fetch error:", err))
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) return (
+    <section className="section" id="collections" style={{ paddingTop: 20 }}>
+      <div className="wrap">
+        <div className="coll-grid">
+          {[1, 2, 3, 4].map(i => <div key={i} className="skel-block" style={{ height: 220, borderRadius: 12 }} />)}
+        </div>
+      </div>
+    </section>
+  );
 
   if (!collections.length) return null;
 
