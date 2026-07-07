@@ -17,6 +17,7 @@ export async function register({ name, email, password }) {
     email,
     password: hashed,
     role: 'customer',
+    status: 'active',
     createdAt: new Date().toISOString(),
   };
   users.set(user.id, user);
@@ -43,6 +44,8 @@ export async function login({ email, password }) {
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw new AppError('Email hoặc mật khẩu không đúng', 401);
+
+  if (user.status === 'suspended') throw new AppError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.', 403);
 
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role },

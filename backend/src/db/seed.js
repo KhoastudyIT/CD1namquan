@@ -21,6 +21,7 @@ export async function seedAdmin() {
     email: ADMIN_EMAIL,
     password: hashed,
     role: 'admin',
+    status: 'active',
     createdAt: new Date().toISOString(),
   };
   users.set(admin.id, admin);
