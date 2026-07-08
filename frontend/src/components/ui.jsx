@@ -81,16 +81,35 @@ export function ColorDots({ colors = ["#c9bfa6","#2f6b46","#1d2722"] }) {
 /* scroll reveal hook — call once in App */
 export function useReveal() {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
-        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+        if (e.isIntersecting) {
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
       });
     }, { threshold: 0.12 });
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  });
+
+    const observeExisting = () => {
+      const els = document.querySelectorAll(".reveal:not(.in)");
+      els.forEach((el) => io.observe(el));
+    };
+
+    observeExisting();
+
+    const mo = new MutationObserver(() => {
+      observeExisting();
+    });
+
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, []);
 }
+
 
 /* toast — lazily creates its own DOM node */
 let toastTimer;

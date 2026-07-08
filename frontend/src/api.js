@@ -38,6 +38,7 @@ export const api = {
   getCategories: () => fetchAPI('/categories'),
   getCollections: () => fetchAPI('/collections'),
   getNews: () => fetchAPI('/news'),
+  getNewsById: (id) => fetchAPI(`/news/${id}`),
 
   // Auth
   login: (data) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -61,10 +62,35 @@ export const api = {
   getOrderById: (id) => fetchAPI(`/orders/${id}`),
   createOrder: (data) => fetchAPI('/orders', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Admin
+  // Admin — Products & Orders
   createProduct: (data) => fetchAPI('/products', { method: 'POST', body: JSON.stringify(data) }),
   updateProduct: (id, data) => fetchAPI(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProduct: (id) => fetchAPI(`/products/${id}`, { method: 'DELETE' }),
   getAllOrders: () => fetchAPI('/orders/admin/list'),
-  updateOrderStatus: (id, status) => fetchAPI(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) })
+  updateOrderStatus: (id, status) => fetchAPI(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  getStatsOverview: () => fetchAPI('/stats/overview'),
+
+  // Admin — Users
+  getUsers: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/users${q ? `?${q}` : ''}`, {}, true);
+  },
+  getUserById: (id) => fetchAPI(`/users/${id}`),
+  updateUserRole: (id, role) => fetchAPI(`/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  updateUserStatus: (id, status) => fetchAPI(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+
+  // Admin — Categories
+  createCategory: (data) => fetchAPI('/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id, data) => fetchAPI(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCategory: (id) => fetchAPI(`/categories/${id}`, { method: 'DELETE' }),
+
+  // Admin — Collections
+  createCollection: (data) => fetchAPI('/collections', { method: 'POST', body: JSON.stringify(data) }),
+  updateCollection: (id, data) => fetchAPI(`/collections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCollection: (id) => fetchAPI(`/collections/${id}`, { method: 'DELETE' }),
+
+  // Admin — News
+  createNews: (data) => fetchAPI('/news', { method: 'POST', body: JSON.stringify(data) }),
+  updateNews: (id, data) => fetchAPI(`/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteNews: (id) => fetchAPI(`/news/${id}`, { method: 'DELETE' })
 };

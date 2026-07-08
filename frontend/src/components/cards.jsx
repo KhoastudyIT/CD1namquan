@@ -94,13 +94,18 @@ export function CategoryPill({ c }) {
 export function NewsCard({ n }) {
   return (
     <article className="news-card">
-      <div className="news-media"><Img src={n.img} alt={n.title} label="ảnh tin tức" /></div>
+      <Link to={`/news/${n.id}`} style={{ display: "block" }}>
+        <div className="news-media"><Img src={n.img} alt={n.title} label="ảnh tin tức" /></div>
+      </Link>
       <div className="news-body">
-        <h4 className="news-title">{n.title}</h4>
+        <Link to={`/news/${n.id}`} style={{ textDecoration: "none" }}>
+          <h4 className="news-title">{n.title}</h4>
+        </Link>
         <div className="news-date">{n.date}</div>
         <p className="news-ex">{n.excerpt}</p>
-        <a className="news-more" href="#">Đọc tiếp <Icon name="arrow" size={15} /></a>
+        <Link to={`/news/${n.id}`} className="news-more">Đọc tiếp <Icon name="arrow" size={15} /></Link>
       </div>
     </article>
   );
 }
+
