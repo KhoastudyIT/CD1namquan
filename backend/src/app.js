@@ -17,6 +17,8 @@ import { newsRouter }       from './modules/news/news.routes.js';
 import { cartRouter }       from './modules/cart/cart.routes.js';
 import { orderRouter }      from './modules/orders/order.routes.js';
 import { notificationRouter } from './modules/notifications/notification.routes.js';
+import { userRouter }       from './modules/user/user.routes.js';
+import { statsRouter }      from './modules/stats/stats.routes.js';
 
 export function createApp() {
   // Seed tài khoản admin mặc định vào in-memory store
@@ -42,6 +44,8 @@ export function createApp() {
   app.use(`${v1}/cart`,        cartRouter);
   app.use(`${v1}/orders`,      orderRouter);
   app.use(`${v1}/notifications`, notificationRouter);
+  app.use(`${v1}/users`,       userRouter);
+  app.use(`${v1}/stats`,       statsRouter);
 
   if (config.openapiEnabled) setupDocs(app);
 

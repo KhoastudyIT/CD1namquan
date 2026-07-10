@@ -34,6 +34,8 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
     { name: 'Cart',        description: 'Giỏ hàng — yêu cầu đăng nhập' },
     { name: 'Orders',      description: 'Đơn hàng — yêu cầu đăng nhập' },
     { name: 'Notifications', description: 'Thông báo theo từng tài khoản' },
+    { name: 'Users',       description: '[Admin] Quản lý người dùng — danh sách, phân quyền, khóa/mở' },
+    { name: 'Stats',       description: '[Admin] Thống kê & báo cáo cho dashboard' },
   ],
   components: {
     securitySchemes: {
@@ -52,7 +54,83 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           name:      { type: 'string', example: 'Nguyễn Văn An' },
           email:     { type: 'string', format: 'email', example: 'an@example.com' },
           role:      { type: 'string', enum: ['customer', 'admin'], example: 'customer' },
+          status:    { type: 'string', enum: ['active', 'suspended'], example: 'active' },
           createdAt: { type: 'string', format: 'date-time', example: '2026-06-16T10:00:00.000Z' },
+        },
+      },
+      UserWithStats: {
+        allOf: [
+          { $ref: '#/components/schemas/User' },
+          {
+            type: 'object',
+            properties: {
+              orderCount: { type: 'integer', description: 'Số đơn hàng đã đặt', example: 3 },
+            },
+          },
+        ],
+      },
+      UserListResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data:    { type: 'array', items: { $ref: '#/components/schemas/UserWithStats' } },
+          meta: {
+            type: 'object',
+            properties: {
+              total:      { type: 'integer', example: 42 },
+              page:       { type: 'integer', example: 1 },
+              limit:      { type: 'integer', example: 20 },
+              totalPages: { type: 'integer', example: 3 },
+            },
+          },
+        },
+      },
+      StatsOverview: {
+        type: 'object',
+        properties: {
+          totalRevenue:   { type: 'integer', description: 'Doanh thu (đơn chưa hủy, VND)', example: 125000000 },
+          totalOrders:    { type: 'integer', example: 87 },
+          totalProducts:  { type: 'integer', example: 12 },
+          totalUsers:     { type: 'integer', example: 42 },
+          totalCustomers: { type: 'integer', example: 41 },
+          lowStockCount:  { type: 'integer', description: 'Số sản phẩm tồn kho < 10', example: 3 },
+          avgOrderValue:  { type: 'integer', description: 'Giá trị đơn trung bình (VND)', example: 1436781 },
+          ordersByStatus: {
+            type: 'object',
+            properties: {
+              pending:   { type: 'integer', example: 10 },
+              confirmed: { type: 'integer', example: 20 },
+              shipped:   { type: 'integer', example: 15 },
+              delivered: { type: 'integer', example: 40 },
+              cancelled: { type: 'integer', example: 2 },
+            },
+          },
+          revenueByDay: {
+            type: 'array',
+            description: 'Doanh thu 7 ngày gần nhất (cũ → mới)',
+            items: {
+              type: 'object',
+              properties: {
+                date:    { type: 'string', format: 'date', example: '2026-07-06' },
+                revenue: { type: 'integer', example: 12500000 },
+                orders:  { type: 'integer', example: 4 },
+              },
+            },
+          },
+          topProducts: {
+            type: 'array',
+            description: 'Top 5 sản phẩm bán chạy',
+            items: {
+              type: 'object',
+              properties: {
+                id:      { type: 'integer', example: 5 },
+                name:    { type: 'string', example: 'Giường Ngủ Tân Cổ Điển' },
+                img:     { type: 'string', example: '/images/bedClassic.jpg' },
+                sold:    { type: 'integer', example: 73 },
+                revenue: { type: 'integer', example: 1788500000 },
+              },
+            },
+          },
         },
       },
       AuthResponse: {
@@ -544,6 +622,62 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           },
         },
       },
+      post: {
+        tags: ['Categories'],
+        summary: '[Admin] Tạo danh mục',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'img'],
+                properties: {
+                  name: { type: 'string', example: 'Đèn trang trí' },
+                  img:  { type: 'string', example: '/images/catLamp.jpg' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Đã tạo danh mục', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/Category' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/categories/{id}': {
+      put: {
+        tags: ['Categories'],
+        summary: '[Admin] Cập nhật danh mục',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, img: { type: 'string' } } } } },
+        },
+        responses: {
+          '200': { description: 'Đã cập nhật', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/Category' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      delete: {
+        tags: ['Categories'],
+        summary: '[Admin] Xóa danh mục',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        responses: {
+          '204': { description: 'Đã xóa' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
     },
 
     // ─── COLLECTIONS ─────────────────────────────────────────────────────────
@@ -565,6 +699,62 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
               },
             },
           },
+        },
+      },
+      post: {
+        tags: ['Collections'],
+        summary: '[Admin] Tạo bộ sưu tập',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'img'],
+                properties: {
+                  name: { type: 'string', example: 'BST MODERN LIVING' },
+                  img:  { type: 'string', example: '/images/modern.jpg' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Đã tạo bộ sưu tập', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/Collection' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/collections/{id}': {
+      put: {
+        tags: ['Collections'],
+        summary: '[Admin] Cập nhật bộ sưu tập',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, img: { type: 'string' } } } } },
+        },
+        responses: {
+          '200': { description: 'Đã cập nhật', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/Collection' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      delete: {
+        tags: ['Collections'],
+        summary: '[Admin] Xóa bộ sưu tập',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        responses: {
+          '204': { description: 'Đã xóa' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
         },
       },
     },
@@ -590,6 +780,35 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           },
         },
       },
+      post: {
+        tags: ['News'],
+        summary: '[Admin] Tạo bài viết',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'img', 'excerpt', 'content'],
+                properties: {
+                  title:   { type: 'string', example: 'Xu Hướng Nội Thất 2026' },
+                  img:     { type: 'string', example: '/images/news1.jpg' },
+                  excerpt: { type: 'string', example: 'Mô tả ngắn cho bài viết...' },
+                  content: { type: 'string', example: 'Nội dung đầy đủ của bài viết...' },
+                  date:    { type: 'string', description: 'Tùy chọn — mặc định ngày hiện tại', example: '11/03/2026' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Đã tạo bài viết', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
     },
     '/api/v1/news/{id}': {
       get: {
@@ -610,6 +829,34 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
               },
             },
           },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      put: {
+        tags: ['News'],
+        summary: '[Admin] Cập nhật bài viết',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', properties: { title: { type: 'string' }, img: { type: 'string' }, excerpt: { type: 'string' }, content: { type: 'string' }, date: { type: 'string' } } } } },
+        },
+        responses: {
+          '200': { description: 'Đã cập nhật', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      delete: {
+        tags: ['News'],
+        summary: '[Admin] Xóa bài viết',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        responses: {
+          '204': { description: 'Đã xóa' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
         },
       },
@@ -923,6 +1170,95 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
         },
       },
     },
+    // ─── USERS (Admin) ───────────────────────────────────────────────────────
+    '/api/v1/users': {
+      get: {
+        tags: ['Users'],
+        summary: '[Admin] Danh sách người dùng (lọc & phân trang)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Tìm theo tên hoặc email' },
+          { name: 'role',   in: 'query', schema: { type: 'string', enum: ['customer', 'admin'] }, description: 'Lọc theo quyền' },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['active', 'suspended'] }, description: 'Lọc theo trạng thái' },
+          { name: 'page',   in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          { name: 'limit',  in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 } },
+        ],
+        responses: {
+          '200': { description: 'Danh sách người dùng có phân trang', content: { 'application/json': { schema: { $ref: '#/components/schemas/UserListResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+    },
+    '/api/v1/users/{id}': {
+      get: {
+        tags: ['Users'],
+        summary: '[Admin] Chi tiết người dùng',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': { description: 'Thông tin người dùng', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/User' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/users/{id}/role': {
+      put: {
+        tags: ['Users'],
+        summary: '[Admin] Phân quyền người dùng (không thể tự đổi quyền mình)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', required: ['role'], properties: { role: { type: 'string', enum: ['customer', 'admin'], example: 'admin' } } } } },
+        },
+        responses: {
+          '200': { description: 'Đã cập nhật quyền', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/User' } } }] } } } },
+          '400': { description: 'Không thể tự thay đổi quyền của chính mình', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/users/{id}/status': {
+      put: {
+        tags: ['Users'],
+        summary: '[Admin] Khóa/mở khóa tài khoản (không thể tự khóa mình)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['active', 'suspended'], example: 'suspended' } } } } },
+        },
+        responses: {
+          '200': { description: 'Đã cập nhật trạng thái', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/User' } } }] } } } },
+          '400': { description: 'Không thể tự khóa tài khoản của chính mình', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+
+    // ─── STATS (Admin) ─────────────────────────────────────────────────────────
+    '/api/v1/stats/overview': {
+      get: {
+        tags: ['Stats'],
+        summary: '[Admin] Số liệu tổng quan cho dashboard',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Thống kê tổng quan', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/StatsOverview' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+    },
+
     '/api/v1/notifications': {
       get: {
         tags: ['Notifications'],
