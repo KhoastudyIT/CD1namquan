@@ -23,3 +23,20 @@ export function remove(req, res) {
   collectionService.deleteCollection(req.params.id);
   noContent(res);
 }
+
+export function create(req, res) {
+  const collection = collectionService.createCollection(req.body);
+  created(res, collection, 'Tạo bộ sưu tập thành công');
+}
+
+export function update(req, res) {
+  const id = parseInt(req.params.id, 10);
+  const collection = collectionService.updateCollection(id, req.body);
+  ok(res, collection, 'Cập nhật bộ sưu tập thành công');
+}
+
+export function remove(req, res) {
+  const id = parseInt(req.params.id, 10);
+  collectionService.deleteCollection(id);
+  noContent(res);
+}
