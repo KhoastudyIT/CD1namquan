@@ -49,7 +49,7 @@ export function Checkout() {
       <div className="wrap" style={{ maxWidth: 1000 }}>
         <h2 style={{ marginBottom: 24, fontSize: 24, color: "var(--green-ink)" }}>Thanh toán</h2>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 40, alignItems: 'start' }}>
+        <div className="checkout-layout">
           
           {/* Form Checkout */}
           <div style={{ background: '#fff', padding: 30, borderRadius: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--line)' }}>

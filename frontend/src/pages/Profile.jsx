@@ -19,10 +19,10 @@ export function Profile() {
     <section className="section" style={{ minHeight: '70vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
       <div className="wrap" style={{ maxWidth: 800 }}>
         
-        <div style={{ display: 'flex', gap: 30, alignItems: 'flex-start' }}>
+        <div className="profile-layout">
           
           {/* Sidebar */}
-          <div style={{ width: 250, background: '#fff', borderRadius: 16, border: '1px solid var(--line)', padding: 20, boxShadow: 'var(--shadow-sm)' }}>
+          <div className="profile-sidebar">
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 30, borderBottom: '1px solid var(--line-2)', paddingBottom: 20 }}>
               <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--mint)', color: 'var(--green-ink)', display: 'grid', placeItems: 'center', fontSize: 32, fontWeight: 700, marginBottom: 12 }}>
                 {user.name.charAt(0).toUpperCase()}
@@ -45,7 +45,7 @@ export function Profile() {
           </div>
 
           {/* Main Info */}
-          <div style={{ flex: 1, background: '#fff', padding: 30, borderRadius: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--line)' }}>
+          <div className="profile-content">
             <h2 style={{ fontSize: 20, margin: '0 0 24px', color: 'var(--ink)' }}>Hồ Sơ Của Tôi</h2>
             <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 30 }}>Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
 
