@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "./ui.jsx";
 import { Logo } from "./Logo.jsx";
@@ -48,62 +48,80 @@ export function Header({ cartCount, favCount, onMenu }) {
     }
   };
 
+  useEffect(() => {
+    if (!showSearch) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShowSearch(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showSearch]);
+
   return (
-    <header className="hdr" id="top">
-      <div className="hdr-in">
-        <Link to={isAdmin ? "/admin" : "/"} style={{display: 'flex', alignItems: 'center'}}><Logo /></Link>
-        {!isAdmin && (
-          <nav className="nav">
-            {links.map((l) => (
-              <a key={l.label} href="#" onClick={(e) => handleNav(e, l)}>{l.label}</a>
-            ))}
-          </nav>
-        )}
-        <div className="hdr-r" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <>
+      <header className="hdr" id="top">
+        <div className="hdr-in">
+          <Link to={isAdmin ? "/admin" : "/"} style={{display: 'flex', alignItems: 'center'}}><Logo /></Link>
           {!isAdmin && (
-            <>
-              {showSearch ? (
-                <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', background: '#f5f5f5', borderRadius: 20, padding: '4px 12px' }}>
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="Tìm sản phẩm..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onBlur={() => !searchQuery && setShowSearch(false)}
-                    style={{ border: 'none', background: 'transparent', outline: 'none', width: 150, fontSize: 14 }}
-                  />
-                  <button type="button" onClick={() => setShowSearch(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}><Icon name="close" size={14}/></button>
-                </form>
-              ) : (
+            <nav className="nav">
+              {links.map((l) => (
+                <a key={l.label} href="#" onClick={(e) => handleNav(e, l)}>{l.label}</a>
+              ))}
+            </nav>
+          )}
+          <div className="hdr-r" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!isAdmin && (
+              <>
                 <button className="icon-btn" aria-label="Tìm kiếm" onClick={() => setShowSearch(true)}><Icon name="search" size={19} /></button>
-              )}
-              <NotificationsBell />
-              <button className="icon-btn" aria-label="Yêu thích" onClick={() => guardNav('/favorites', 'Vui lòng đăng nhập để xem sản phẩm yêu thích.')}>
-                <Icon name="heart" size={19} />{user && favCount > 0 && <span className="badge">{favCount}</span>}
-              </button>
-              <button className="icon-btn" aria-label="Giỏ hàng" onClick={() => guardNav('/cart', 'Vui lòng đăng nhập để xem giỏ hàng của bạn.')}>
-                <Icon name="cart" size={19} />{cartCount > 0 && <span className="badge">{cartCount}</span>}
-              </button>
-            </>
-          )}
-          {user ? (
-            <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 10 }}>
-              {isAdmin && (
-                <span className="btn-pill" style={{ background: 'var(--gold)', color: '#fff', padding: '6px 14px', fontSize: 13, boxShadow: '0 4px 10px rgba(201,168,106,.2)' }}>
-                  ⚙ Quản trị viên
-                </span>
-              )}
-              {!isAdmin && <Link to="/profile" style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</Link>}
-              {isAdmin && <span style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</span>}
-              <button className="btn-pill ghost" onClick={logout} style={{ padding: "0 10px" }}>Thoát</button>
-            </div>
-          ) : (
-            <Link className="btn-pill ghost" to="/login" style={{ marginLeft: 10 }}><Icon name="user" size={16} />Đăng nhập</Link>
-          )}
-          {!isAdmin && <button className="icon-btn burger" aria-label="Menu" onClick={onMenu}><Icon name="menu" size={22} /></button>}
+                <NotificationsBell />
+                <button className="icon-btn" aria-label="Yêu thích" onClick={() => guardNav('/favorites', 'Vui lòng đăng nhập để xem sản phẩm yêu thích.')}>
+                  <Icon name="heart" size={19} />{user && favCount > 0 && <span className="badge">{favCount}</span>}
+                </button>
+                <button className="icon-btn" aria-label="Giỏ hàng" onClick={() => guardNav('/cart', 'Vui lòng đăng nhập để xem giỏ hàng của bạn.')}>
+                  <Icon name="cart" size={19} />{cartCount > 0 && <span className="badge">{cartCount}</span>}
+                </button>
+              </>
+            )}
+            {user ? (
+              <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 10 }}>
+                {isAdmin && (
+                  <span className="btn-pill" style={{ background: 'var(--gold)', color: '#fff', padding: '6px 14px', fontSize: 13, boxShadow: '0 4px 10px rgba(201,168,106,.2)' }}>
+                    ⚙ Quản trị viên
+                  </span>
+                )}
+                {!isAdmin && <Link to="/profile" style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</Link>}
+                {isAdmin && <span style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</span>}
+                <button className="btn-pill ghost" onClick={logout} style={{ padding: "0 10px" }}>Thoát</button>
+              </div>
+            ) : (
+              <Link className="btn-pill ghost" to="/login" style={{ marginLeft: 10 }}><Icon name="user" size={16} />Đăng nhập</Link>
+            )}
+            {!isAdmin && <button className="icon-btn burger" aria-label="Menu" onClick={onMenu}><Icon name="menu" size={22} /></button>}
+          </div>
         </div>
-      </div>
-    </header>
+
+        {showSearch && (
+          <div className="hdr-search-overlay">
+            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '600px', background: '#f5f5f5', borderRadius: '999px', padding: '8px 18px', gap: '10px' }}>
+              <Icon name="search" size={18} style={{ color: 'var(--muted)' }} />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Tìm kiếm sản phẩm, thương hiệu..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ border: 'none', background: 'transparent', outline: 'none', flex: 1, fontSize: '15px', color: 'var(--ink)' }}
+              />
+              <button type="button" onClick={() => setShowSearch(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'grid', placeItems: 'center' }}>
+                <Icon name="close" size={16}/>
+              </button>
+            </form>
+          </div>
+        )}
+      </header>
+      {showSearch && <div className="search-backdrop" onClick={() => setShowSearch(false)} />}
+    </>
   );
 }
