@@ -1,4 +1,5 @@
 import db from '../../db/index.js';
+import { dbCache } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
 
 const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
@@ -7,6 +8,12 @@ export async function listProducts({
   category, type, search, sort = 'newest', page = 1, limit = 12,
   priceMin, priceMax, colors, styles, materials, sizes, brands,
 }) {
+  const cacheKey = `products:list:${JSON.stringify({
+    category, type, search, sort, page, limit, priceMin, priceMax, colors, styles, materials, sizes, brands
+  })}`;
+  const cached = dbCache.get(cacheKey);
+  if (cached) return cached;
+
   const params = [];
   let whereClauses = [];
 
@@ -96,10 +103,16 @@ export async function listProducts({
   const res = await db.query(queryStr, params);
   const totalPages = Math.ceil(total / limit);
 
-  return { data: res.rows, meta: { total, page, limit, totalPages } };
+  const result = { data: res.rows, meta: { total, page, limit, totalPages } };
+  dbCache.set(cacheKey, result);
+  return result;
 }
 
 export async function getProductById(id) {
+  const cacheKey = `products:id:${id}`;
+  const cached = dbCache.get(cacheKey);
+  if (cached) return cached;
+
   const res = await db.query(`
     SELECT p.*, 
       ps.material, ps.color, ps.dimensions, ps.warranty, ps.origin, ps.style, ps.room, ps.note
@@ -109,17 +122,26 @@ export async function getProductById(id) {
   `, [id]);
   
   if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
-  return res.rows[0];
+  const product = res.rows[0];
+  dbCache.set(cacheKey, product);
+  return product;
 }
 
 export async function listFlashSales() {
+  const cacheKey = 'products:flash_sales';
+  const cached = dbCache.get(cacheKey);
+  if (cached) return cached;
+
   const res = await db.query(`
     SELECT fs.*, p.name, p.img, p.rating, p.type 
     FROM flash_sales fs 
     JOIN products p ON fs.product_id = p.id 
     WHERE fs.active = true
   `);
-  return res.rows;
+  
+  const result = res.rows;
+  dbCache.set(cacheKey, result);
+  return result;
 }
 
 export async function createProduct(data) {
@@ -129,20 +151,34 @@ export async function createProduct(data) {
     INSERT INTO products (name, slug, sku, type, price, category_id, img, description) 
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
   `, [name, slug, sku, type, price, category_id, img, description]);
+
+  // Invalidate cache
+  dbCache.deletePattern('products:');
+
   return res.rows[0];
 }
 
 export async function updateProduct(id, data) {
   // Very simplistic update for admin
+  let updatedProduct;
   if (data.price) {
     const res = await db.query(`UPDATE products SET price = $1 WHERE id = $2 RETURNING *`, [data.price, id]);
     if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
-    return res.rows[0];
+    updatedProduct = res.rows[0];
+  } else {
+    updatedProduct = await getProductById(id);
   }
-  return await getProductById(id);
+
+  // Invalidate cache
+  dbCache.deletePattern('products:');
+
+  return updatedProduct;
 }
 
 export async function deleteProduct(id) {
   const res = await db.query(`DELETE FROM products WHERE id = $1 RETURNING *`, [id]);
   if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
+
+  // Invalidate cache
+  dbCache.deletePattern('products:');
 }
