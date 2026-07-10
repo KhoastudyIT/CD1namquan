@@ -122,7 +122,7 @@
 /* ---------- HERO ---------- */
 .hero{position:relative;min-height:560px;display:flex;align-items:center;overflow:hidden;}
 .hero-bg{position:absolute;inset:0;}
-.hero-bg img,.hero-bg .ph-fallback{width:100%;height:100%;}
+.hero-bg img,.hero-bg .ph-fallback{width:100%;height:100%;object-fit:cover;}
 .hero-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, rgba(18,30,22,.72) 0%, rgba(18,30,22,.42) 42%, rgba(18,30,22,.05) 78%);}
 .hero-in{position:relative;max-width:var(--max);margin:0 auto;padding:0 28px;width:100%;color:#fff;}
 .hero h1{font-size:50px;line-height:1.08;font-weight:800;margin:0 0 18px;max-width:560px;letter-spacing:.01em;text-shadow:0 2px 20px rgba(0,0,0,.25);}
@@ -133,9 +133,9 @@
 /* ---------- CATEGORY PILLS ---------- */
 .cats{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
 .catpill{display:flex;flex-direction:column;align-items:center;gap:11px;width:118px;}
-.catpill-media{width:100px;height:100px;border-radius:50%;overflow:hidden;box-shadow:var(--shadow-sm);transition:.25s;border:3px solid #fff;outline:1px solid var(--line);}
+.catpill-media{width:100px;height:100px;border-radius:50%;overflow:hidden;box-shadow:var(--shadow-sm);transition:.25s;border:3px solid #fff;outline:1px solid var(--line);flex-shrink:0;}
 .catpill:hover .catpill-media{transform:translateY(-5px);box-shadow:var(--shadow-md);outline-color:var(--green);}
-.catpill-name{font-size:14.5px;font-weight:600;color:var(--ink-2);}
+.catpill-name{font-size:14.5px;font-weight:600;color:var(--ink-2);min-height:20px;}
 .catpill:hover .catpill-name{color:var(--green-ink);}
 
 /* ---------- SHOWCASE (two image) ---------- */
@@ -230,6 +230,7 @@
 
 /* ---------- BIG SHOWCASE IMAGE ---------- */
 .bigimg{height:380px;border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);position:relative;}
+.bigimg img,.bigimg .ph-fallback{width:100%;height:100%;object-fit:cover;}
 .bigimg::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(20,30,22,.35),transparent 60%);}
 
 /* ---------- TRUST ---------- */
