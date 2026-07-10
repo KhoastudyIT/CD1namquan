@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Img, Icon, toast } from "../components/ui.jsx";
+import { vnd, Img, Icon, toast, confirm } from "../components/ui.jsx";
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
@@ -41,7 +42,18 @@ const STATUS_COLORS = {
 };
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news"];
+  const hashTab = location.hash.replace("#", "");
+  const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
+
+  // Thay đổi tab → cập nhật URL hash (reload sẽ giữ đúng tab)
+  const setActiveTab = useCallback((tab) => {
+    navigate(`/admin#${tab}`, { replace: true });
+  }, [navigate]);
 
   // ── Chung ─────────────────────────────────────────────────────────
   const [products, setProducts] = useState([]);
@@ -221,7 +233,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteProduct = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}"?`)) {
       try {
         await api.deleteProduct(id);
         toast("Xóa sản phẩm thành công!");
@@ -292,7 +304,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteCategory = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?`)) {
       try {
         await api.deleteCategory(id);
         toast("Xóa danh mục thành công!");
@@ -336,7 +348,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteCollection = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa bộ sưu tập "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa bộ sưu tập "${name}"?`)) {
       try {
         await api.deleteCollection(id);
         toast("Xóa bộ sưu tập thành công!");
@@ -386,7 +398,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteNews = async (id, title) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}"?`)) {
       try {
         await api.deleteNews(id);
         toast("Xóa bài viết thành công!");
