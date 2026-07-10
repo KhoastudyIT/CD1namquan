@@ -17,20 +17,6 @@ export async function getById(req, res, next) {
   }
 }
 
-export function create(req, res) {
-  const article = newsService.createNews(req.body);
-  created(res, article, 'Đã tạo bài viết');
-}
-
-export function update(req, res) {
-  const article = newsService.updateNews(req.params.id, req.body);
-  ok(res, article, 'Đã cập nhật bài viết');
-}
-
-export function remove(req, res) {
-  newsService.deleteNews(req.params.id);
-  noContent(res);
-}
 
 export function create(req, res) {
   const article = newsService.createNews(req.body);
