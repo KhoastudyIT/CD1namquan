@@ -10,15 +10,34 @@ const STATUS_TEXT = {
   cancelled: 'đã bị hủy',
 };
 
+// Lấy items cho nhiều đơn trong 1 query (tránh N+1), trả về map orderId -> items[]
+async function itemsByOrder(orderIds) {
+  if (orderIds.length === 0) return {};
+  const res = await db.query('SELECT * FROM order_items WHERE order_id = ANY($1)', [orderIds]);
+  const map = {};
+  for (const item of res.rows) {
+    (map[item.order_id] ??= []).push({
+      productId: item.product_id,
+      quantity: item.quantity,
+      name: item.name,
+      price: item.price,
+      img: item.img,
+    });
+  }
+  return map;
+}
+
 export async function listOrders(userId) {
   const res = await db.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+  const itemsMap = await itemsByOrder(res.rows.map(r => r.id));
   return res.rows.map(row => ({
     id: row.id,
     userId: row.user_id,
     total: row.total,
     status: row.status,
     shippingAddress: row.shipping_address,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    items: itemsMap[row.id] ?? []
   }));
 }
 
@@ -29,6 +48,7 @@ export async function listAllOrders() {
     LEFT JOIN users u ON o.user_id = u.id
     ORDER BY o.created_at DESC
   `);
+  const itemsMap = await itemsByOrder(res.rows.map(r => r.id));
   return res.rows.map(row => ({
     id: row.id,
     userId: row.user_id,
@@ -37,7 +57,8 @@ export async function listAllOrders() {
     total: row.total,
     status: row.status,
     shippingAddress: row.shipping_address,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    items: itemsMap[row.id] ?? []
   }));
 }
 

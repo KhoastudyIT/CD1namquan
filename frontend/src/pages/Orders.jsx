@@ -66,7 +66,7 @@ export function Orders() {
                     </span>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                    Đặt ngày: {new Date(o.createdAt).toLocaleDateString('vi-VN')} • {o.items.length} sản phẩm
+                    Đặt ngày: {new Date(o.createdAt).toLocaleDateString('vi-VN')} • {o.items?.length ?? 0} sản phẩm
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
