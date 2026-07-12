@@ -81,29 +81,151 @@ export function ColorDots({ colors = ["#c9bfa6","#2f6b46","#1d2722"] }) {
 /* scroll reveal hook — call once in App */
 export function useReveal() {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
-        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+        if (e.isIntersecting) {
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
       });
     }, { threshold: 0.12 });
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+
+    const observeExisting = () => {
+      const els = document.querySelectorAll(".reveal:not(.in)");
+      els.forEach((el) => io.observe(el));
+    };
+
+    observeExisting();
+
+    const mo = new MutationObserver(() => {
+      observeExisting();
+    });
+
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, []);
+}
+
+
+/* toast — stackable notification system with auto-dismiss and close buttons */
+export function toast(msg, type = "success") {
+  if (msg && typeof msg === "object") {
+    msg = msg.message || JSON.stringify(msg);
+    type = "error";
+  }
+
+  const lowerMsg = String(msg).toLowerCase();
+  if (type === "success") {
+    if (
+      lowerMsg.includes("lỗi") ||
+      lowerMsg.includes("thất bại") ||
+      lowerMsg.includes("không tìm thấy") ||
+      lowerMsg.includes("từ chối") ||
+      lowerMsg.includes("chưa") ||
+      lowerMsg.includes("quá ngắn") ||
+      lowerMsg.includes("error")
+    ) {
+      type = "error";
+    } else if (lowerMsg.includes("cảnh báo") || lowerMsg.includes("vui lòng")) {
+      type = "warning";
+    } else if (lowerMsg.includes("thông tin") || lowerMsg.includes("lưu ý")) {
+      type = "info";
+    }
+  }
+
+  let container = document.getElementById("nq-toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "nq-toast-container";
+    document.body.appendChild(container);
+  }
+
+  const item = document.createElement("div");
+  item.className = `toast-item ${type}`;
+
+  const icons = {
+    success: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+    error: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e04a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
+    warning: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+    info: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`
+  };
+
+  item.innerHTML = `
+    <div class="toast-icon">${icons[type] || icons.success}</div>
+    <div class="toast-content">${msg}</div>
+    <div class="toast-close">&times;</div>
+  `;
+
+  if (container.firstChild) {
+    container.insertBefore(item, container.firstChild);
+  } else {
+    container.appendChild(item);
+  }
+
+  setTimeout(() => item.classList.add("show"), 10);
+
+  const dismissToast = () => {
+    item.classList.add("fade-out");
+    setTimeout(() => {
+      if (item.parentNode) item.parentNode.removeChild(item);
+    }, 350);
+  };
+
+  let dismissTimer = setTimeout(dismissToast, 4000);
+
+  item.querySelector(".toast-close").addEventListener("click", () => {
+    clearTimeout(dismissTimer);
+    dismissToast();
   });
 }
 
-/* toast — lazily creates its own DOM node */
-let toastTimer;
-export function toast(msg) {
-  let el = document.getElementById("nq-toast");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "nq-toast";
-    el.className = "toast";
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+toast.success = (msg) => toast(msg, "success");
+toast.error = (msg) => toast(msg, "error");
+toast.warning = (msg) => toast(msg, "warning");
+toast.info = (msg) => toast(msg, "info");
+
+/* confirm — Promise-based premium modal dialog overlay */
+export function confirm(msg, title = "Xác nhận xóa") {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-hdr">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e04a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span class="confirm-title">${title}</span>
+        </div>
+        <div class="confirm-body">${msg}</div>
+        <div class="confirm-ftr">
+          <button class="confirm-btn cancel">Hủy</button>
+          <button class="confirm-btn confirm-action">Xác nhận</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    setTimeout(() => overlay.classList.add("show"), 10);
+
+    const close = (result) => {
+      overlay.classList.remove("show");
+      setTimeout(() => {
+        if (overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+        resolve(result);
+      }, 250);
+    };
+
+    overlay.querySelector(".cancel").addEventListener("click", () => close(false));
+    overlay.querySelector(".confirm-action").addEventListener("click", () => close(true));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+  });
 }
