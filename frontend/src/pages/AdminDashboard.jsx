@@ -100,6 +100,9 @@ export function AdminDashboard() {
   const [productStock, setProductStock] = useState("all");     // all | in | low | out
   const [productSort, setProductSort] = useState("default");   // default | price-asc | price-desc | stock-asc | sold-desc
 
+  // ── Mobile nav (menu hamburger) ───────────────────────────────────
+  const [mobileNav, setMobileNav] = useState(false);
+
   // ── Modals ────────────────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -464,28 +467,39 @@ export function AdminDashboard() {
     );
   }
 
+  const NAV_ITEMS = [
+    { key: "overview",    icon: "leaf",  label: "Tổng quan" },
+    { key: "products",    icon: "cart",  label: `Sản phẩm (${totalProducts})` },
+    { key: "categories",  icon: "menu",  label: "Danh mục" },
+    { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
+    { key: "news",        icon: "bell",  label: "Tin tức" },
+    { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
+    { key: "users",       icon: "user",  label: "Người dùng" },
+  ];
+  const currentNavLabel = NAV_ITEMS.find(t => t.key === activeTab)?.label || "Quản trị";
+
   return (
     <div className="admin-layout">
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className="admin-sidebar">
+      {/* ── Thanh bar mobile: hamburger + tên tab hiện tại ────────── */}
+      <div className="admin-mobile-bar">
+        <button className="admin-burger" onClick={() => setMobileNav(v => !v)} aria-label="Menu quản trị" aria-expanded={mobileNav}>
+          <Icon name={mobileNav ? "close" : "menu"} size={20} />
+        </button>
+        <span className="admin-mobile-title">{currentNavLabel}</span>
+      </div>
+
+      {/* ── Sidebar (mobile: sổ xuống dưới thanh bar từ hamburger) ── */}
+      <aside className={`admin-sidebar ${mobileNav ? "open" : ""}`}>
         <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--line)", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--green-ink)" }}>HỆ THỐNG QUẢN TRỊ</h3>
           <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>Nam Quan Premium Shop</span>
         </div>
 
-        {[
-          { key: "overview",    icon: "leaf",  label: "Tổng quan" },
-          { key: "products",    icon: "cart",  label: `Sản phẩm (${totalProducts})` },
-          { key: "categories",  icon: "menu",  label: "Danh mục" },
-          { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
-          { key: "news",        icon: "bell",  label: "Tin tức" },
-          { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
-          { key: "users",       icon: "user",  label: "Người dùng" },
-        ].map(({ key, icon, label }) => (
+        {NAV_ITEMS.map(({ key, icon, label }) => (
           <button
             key={key}
             className={`admin-sidebar-btn ${activeTab === key ? "active" : ""}`}
-            onClick={() => setActiveTab(key)}
+            onClick={() => { setActiveTab(key); setMobileNav(false); }}
           >
             <Icon name={icon} size={16} fill={activeTab === key ? "#fff" : "none"} />
             <span>{label}</span>
