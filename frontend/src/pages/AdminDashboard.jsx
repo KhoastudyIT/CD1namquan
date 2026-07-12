@@ -505,7 +505,7 @@ export function AdminDashboard() {
             </div>
 
             {/* 6 Stat Cards */}
-            <div className="admin-stats-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+            <div className="admin-ov-stats">
               {[
                 { icon: "💰", label: "Doanh thu",              val: `${vnd(totalRevenue)} đ`,        accent: "var(--green)" },
                 { icon: "📦", label: "Tổng đơn hàng",          val: totalOrders,                     accent: "var(--gold)" },
@@ -525,7 +525,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Row 2: biểu đồ doanh thu + trạng thái đơn */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr", gap: 20, marginBottom: 20 }}>
+            <div className="admin-ov-row2">
               <div className="admin-card">
                 <h4 className="admin-card-title">📊 Doanh thu 7 ngày gần nhất</h4>
                 {revenueByDay.length > 0
@@ -556,7 +556,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Row 3: top sản phẩm + đơn mới + tồn kho */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 0.8fr", gap: 20 }}>
+            <div className="admin-ov-row3">
               <div className="admin-card">
                 <h4 className="admin-card-title">🏆 Top 5 bán chạy</h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
