@@ -45,7 +45,7 @@ export function ProductDetail() {
   return (
     <section className="section" style={{ minHeight: "80vh", background: "var(--paper-2)", padding: "40px 0 80px" }}>
       <div className="wrap">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "60px", alignItems: "start" }}>
+        <div className="pd-layout">
           
           {/* Left: Image */}
           <div style={{ background: "#fff", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}>

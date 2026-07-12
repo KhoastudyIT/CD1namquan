@@ -5,10 +5,14 @@ export function Partners() {
     <section className="section" style={{ paddingTop: 0 }}>
       <div className="wrap">
         <h2 className="sec-title" style={{ fontSize: 22 }}>Đối tác của chúng tôi</h2>
-        <div className="partners reveal">
-          {partners.map((p) => (
-            <div key={p} className="partner"><span className="pmark">{p[0]}</span>{p}</div>
-          ))}
+        <div className="partners-wrapper reveal">
+          <div className="partners-track">
+            {partners.map((p, index) => (
+              <div key={index} className="partner-logo">
+                <img src={p.img} alt={p.name} title={p.name} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

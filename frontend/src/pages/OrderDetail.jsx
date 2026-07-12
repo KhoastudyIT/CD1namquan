@@ -54,7 +54,7 @@ export function OrderDetail() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, marginBottom: 30 }}>
+          <div className="order-detail-info">
             <div>
               <h3 style={{ fontSize: 15, margin: '0 0 10px', color: 'var(--ink-2)' }}>Thông tin giao hàng</h3>
               <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -90,8 +90,8 @@ export function OrderDetail() {
             ))}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--line-2)', paddingTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
-            <div style={{ width: 300 }}>
+          <div className="order-detail-summary">
+            <div className="order-detail-summary-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
                 <span style={{ color: "var(--muted)" }}>Tạm tính</span>
                 <span>{vnd(order.total)}đ</span>

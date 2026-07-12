@@ -38,9 +38,21 @@ const P = {
   armBeige:   I("armBeige"),
   sofaSlate:  I("sofaSlate"),
   armPink:    I("armPink"),
+  bonCauLaskaDen: I("bon_cau_laska_hoa_tiet_den"),
+  bonCauLaskaTrang: I("bon_cau_laska_trang"),
+  boSofaGocBanTron: I("bo_sofa_goc_va_ban_tron_doi_cao_thap"),
+  boSofaBanMatDa: I("bo_sofa_va_ban_mat_da"),
+  decorDenTrang: I("do_decor_phong_khach_typography_dentrang"),
+  decorNauDen: I("do_decor_phong_khach_typography_nauden"),
+  voiSenDen: I("voi_hoa_sen_toan_than_denbong"),
+  voiSenVang: I("voi_hoa_sen_toan_than_vangkim"),
+  voiCaoRinto: I("voi_rua_tay_cao_rinto"),
+  voiCoMemRinto: I("voi_rua_tay_co_mem_rinto"),
+  voiRinto: I("voi_rua_tay_rinto"),
+  voiRintoVuong: I("voi_rua_tay_rinto_vuong"),
 };
 
-export const cats = ["Phòng khách", "Phòng ngủ", "Bếp", "Văn phòng", "Decor"];
+export const cats = ["Phòng khách", "Phòng ngủ", "Bếp", "Văn phòng", "Decor", "Phòng tắm"];
 
 function p(id, name, type, price, cat, img, rating, sold) {
   return { id, name, type, price, cat, img, rating, sold };
@@ -59,6 +71,18 @@ export const products = [
   p(10, "Ghế Armchair Bọc Vải Kem",  "Ghế Armchair",5400000,  "Phòng khách", P.armBeige,  4.6, 130),
   p(11, "Sofa Băng Da Cao Cấp",      "Ghế Sofa",    29900000, "Phòng khách", P.sofaSlate, 4.9, 49),
   p(12, "Ghế Bành Tân Cổ Điển Rose", "Ghế Armchair",6900000,  "Phòng ngủ",   P.armPink,   4.7, 38),
+  p(36, "Bồn Cầu Laska Họa Tiết Đen", "Thiết Bị Vệ Sinh", 4500000, "Phòng tắm", P.bonCauLaskaDen, 5.0, 0),
+  p(37, "Bồn Cầu Laska Trắng", "Thiết Bị Vệ Sinh", 4200000, "Phòng tắm", P.bonCauLaskaTrang, 4.9, 0),
+  p(38, "Bộ Sofa Góc Và Bàn Tròn Đôi Cao Thấp", "Bộ Sofa", 25900000, "Phòng khách", P.boSofaGocBanTron, 5.0, 0),
+  p(39, "Bộ Sofa Và Bàn Mặt Đá", "Bộ Sofa", 28500000, "Phòng khách", P.boSofaBanMatDa, 4.8, 0),
+  p(40, "Đồ Decor Typography Đen Trắng", "Decor", 850000, "Decor", P.decorDenTrang, 4.7, 0),
+  p(41, "Đồ Decor Typography Nâu Đen", "Decor", 850000, "Decor", P.decorNauDen, 4.8, 0),
+  p(42, "Vòi Sen Toàn Thân Đen Bóng", "Thiết Bị Vệ Sinh", 3500000, "Phòng tắm", P.voiSenDen, 4.9, 0),
+  p(43, "Vòi Sen Toàn Thân Vàng Kim", "Thiết Bị Vệ Sinh", 3800000, "Phòng tắm", P.voiSenVang, 5.0, 0),
+  p(44, "Vòi Rửa Tay Cao Rinto", "Thiết Bị Vệ Sinh", 1200000, "Phòng tắm", P.voiCaoRinto, 4.7, 0),
+  p(45, "Vòi Rửa Tay Cổ Mềm Rinto", "Thiết Bị Vệ Sinh", 1450000, "Phòng tắm", P.voiCoMemRinto, 4.8, 0),
+  p(46, "Vòi Rửa Tay Rinto", "Thiết Bị Vệ Sinh", 950000, "Phòng tắm", P.voiRinto, 4.6, 0),
+  p(47, "Vòi Rửa Tay Rinto Vuông", "Thiết Bị Vệ Sinh", 1100000, "Phòng tắm", P.voiRintoVuong, 4.8, 0),
 ];
 
 export const flash = [
@@ -97,4 +121,16 @@ export const news = [
     excerpt: "Tối ưu công năng sử dụng với hệ thống bàn ghế linh hoạt, tạo cảm hứng cho không gian làm việc." },
 ];
 
-export const partners = ["MOHO", "HOMIE", "NHÀ XINH", "HAVEN", "HALO", "HAPPYFOOD", "ECOBOO"];
+export const partners = [
+  { name: "Logo 1", img: "/images/partner1.png" },
+  { name: "Logo 2", img: "/images/partner2.png" },
+  { name: "Logo 3", img: "/images/partner3.png" },
+  { name: "Logo 4", img: "/images/partner4.png" },
+  { name: "Logo 5", img: "/images/partner5.png" },
+  { name: "HAPPYFOOD", img: "/images/partner6.png" },
+  { name: "ECOBOO", img: "/images/partner7.png" },
+  { name: "COMOON", img: "/images/partner8.png" },
+  { name: "BÌNH MINH SÀI GÒN", img: "/images/partner9.png" },
+  { name: "VẠN TƯỜNG", img: "/images/partner10.png" },
+  { name: "ÂU LẠC HUẾ", img: "/images/partner11.png" },
+];
