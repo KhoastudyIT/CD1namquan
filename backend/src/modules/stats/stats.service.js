@@ -46,7 +46,7 @@ export async function getOverview() {
       ORDER BY date ASC
     `),
     db.query(`
-      SELECT id, name, img, sold, (sold * price) as revenue
+      SELECT id, name, img, sold, (sold::bigint * price) as revenue
       FROM products
       ORDER BY sold DESC
       LIMIT 5
