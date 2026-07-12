@@ -97,6 +97,8 @@ export function AdminDashboard() {
   // ── Products filter ───────────────────────────────────────────────
   const [productSearch, setProductSearch] = useState("");
   const [productCategory, setProductCategory] = useState("all");
+  const [productStock, setProductStock] = useState("all");     // all | in | low | out
+  const [productSort, setProductSort] = useState("default");   // default | price-asc | price-desc | stock-asc | sold-desc
 
   // ── Modals ────────────────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
@@ -199,7 +201,7 @@ export function AdminDashboard() {
 
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
   const handleOpenAdd = () => {
-    const defaultCat = allCategories.length > 0 ? allCategories[0].name : "Phòng khách";
+    const defaultCat = displayCategories[0] || "Phòng khách";
     setFormData({ name: "", type: "Ghế Sofa", price: 1000000, category: defaultCat, img: "/images/placeholder.jpg", stock: 10, description: "Mô tả sản phẩm chất lượng cao." });
     setShowAddModal(true);
   };
@@ -421,14 +423,37 @@ export function AdminDashboard() {
   const revenueByDay   = stats?.revenueByDay   ?? [];
   const topProducts    = stats?.topProducts    ?? [];
 
-  const displayCategories = allCategories.length > 0 ? allCategories.map(c => c.name) : ["Phòng khách", "Phòng ngủ", "Decor", "Ngoại trời", "Văn phòng", "Trang trí"];
+  // Danh mục cho bộ lọc & form sản phẩm: lấy trực tiếp từ category thực tế của
+  // sản phẩm để dropdown luôn khớp khi lọc (bảng "Danh mục" dùng taxonomy khác).
+  const FALLBACK_CATEGORIES = ["Phòng khách", "Phòng ngủ", "Decor", "Ngoại trời", "Văn phòng", "Trang trí"];
+  const productCategories = [...new Set(products.map(p => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+  const displayCategories = productCategories.length > 0 ? productCategories : FALLBACK_CATEGORIES;
 
   const lowStockProducts = products.filter(p => p.stock < 10);
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.type.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = productCategory === "all" || p.category === productCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products
+    .filter(p => {
+      const q = productSearch.toLowerCase();
+      const matchesSearch = p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q);
+      const matchesCategory = productCategory === "all" || p.category === productCategory;
+      const matchesStock =
+        productStock === "all" ||
+        (productStock === "in"  && p.stock >= 10) ||
+        (productStock === "low" && p.stock > 0 && p.stock < 10) ||
+        (productStock === "out" && p.stock === 0);
+      return matchesSearch && matchesCategory && matchesStock;
+    })
+    .sort((a, b) => {
+      switch (productSort) {
+        case "price-asc":  return a.price - b.price;
+        case "price-desc": return b.price - a.price;
+        case "stock-asc":  return a.stock - b.stock;
+        case "sold-desc":  return (b.sold || 0) - (a.sold || 0);
+        default:           return 0;
+      }
+    });
+
+  const productFilterActive = productSearch || productCategory !== "all" || productStock !== "all" || productSort !== "default";
+  const resetProductFilters = () => { setProductSearch(""); setProductCategory("all"); setProductStock("all"); setProductSort("default"); };
 
   if (loading) {
     return (
@@ -599,12 +624,31 @@ export function AdminDashboard() {
             </div>
 
             <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <input type="text" placeholder="Tìm kiếm sản phẩm theo tên hoặc loại..." className="admin-input" style={{ flex: 1, minWidth: 200 }} value={productSearch} onChange={e => setProductSearch(e.target.value)} />
-                <select className="admin-select" style={{ width: 200 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
+                <select className="admin-select" style={{ width: 180 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
                   <option value="all">Tất cả danh mục</option>
                   {displayCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <select className="admin-select" style={{ width: 160 }} value={productStock} onChange={e => setProductStock(e.target.value)}>
+                  <option value="all">Tất cả tồn kho</option>
+                  <option value="in">Còn hàng (≥ 10)</option>
+                  <option value="low">Sắp hết (1 – 9)</option>
+                  <option value="out">Hết hàng (0)</option>
+                </select>
+                <select className="admin-select" style={{ width: 170 }} value={productSort} onChange={e => setProductSort(e.target.value)}>
+                  <option value="default">Sắp xếp mặc định</option>
+                  <option value="price-asc">Giá tăng dần</option>
+                  <option value="price-desc">Giá giảm dần</option>
+                  <option value="stock-asc">Tồn kho ít nhất</option>
+                  <option value="sold-desc">Bán chạy nhất</option>
+                </select>
+                {productFilterActive && (
+                  <button className="btn-pill ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={resetProductFilters}>✕ Xóa lọc</button>
+                )}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+                Hiển thị <b style={{ color: "var(--green-ink)" }}>{filteredProducts.length}</b> / {products.length} sản phẩm
               </div>
             </div>
 
