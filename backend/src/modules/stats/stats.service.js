@@ -56,10 +56,11 @@ export async function getOverview() {
   const totalRevenue = parseInt(ordersAggr.rows[0].total_revenue, 10);
   const paidOrders = parseInt(ordersAggr.rows[0].paid_orders, 10);
 
-  const ordersByStatus = { pending: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0 };
-  for (const row of ordersByStatusRes.rows) {
-    ordersByStatus[row.status] = parseInt(row.count, 10);
-  }
+  // Trả về MẢNG [{status, count}] để khớp với frontend (dùng .map)
+  const ordersByStatus = ordersByStatusRes.rows.map(row => ({
+    status: row.status,
+    count: parseInt(row.count, 10),
+  }));
 
   const revenueByDayRaw = revenueByDayRes.rows;
   // Fill missing days

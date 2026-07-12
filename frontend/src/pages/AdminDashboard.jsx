@@ -419,8 +419,8 @@ export function AdminDashboard() {
   const lowStockCount  = stats?.lowStockCount  ?? products.filter(p => p.stock < 10).length;
   const totalUsers     = stats?.totalUsers     ?? 0;
   const avgOrderValue  = stats?.avgOrderValue  ?? 0;
-  const ordersByStatus = stats?.ordersByStatus ?? [];
-  const revenueByDay   = stats?.revenueByDay   ?? [];
+  const ordersByStatus = Array.isArray(stats?.ordersByStatus) ? stats.ordersByStatus : [];
+  const revenueByDay   = Array.isArray(stats?.revenueByDay)   ? stats.revenueByDay   : [];
   const topProducts    = stats?.topProducts    ?? [];
 
   // Danh mục cho bộ lọc & form sản phẩm: lấy trực tiếp từ category thực tế của
