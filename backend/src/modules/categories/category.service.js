@@ -1,30 +1,45 @@
-import { categories } from '../../db/store.js';
+import db from '../../db/index.js';
+import { dbCache } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
 
-export function listCategories() {
-  return categories;
+export async function listCategories() {
+  const cacheKey = 'categories:list';
+  const cached = dbCache.get(cacheKey);
+  if (cached) return cached;
+
+  const res = await db.query('SELECT * FROM categories ORDER BY id ASC');
+  const result = res.rows;
+  dbCache.set(cacheKey, result, 600000); // 10 minutes cache
+  return result;
 }
 
-function findIndex(id) {
-  const idx = categories.findIndex(c => c.id === Number(id));
-  if (idx === -1) throw new AppError('Không tìm thấy danh mục', 404);
-  return idx;
+export async function createCategory(data) {
+  const { name, img } = data;
+  const res = await db.query(
+    'INSERT INTO categories (name, img) VALUES ($1, $2) RETURNING *',
+    [name, img]
+  );
+  dbCache.delete('categories:list');
+  return res.rows[0];
 }
 
-export function createCategory(data) {
-  const id = categories.reduce((max, c) => Math.max(max, c.id), 0) + 1;
-  const category = { id, ...data };
-  categories.push(category);
-  return category;
+export async function updateCategory(id, data) {
+  const { name, img } = data;
+  let res;
+  if (name && img) {
+    res = await db.query('UPDATE categories SET name = $1, img = $2 WHERE id = $3 RETURNING *', [name, img, id]);
+  } else if (name) {
+    res = await db.query('UPDATE categories SET name = $1 WHERE id = $2 RETURNING *', [name, id]);
+  } else if (img) {
+    res = await db.query('UPDATE categories SET img = $1 WHERE id = $2 RETURNING *', [img, id]);
+  }
+  if (!res || res.rows.length === 0) throw new AppError('Không tìm thấy danh mục', 404);
+  dbCache.delete('categories:list');
+  return res.rows[0];
 }
 
-export function updateCategory(id, data) {
-  const idx = findIndex(id);
-  categories[idx] = { ...categories[idx], ...data };
-  return categories[idx];
-}
-
-export function deleteCategory(id) {
-  const idx = findIndex(id);
-  categories.splice(idx, 1);
+export async function deleteCategory(id) {
+  const res = await db.query('DELETE FROM categories WHERE id = $1 RETURNING *', [id]);
+  if (res.rows.length === 0) throw new AppError('Không tìm thấy danh mục', 404);
+  dbCache.delete('categories:list');
 }

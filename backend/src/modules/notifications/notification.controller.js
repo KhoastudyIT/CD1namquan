@@ -1,14 +1,26 @@
 import * as notificationService from './notification.service.js';
 import { ok } from '../../utils/response.js';
 
-export function list(req, res) {
-  ok(res, notificationService.listNotifications(req.user.id));
+export async function list(req, res, next) {
+  try {
+    ok(res, await notificationService.listNotifications(req.user.id));
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function markRead(req, res) {
-  ok(res, notificationService.markAsRead(req.user.id, req.params.id), 'Đã đánh dấu đã đọc');
+export async function markRead(req, res, next) {
+  try {
+    ok(res, await notificationService.markAsRead(req.user.id, req.params.id), 'Đã đánh dấu đã đọc');
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function markAllRead(req, res) {
-  ok(res, notificationService.markAllAsRead(req.user.id), 'Đã đánh dấu tất cả đã đọc');
+export async function markAllRead(req, res, next) {
+  try {
+    ok(res, await notificationService.markAllAsRead(req.user.id), 'Đã đánh dấu tất cả đã đọc');
+  } catch (error) {
+    next(error);
+  }
 }

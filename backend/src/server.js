@@ -1,10 +1,8 @@
+import 'dotenv/config';
 import { createApp } from './app.js';
 import config from './config/index.js';
-import { seedAdmin } from './db/seed.js';
 
 const app = createApp();
-
-await seedAdmin();
 
 const server = app.listen(config.port, () => {
   console.log('');

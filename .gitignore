@@ -2,6 +2,11 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Biến môi trường (không commit) — dùng .env.example làm mẫu
+.env
+.env.*
+!.env.example
 .DS_Store
 .vscode/*
 !.vscode/extensions.json

@@ -7,6 +7,7 @@ import 'express-async-errors';
 import config from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupDocs } from './docs/openapi.js';
+import { seedAdmin } from './db/seed.js';
 
 import { authRouter }       from './modules/auth/auth.routes.js';
 import { productRouter }    from './modules/products/product.routes.js';
@@ -20,6 +21,9 @@ import { userRouter }       from './modules/user/user.routes.js';
 import { statsRouter }      from './modules/stats/stats.routes.js';
 
 export function createApp() {
+  // Seed tài khoản admin mặc định vào in-memory store
+  seedAdmin();
+
   const app = express();
 
   app.use(helmet({ contentSecurityPolicy: false }));

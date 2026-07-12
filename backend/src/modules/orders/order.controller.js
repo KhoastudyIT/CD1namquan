@@ -1,24 +1,44 @@
 import * as orderService from './order.service.js';
 import { ok, created } from '../../utils/response.js';
 
-export function list(req, res) {
-  ok(res, orderService.listOrders(req.user.id));
+export async function list(req, res, next) {
+  try {
+    ok(res, await orderService.listOrders(req.user.id));
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function getById(req, res) {
-  ok(res, orderService.getOrderById(req.user.id, req.params.id));
+export async function getById(req, res, next) {
+  try {
+    ok(res, await orderService.getOrderById(req.user.id, req.params.id));
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function create(req, res) {
-  const order = orderService.createOrder(req.user.id, req.body);
-  created(res, order, 'Đặt hàng thành công');
+export async function create(req, res, next) {
+  try {
+    const order = await orderService.createOrder(req.user.id, req.body);
+    created(res, order, 'Đặt hàng thành công');
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function listAll(_req, res) {
-  ok(res, orderService.listAllOrders());
+export async function listAll(_req, res, next) {
+  try {
+    ok(res, await orderService.listAllOrders());
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function updateStatus(req, res) {
-  const order = orderService.updateOrderStatus(req.params.id, req.body.status);
-  ok(res, order, 'Đã cập nhật trạng thái đơn hàng');
+export async function updateStatus(req, res, next) {
+  try {
+    const order = await orderService.updateOrderStatus(req.params.id, req.body.status);
+    ok(res, order, 'Đã cập nhật trạng thái đơn hàng');
+  } catch (error) {
+    next(error);
+  }
 }
