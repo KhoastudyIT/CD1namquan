@@ -44,6 +44,7 @@ export const api = {
   login: (data) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   register: (data) => fetchAPI('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => fetchAPI('/auth/me'),
+  logout: () => fetchAPI('/auth/logout', { method: 'POST' }),
 
   // Cart
   getCart: () => fetchAPI('/cart'),

@@ -95,7 +95,7 @@ export function AdminDashboard() {
 
   // ── Product form ──────────────────────────────────────────────────
   const [formData, setFormData] = useState({
-    name: "", type: "", price: "", category: "Phòng khách", img: "", stock: "", description: ""
+    name: "", type: "", price: "", categoryId: "", img: "", stock: "", description: ""
   });
 
   // ─────────────── FETCH ───────────────────────────────────────────
@@ -187,22 +187,31 @@ export function AdminDashboard() {
 
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
   const handleOpenAdd = () => {
-    const defaultCat = allCategories.length > 0 ? allCategories[0].name : "Phòng khách";
-    setFormData({ name: "", type: "Ghế Sofa", price: 1000000, category: defaultCat, img: "/images/placeholder.jpg", stock: 10, description: "Mô tả sản phẩm chất lượng cao." });
+    if (allCategories.length === 0) {
+      toast("Create a category before adding a product");
+      return;
+    }
+    setFormData({
+      name: "", type: "", price: 1000000, categoryId: String(allCategories[0].id),
+      img: "/images/placeholder.jpg", stock: 10, description: ""
+    });
     setShowAddModal(true);
   };
 
   const handleOpenEdit = (p) => {
     setSelectedProduct(p);
-    setFormData({ name: p.name, type: p.type, price: p.price, category: p.category, img: p.img, stock: p.stock, description: p.description || "" });
+    setFormData({
+      name: p.name, type: p.type, price: p.price, categoryId: p.category_id ? String(p.category_id) : "",
+      img: p.img, stock: p.stock, description: p.description || ""
+    });
     setShowEditModal(true);
   };
 
   const handleCreateProduct = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.type || !formData.price || !formData.stock) { toast("Vui lòng điền đầy đủ thông tin bắt buộc"); return; }
+    if (!formData.name || !formData.type || !formData.price || !formData.stock || !formData.categoryId) { toast("Vui lòng điền đầy đủ thông tin bắt buộc"); return; }
     try {
-      await api.createProduct({ ...formData, price: Number(formData.price), stock: Number(formData.stock) });
+      await api.createProduct({ ...formData, categoryId: Number(formData.categoryId), price: Number(formData.price), stock: Number(formData.stock) });
       toast("Thêm sản phẩm thành công!");
       setShowAddModal(false);
       fetchData();
@@ -211,9 +220,9 @@ export function AdminDashboard() {
 
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.type || !formData.price || !formData.stock) { toast("Vui lòng điền đầy đủ thông tin bắt buộc"); return; }
+    if (!formData.name || !formData.type || !formData.price || !formData.stock || !formData.categoryId) { toast("Vui lòng điền đầy đủ thông tin bắt buộc"); return; }
     try {
-      await api.updateProduct(selectedProduct.id, { ...formData, price: Number(formData.price), stock: Number(formData.stock) });
+      await api.updateProduct(selectedProduct.id, { ...formData, categoryId: Number(formData.categoryId), price: Number(formData.price), stock: Number(formData.stock) });
       toast("Cập nhật sản phẩm thành công!");
       setShowEditModal(false);
       fetchData();
@@ -409,12 +418,34 @@ export function AdminDashboard() {
   const revenueByDay   = stats?.revenueByDay   ?? [];
   const topProducts    = stats?.topProducts    ?? [];
 
-  const displayCategories = allCategories.length > 0 ? allCategories.map(c => c.name) : ["Phòng khách", "Phòng ngủ", "Decor", "Ngoại trời", "Văn phòng", "Trang trí"];
+  const displayCategories = allCategories;
 
-  const lowStockProducts = products.filter(p => p.stock < 10);
+  // Helpers to normalize product <-> category relations
+  const getProductCategoryId = (p) => {
+    if (p == null) return null;
+    if (p.category_id != null) return Number(p.category_id);
+    if (p.categoryId != null) return Number(p.categoryId);
+    // fallback: if product has category as name, try to find matching category id
+    if (typeof p.category === 'string') {
+      const found = allCategories.find(c => c.name === p.category);
+      return found ? Number(found.id) : null;
+    }
+    return null;
+  };
+
+  const getCategoryNameForProduct = (p) => {
+    if (p == null) return "";
+    if (p.category && typeof p.category === 'string') return p.category;
+    const id = getProductCategoryId(p);
+    if (id == null) return "";
+    const c = allCategories.find(x => Number(x.id) === Number(id));
+    return c ? c.name : "";
+  };
+
+  const lowStockProducts = products.filter(p => Number(p.stock) < 10);
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.type.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = productCategory === "all" || p.category === productCategory;
+    const matchesSearch = (p.name || "").toLowerCase().includes(productSearch.toLowerCase()) || (p.type || "").toLowerCase().includes(productSearch.toLowerCase());
+    const matchesCategory = productCategory === "all" || getProductCategoryId(p) === Number(productCategory);
     return matchesSearch && matchesCategory;
   });
 
@@ -591,7 +622,7 @@ export function AdminDashboard() {
                 <input type="text" placeholder="Tìm kiếm sản phẩm theo tên hoặc loại..." className="admin-input" style={{ flex: 1, minWidth: 200 }} value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 <select className="admin-select" style={{ width: 200 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
                   <option value="all">Tất cả danh mục</option>
-                  {displayCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {displayCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
@@ -607,7 +638,7 @@ export function AdminDashboard() {
                       <td><Img src={p.img} alt={p.name} className="admin-img-thumb" /></td>
                       <td style={{ fontWeight: 600 }}>{p.name}</td>
                       <td>{p.type}</td>
-                      <td style={{ color: "var(--muted)" }}>{p.category}</td>
+                      <td style={{ color: "var(--muted)" }}>{getCategoryNameForProduct(p)}</td>
                       <td style={{ fontWeight: 700, color: "var(--green-ink)" }}>{vnd(p.price)} đ</td>
                       <td style={{ fontWeight: 600, color: p.stock < 10 ? "var(--orange-2)" : "inherit" }}>{p.stock}</td>
                       <td>{p.sold}</td>
@@ -1004,8 +1035,9 @@ export function AdminDashboard() {
                 </div>
                 <div className="admin-form-group">
                   <label>Danh mục *</label>
-                  <select className="admin-select" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                    {displayCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <select className="admin-select" value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value })}>
+                    <option value="" disabled>Select category</option>
+                    {displayCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -1054,8 +1086,9 @@ export function AdminDashboard() {
                 </div>
                 <div className="admin-form-group">
                   <label>Danh mục *</label>
-                  <select className="admin-select" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                    {displayCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <select className="admin-select" value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value })}>
+                    <option value="" disabled>Select category</option>
+                    {displayCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>

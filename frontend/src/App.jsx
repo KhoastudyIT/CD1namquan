@@ -109,13 +109,19 @@ export default function App() {
     });
   }, [requireLogin]);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setCart([]);
-    setNotifs([]);
-    navigate('/');
-    toast("Đã đăng xuất");
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch (err) {
+      // ignore API errors and continue clearing local state
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+      setCart([]);
+      setNotifs([]);
+      navigate('/');
+      toast("Đã đăng xuất");
+    }
   };
 
   const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead };
