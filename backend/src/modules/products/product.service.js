@@ -5,11 +5,11 @@ import { AppError } from '../../middleware/errorHandler.js';
 const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
 
 export async function listProducts({
-  category, type, search, sort = 'newest', page = 1, limit = 12,
+  category, categoryId, type, search, sort = 'newest', page = 1, limit = 12,
   priceMin, priceMax, colors, styles, materials, sizes, brands,
 }) {
   const cacheKey = `products:list:${JSON.stringify({
-    category, type, search, sort, page, limit, priceMin, priceMax, colors, styles, materials, sizes, brands
+    category, categoryId, type, search, sort, page, limit, priceMin, priceMax, colors, styles, materials, sizes, brands
   })}`;
   const cached = dbCache.get(cacheKey);
   if (cached) return cached;
@@ -17,9 +17,13 @@ export async function listProducts({
   const params = [];
   let whereClauses = [];
 
-  if (category) {
+  if (categoryId) {
+    params.push(categoryId);
+    whereClauses.push(`p.category_id = $${params.length}`);
+  } else if (category) {
+    // Backwards-compatible filtering by name. The authoritative value remains category_id.
     params.push(category);
-    whereClauses.push(`p.category = $${params.length}`);
+    whereClauses.push(`c.name = $${params.length}`);
   }
   if (type) {
     params.push(type);
@@ -71,7 +75,7 @@ export async function listProducts({
     whereClauses.push(`b.name = ANY($${params.length})`);
   }
 
-  let queryStr = `SELECT p.* FROM products p`;
+  let queryStr = `SELECT p.*, c.name AS category, c.slug AS category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id`;
   if (joinSpecs) queryStr += ` LEFT JOIN product_specs ps ON p.id = ps.product_id`;
   if (joinBrands) queryStr += ` LEFT JOIN brands b ON p.brand_id = b.id`;
   
@@ -114,9 +118,10 @@ export async function getProductById(id) {
   if (cached) return cached;
 
   const res = await db.query(`
-    SELECT p.*, 
+    SELECT p.*, c.name AS category, c.slug AS category_slug,
       ps.material, ps.color, ps.dimensions, ps.warranty, ps.origin, ps.style, ps.room, ps.note
     FROM products p 
+    LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN product_specs ps ON p.id = ps.product_id 
     WHERE p.id = $1
   `, [id]);
@@ -144,35 +149,73 @@ export async function listFlashSales() {
   return result;
 }
 
+async function ensureCategoryExists(categoryId) {
+  const result = await db.query('SELECT 1 FROM categories WHERE id = $1', [categoryId]);
+  if (result.rows.length === 0) {
+    throw new AppError('Selected category does not exist', 400);
+  }
+}
+
+const toSlug = (value) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/\u0111/g, 'd')
+  .replace(/\u0110/g, 'D')
+  .toLowerCase()
+  .trim()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '') || 'san-pham';
+
+async function generateUniqueSlug(name) {
+  const base = toSlug(name);
+  let slug = base;
+  let suffix = 2;
+
+  while ((await db.query('SELECT 1 FROM products WHERE slug = $1', [slug])).rows.length > 0) {
+    slug = `${base}-${suffix++}`;
+  }
+
+  return slug;
+}
+
 export async function createProduct(data) {
-  // Simplistic implementation for admin
-  const { name, slug, sku, type, price, category_id, img, description } = data;
+  const { name, type, price, categoryId, img, stock, description } = data;
+  await ensureCategoryExists(categoryId);
+  const slug = await generateUniqueSlug(name);
   const res = await db.query(`
-    INSERT INTO products (name, slug, sku, type, price, category_id, img, description) 
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-  `, [name, slug, sku, type, price, category_id, img, description]);
+    INSERT INTO products (name, slug, type, price, category_id, img, stock, description)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+  `, [name, slug, type, price, categoryId, img, stock, description]);
 
-  // Invalidate cache
   dbCache.deletePattern('products:');
-
-  return res.rows[0];
+  return getProductById(res.rows[0].id);
 }
 
 export async function updateProduct(id, data) {
-  // Very simplistic update for admin
-  let updatedProduct;
-  if (data.price) {
-    const res = await db.query(`UPDATE products SET price = $1 WHERE id = $2 RETURNING *`, [data.price, id]);
-    if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
-    updatedProduct = res.rows[0];
-  } else {
-    updatedProduct = await getProductById(id);
-  }
+  if (data.categoryId !== undefined) await ensureCategoryExists(data.categoryId);
 
-  // Invalidate cache
+  const fields = [
+    ['name', 'name'],
+    ['type', 'type'],
+    ['price', 'price'],
+    ['categoryId', 'category_id'],
+    ['img', 'img'],
+    ['stock', 'stock'],
+    ['description', 'description'],
+  ].filter(([key]) => data[key] !== undefined);
+
+  if (fields.length === 0) return getProductById(id);
+
+  const values = fields.map(([key]) => data[key]);
+  const assignments = fields.map(([, column], index) => `${column} = $${index + 1}`);
+  const result = await db.query(
+    `UPDATE products SET ${assignments.join(', ')} WHERE id = $${values.length + 1} RETURNING id`,
+    [...values, id]
+  );
+  if (result.rows.length === 0) throw new AppError('Product not found', 404);
+
   dbCache.deletePattern('products:');
-
-  return updatedProduct;
+  return getProductById(id);
 }
 
 export async function deleteProduct(id) {

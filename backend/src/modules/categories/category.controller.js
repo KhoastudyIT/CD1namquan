@@ -10,19 +10,19 @@ export async function list(_req, res, next) {
 }
 
 
-export function create(req, res) {
-  const category = categoryService.createCategory(req.body);
+export async function create(req, res) {
+  const category = await categoryService.createCategory(req.body);
   created(res, category, 'Tạo danh mục thành công');
 }
 
-export function update(req, res) {
+export async function update(req, res) {
   const id = parseInt(req.params.id, 10);
-  const category = categoryService.updateCategory(id, req.body);
+  const category = await categoryService.updateCategory(id, req.body);
   ok(res, category, 'Cập nhật danh mục thành công');
 }
 
-export function remove(req, res) {
+export async function remove(req, res) {
   const id = parseInt(req.params.id, 10);
-  categoryService.deleteCategory(id);
+  await categoryService.deleteCategory(id);
   noContent(res);
 }
