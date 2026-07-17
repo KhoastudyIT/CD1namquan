@@ -1,7 +1,7 @@
 /* ============ NAM QUAN — UI primitives ============ */
 import { useState, useEffect } from "react";
 
-export const vnd = (n) => n.toLocaleString("vi-VN");
+export const vnd = (n) => (n != null ? Number(n).toLocaleString("vi-VN") : "0");
 
 /* image with graceful fallback to striped placeholder */
 export function Img({ src, alt = "", label = "ảnh", style, className = "", ...rest }) {

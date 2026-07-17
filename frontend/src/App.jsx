@@ -87,7 +87,7 @@ export default function App() {
 
   const addToCart = useCallback((p, quantity = 1) => {
     if (!requireLogin("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.", "/cart")) return;
-    const targetId = Number(p.productId || p.id);
+    const targetId = Number(p.product_id || p.productId || p.id);
     api.addToCart(targetId, Number(quantity)).then(data => {
       if (data) {
         toast(`🛒 Đã thêm ${quantity} “${p.name}” vào giỏ hàng`);

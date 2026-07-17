@@ -58,7 +58,7 @@ const pct = Math.min(100, Math.round((sold / stock) * 100));
           <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
         </Link>
         <div className="pcard-tools">
-          <FavBtn active={fav} onClick={() => onFav(p.id)} />
+          <FavBtn active={fav} onClick={() => onFav(p.product_id || p.productId || p.id)} />
           <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
             <Icon name="cart" size={15} stroke={1.7} />
           </button>

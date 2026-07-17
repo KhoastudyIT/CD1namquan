@@ -52,7 +52,7 @@ export function FlashSale({ favs, onFav, onAdd }) {
   if (error) return (
     <section className="section flash-sec" id="flash">
       <div className="wrap">
-        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "#fff" }}>
+        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
           <p>Không thể tải dữ liệu Flash Sale. Vui lòng thử lại sau.</p>
         </div>
       </div>
@@ -62,7 +62,7 @@ export function FlashSale({ favs, onFav, onAdd }) {
   if (!flash.length) return (
     <section className="section flash-sec" id="flash">
       <div className="wrap">
-        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "#fff" }}>
+        <div className="flash-shell" style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
           <p>Hiện không có chương trình Flash Sale nào đang diễn ra.</p>
         </div>
       </div>
