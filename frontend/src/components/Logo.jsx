@@ -1,8 +1,8 @@
 export function Logo() {
   return (
-    <a className="logo" href="#top">
+    <div className="logo">
       <span className="mark">NQ</span>
       <span>NAM QUAN<small>NỘI THẤT CAO CẤP</small></span>
-    </a>
+    </div>
   );
 }

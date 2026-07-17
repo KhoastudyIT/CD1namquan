@@ -1,0 +1,66 @@
+# NAM QUAN — Docker Compose (dev/local)
+# Chạy:   docker compose up -d --build
+# Dừng:   docker compose down
+# Xoá cả dữ liệu DB:  docker compose down -v
+#
+# 3 service:
+#   postgres  : PostgreSQL 16, TỰ nạp backend/database/nam_quan_database.sql lần đầu
+#   backend   : Express API (kết nối postgres qua DATABASE_URL)
+#   frontend  : React build tĩnh, phục vụ bằng nginx
+#
+# Giá trị nhạy cảm có thể override qua file .env cùng cấp (xem .env.example).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: namquan_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nam_quan
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    # 5433 ở host để tránh đụng Postgres cài sẵn trên máy (trong container vẫn là 5432)
+    ports:
+      - "5433:5432"
+    volumes:
+      - namquan_pgdata:/var/lib/postgresql/data
+      # File .sql duy nhất — Postgres tự chạy khi khởi tạo DB lần đầu
+      - ./backend/database/nam_quan_database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nam_quan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    container_name: namquan_backend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-nam-quan-dev-secret}
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/nam_quan
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api/v1}
+    container_name: namquan_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  namquan_pgdata:

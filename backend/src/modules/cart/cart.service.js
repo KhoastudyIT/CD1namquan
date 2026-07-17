@@ -1,51 +1,77 @@
-import { carts, products } from '../../db/store.js';
+import db from '../../db/index.js';
 import { AppError } from '../../middleware/errorHandler.js';
 
-function getUserCart(userId) {
-  if (!carts.has(userId)) carts.set(userId, { items: [] });
-  return carts.get(userId);
+async function getOrCreateCart(userId) {
+  const res = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
+  if (res.rows.length > 0) return res.rows[0].id;
+
+  const insert = await db.query('INSERT INTO carts (user_id) VALUES ($1) RETURNING id', [userId]);
+  return insert.rows[0].id;
 }
 
-function buildCartResponse(userId) {
-  const cart = getUserCart(userId);
-  const enriched = cart.items
-    .map(item => ({ ...item, product: products.get(item.productId) }))
-    .filter(item => item.product);
-  const total = enriched.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
-  const itemCount = enriched.reduce((sum, i) => sum + i.quantity, 0);
-  return { items: enriched, total, itemCount };
+export async function getCart(userId) {
+  const cartId = await getOrCreateCart(userId);
+  
+  const res = await db.query(`
+    SELECT ci.id, ci.product_id, ci.quantity, 
+           p.name as product_name, p.price as product_price, p.img as product_img
+    FROM cart_items ci
+    JOIN products p ON ci.product_id = p.id
+    WHERE ci.cart_id = $1
+    ORDER BY ci.created_at ASC
+  `, [cartId]);
+
+  const items = res.rows.map(r => ({
+    id: r.id,
+    productId: r.product_id,
+    quantity: r.quantity,
+    product: {
+      id: r.product_id,
+      name: r.product_name,
+      price: r.product_price,
+      img: r.product_img
+    }
+  }));
+
+  const total = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+
+  return { items, total, itemCount };
 }
 
-export function getCart(userId) {
-  return buildCartResponse(userId);
-}
+export async function addItem(userId, { productId, quantity }) {
+  const check = await db.query('SELECT id FROM products WHERE id = $1', [productId]);
+  if (check.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
 
-export function addItem(userId, { productId, quantity }) {
-  if (!products.has(productId)) throw new AppError('Không tìm thấy sản phẩm', 404);
-  const cart = getUserCart(userId);
-  const existing = cart.items.find(i => i.productId === productId);
-  if (existing) {
-    existing.quantity += quantity;
+  const cartId = await getOrCreateCart(userId);
+  
+  const existing = await db.query('SELECT id, quantity FROM cart_items WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+  
+  if (existing.rows.length > 0) {
+    await db.query('UPDATE cart_items SET quantity = quantity + $1 WHERE id = $2', [quantity, existing.rows[0].id]);
   } else {
-    cart.items.push({ productId, quantity });
+    await db.query('INSERT INTO cart_items (cart_id, product_id, quantity) VALUES ($1, $2, $3)', [cartId, productId, quantity]);
   }
-  return buildCartResponse(userId);
+
+  return await getCart(userId);
 }
 
-export function updateItem(userId, productId, quantity) {
-  const cart = getUserCart(userId);
-  const item = cart.items.find(i => i.productId === Number(productId));
-  if (!item) throw new AppError('Sản phẩm không có trong giỏ hàng', 404);
-  item.quantity = quantity;
-  return buildCartResponse(userId);
+export async function updateItem(userId, productId, quantity) {
+  const cartId = await getOrCreateCart(userId);
+  
+  const res = await db.query('UPDATE cart_items SET quantity = $1 WHERE cart_id = $2 AND product_id = $3 RETURNING id', [quantity, cartId, productId]);
+  if (res.rows.length === 0) throw new AppError('Sản phẩm không có trong giỏ hàng', 404);
+  
+  return await getCart(userId);
 }
 
-export function removeItem(userId, productId) {
-  const cart = getUserCart(userId);
-  cart.items = cart.items.filter(i => i.productId !== Number(productId));
-  return buildCartResponse(userId);
+export async function removeItem(userId, productId) {
+  const cartId = await getOrCreateCart(userId);
+  await db.query('DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+  return await getCart(userId);
 }
 
-export function clearCart(userId) {
-  carts.set(userId, { items: [] });
+export async function clearCart(userId) {
+  const cartId = await getOrCreateCart(userId);
+  await db.query('DELETE FROM cart_items WHERE cart_id = $1', [cartId]);
 }

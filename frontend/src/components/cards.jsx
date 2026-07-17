@@ -1,5 +1,6 @@
 /* ============ NAM QUAN — cards ============ */
 import { Img, Icon, Stars, ColorDots, vnd } from "./ui.jsx";
+import { Link } from "react-router-dom";
 
 export function FavBtn({ active, onClick }) {
   return (
@@ -18,7 +19,9 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
   return (
     <div className="pcard">
       <div className="pcard-media">
-        <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        <Link to={`/product/${p.id}`} style={{ display: 'block', height: '100%' }}>
+          <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.id)} />
           <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
@@ -28,7 +31,7 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
       </div>
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
-        <div className="pcard-name">{p.name}</div>
+        <Link to={`/product/${p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
         <div className="pcard-foot">
           <div className="pcard-meta">
             <Stars value={p.rating} />
@@ -42,12 +45,18 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
 }
 
 export function FlashCard({ p, fav, onFav, onAdd }) {
-  const pct = Math.min(100, Math.round((p.sold / p.stock) * 100));
+  const price = Number(p.price || 0);
+const oldPrice = Number(p.old || p.originalPrice || p.original_price || price || 0);
+const sold = Number(p.sold || 0);
+const stock = Number(p.stock || 1);
+const pct = Math.min(100, Math.round((sold / stock) * 100));
   return (
     <div className="pcard flash">
       <div className="pcard-media">
-        <span className="flash-tag">-{Math.round((1 - p.price / p.old) * 100)}%</span>
-        <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        <span className="flash-tag">-{oldPrice > 0 ? Math.round((1 - price / oldPrice) * 100) : 0}%</span>
+        <Link to={`/product/${p.product_id || p.productId || p.id}`} style={{ display: 'block', height: '100%' }}>
+          <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
+        </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.id)} />
           <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
@@ -57,11 +66,11 @@ export function FlashCard({ p, fav, onFav, onAdd }) {
       </div>
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
-        <div className="pcard-name">{p.name}</div>
+        <Link to={`/product/${p.product_id || p.productId || p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
         <div className="pcard-foot" style={{ alignItems: "flex-end" }}>
           <Stars value={p.rating} />
           <div className="flash-prices">
-            <span className="flash-old">{vnd(p.old)}đ</span>
+            <span className="flash-old">{vnd(oldPrice)}đ</span>
             <span className="flash-now">{vnd(p.price)} <span>đ</span></span>
           </div>
         </div>
@@ -88,13 +97,18 @@ export function CategoryPill({ c }) {
 export function NewsCard({ n }) {
   return (
     <article className="news-card">
-      <div className="news-media"><Img src={n.img} alt={n.title} label="ảnh tin tức" /></div>
+      <Link to={`/news/${n.id}`} style={{ display: "block" }}>
+        <div className="news-media"><Img src={n.img} alt={n.title} label="ảnh tin tức" /></div>
+      </Link>
       <div className="news-body">
-        <h4 className="news-title">{n.title}</h4>
+        <Link to={`/news/${n.id}`} style={{ textDecoration: "none" }}>
+          <h4 className="news-title">{n.title}</h4>
+        </Link>
         <div className="news-date">{n.date}</div>
         <p className="news-ex">{n.excerpt}</p>
-        <a className="news-more" href="#">Đọc tiếp <Icon name="arrow" size={15} /></a>
+        <Link to={`/news/${n.id}`} className="news-more">Đọc tiếp <Icon name="arrow" size={15} /></Link>
       </div>
     </article>
   );
 }
+
