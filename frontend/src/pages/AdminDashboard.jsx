@@ -46,7 +46,7 @@ export function AdminDashboard() {
   const navigate = useNavigate();
 
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news"];
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales"];
   const hashTab = location.hash.replace("#", "");
   const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
 
@@ -94,6 +94,16 @@ export function AdminDashboard() {
   const [selectedNews, setSelectedNews] = useState(null);
   const [newsFormData, setNewsFormData] = useState({ title: "", img: "", excerpt: "", content: "", date: "" });
 
+  // ── Flash Sales tab ────────────────────────────────────────────────
+  const [flashSales, setFlashSales] = useState([]);
+  const [flashSalesLoading, setFlashSalesLoading] = useState(false);
+  const [showAddFlashModal, setShowAddFlashModal] = useState(false);
+  const [showEditFlashModal, setShowEditFlashModal] = useState(false);
+  const [selectedFlash, setSelectedFlash] = useState(null);
+  const [flashFormData, setFlashFormData] = useState({
+    productId: "", price: "", originalPrice: "", discountPct: "", stock: "", sold: "", startsAt: "", endsAt: "", active: true
+  });
+
   // ── Products filter ───────────────────────────────────────────────
   const [productSearch, setProductSearch] = useState("");
   const [productCategory, setProductCategory] = useState("all");
@@ -130,11 +140,26 @@ export function AdminDashboard() {
 
       const catsData = await api.getCategories();
       setAllCategories(catsData || []);
+
+      const flashData = await api.getFlashSalesAdmin();
+      setFlashSales(flashData || []);
     } catch (err) {
       console.error(err);
       toast("Lỗi tải dữ liệu: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFlashSales = async () => {
+    setFlashSalesLoading(true);
+    try {
+      const data = await api.getFlashSalesAdmin();
+      setFlashSales(data || []);
+    } catch (err) {
+      toast("Lỗi tải danh sách Flash Sale: " + err.message);
+    } finally {
+      setFlashSalesLoading(false);
     }
   };
 
@@ -201,6 +226,7 @@ export function AdminDashboard() {
   useEffect(() => { if (activeTab === "categories") fetchCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") fetchNewsList(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
 
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
   const handleOpenAdd = () => {
@@ -421,6 +447,137 @@ export function AdminDashboard() {
     }
   };
 
+  // ─────────────── FLASH SALE HANDLERS ──────────────────────────────
+  const handleOpenAddFlash = () => {
+    if (products.length === 0) {
+      toast("Vui lòng thêm sản phẩm trước khi tạo Flash Sale");
+      return;
+    }
+    const defaultProduct = products[0];
+    setFlashFormData({
+      productId: String(defaultProduct.id),
+      price: String(Math.round(defaultProduct.price * 0.8)),
+      originalPrice: String(defaultProduct.price),
+      discountPct: "20",
+      stock: "50",
+      sold: "0",
+      startsAt: new Date().toISOString().slice(0, 16),
+      endsAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
+      active: true
+    });
+    setShowAddFlashModal(true);
+  };
+
+  const handleOpenEditFlash = (fs) => {
+    setSelectedFlash(fs);
+    const discount = fs.original_price > 0 ? Math.round((1 - Number(fs.price) / Number(fs.original_price)) * 100) : 0;
+    setFlashFormData({
+      productId: String(fs.product_id),
+      price: String(fs.price),
+      originalPrice: String(fs.original_price),
+      discountPct: String(discount),
+      stock: String(fs.stock),
+      sold: String(fs.sold),
+      startsAt: fs.starts_at ? new Date(fs.starts_at).toISOString().slice(0, 16) : "",
+      endsAt: fs.ends_at ? new Date(fs.ends_at).toISOString().slice(0, 16) : "",
+      active: fs.active
+    });
+    setShowEditFlashModal(true);
+  };
+
+  const handleFlashProductChange = (prodId) => {
+    const prod = products.find(p => String(p.id) === String(prodId));
+    if (!prod) return;
+    const orig = Number(prod.price || 0);
+    const pct = Number(flashFormData.discountPct || 20);
+    const sale = Math.round(orig * (1 - pct / 100));
+    setFlashFormData(prev => ({
+      ...prev,
+      productId: String(prodId),
+      originalPrice: String(orig),
+      price: String(sale)
+    }));
+  };
+
+  const handleFlashPriceChange = (val) => {
+    const sale = Number(val || 0);
+    const orig = Number(flashFormData.originalPrice || 0);
+    let pct = 0;
+    if (orig > 0) {
+      pct = Math.round((1 - sale / orig) * 100);
+    }
+    setFlashFormData(prev => ({
+      ...prev,
+      price: String(val),
+      discountPct: String(pct)
+    }));
+  };
+
+  const handleFlashDiscountChange = (val) => {
+    const pct = Number(val || 0);
+    const orig = Number(flashFormData.originalPrice || 0);
+    const sale = Math.round(orig * (1 - pct / 100));
+    setFlashFormData(prev => ({
+      ...prev,
+      discountPct: String(val),
+      price: String(sale)
+    }));
+  };
+
+  const handleCreateFlash = async (e) => {
+    e.preventDefault();
+    try {
+      await api.createFlashSale({
+        productId: Number(flashFormData.productId),
+        price: Number(flashFormData.price),
+        originalPrice: Number(flashFormData.originalPrice),
+        stock: Number(flashFormData.stock || 0),
+        sold: Number(flashFormData.sold || 0),
+        startsAt: flashFormData.startsAt ? new Date(flashFormData.startsAt).toISOString() : new Date().toISOString(),
+        endsAt: flashFormData.endsAt ? new Date(flashFormData.endsAt).toISOString() : null,
+        active: flashFormData.active
+      });
+      toast("Đã thêm chương trình Flash Sale");
+      setShowAddFlashModal(false);
+      fetchFlashSales();
+    } catch (err) {
+      toast("Lỗi tạo Flash Sale: " + err.message);
+    }
+  };
+
+  const handleUpdateFlash = async (e) => {
+    e.preventDefault();
+    if (!selectedFlash) return;
+    try {
+      await api.updateFlashSale(selectedFlash.id, {
+        productId: Number(flashFormData.productId),
+        price: Number(flashFormData.price),
+        originalPrice: Number(flashFormData.originalPrice),
+        stock: Number(flashFormData.stock || 0),
+        sold: Number(flashFormData.sold || 0),
+        startsAt: flashFormData.startsAt ? new Date(flashFormData.startsAt).toISOString() : new Date().toISOString(),
+        endsAt: flashFormData.endsAt ? new Date(flashFormData.endsAt).toISOString() : null,
+        active: flashFormData.active
+      });
+      toast("Đã cập nhật chương trình Flash Sale");
+      setShowEditFlashModal(false);
+      fetchFlashSales();
+    } catch (err) {
+      toast("Lỗi cập nhật Flash Sale: " + err.message);
+    }
+  };
+
+  const handleDeleteFlash = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa chương trình Flash Sale này không?")) return;
+    try {
+      await api.deleteFlashSale(id);
+      toast("Đã xóa chương trình Flash Sale");
+      fetchFlashSales();
+    } catch (err) {
+      toast("Lỗi xóa Flash Sale: " + err.message);
+    }
+  };
+
   // ─────────────── HELPERS ─────────────────────────────────────────
   const getStatusLabel = (s) => ({ pending: "Chờ xử lý", confirmed: "Đã xác nhận", shipped: "Đang giao", delivered: "Đã giao hàng", cancelled: "Đã hủy" }[s] || s);
 
@@ -500,6 +657,7 @@ export function AdminDashboard() {
     { key: "categories",  icon: "menu",  label: "Danh mục" },
     { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
     { key: "news",        icon: "bell",  label: "Tin tức" },
+    { key: "flash_sales", icon: "fire",  label: `Flash Sale (${flashSales.length})` },
     { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
     { key: "users",       icon: "user",  label: "Người dùng" },
   ];
@@ -1081,6 +1239,86 @@ export function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* ===== TAB 8: FLASH SALES ===== */}
+        {activeTab === "flash_sales" && (
+          <div>
+            <div className="admin-sec-header">
+              <h2>Quản lý Flash Sale</h2>
+              <button className="btn-pill" onClick={handleOpenAddFlash}>🔥 Thêm Flash Sale</button>
+            </div>
+
+            {flashSalesLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Ảnh</th>
+                      <th>Sản phẩm</th>
+                      <th>Giá gốc</th>
+                      <th>Giá sale</th>
+                      <th>Giảm giá</th>
+                      <th>Kho sale</th>
+                      <th>Đã bán</th>
+                      <th>Thời gian sale</th>
+                      <th>Trạng thái</th>
+                      <th style={{ width: 140 }}>Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flashSales.map(fs => {
+                      const discount = fs.original_price > 0 ? Math.round((1 - fs.price / fs.original_price) * 100) : 0;
+                      const startStr = fs.starts_at ? new Date(fs.starts_at).toLocaleString("vi-VN", { dateStyle: 'short', timeStyle: 'short' }) : "N/A";
+                      const endStr = fs.ends_at ? new Date(fs.ends_at).toLocaleString("vi-VN", { dateStyle: 'short', timeStyle: 'short' }) : "Không giới hạn";
+                      return (
+                        <tr key={fs.id}>
+                          <td>
+                            <img src={fs.product_img || "/images/placeholder.jpg"} alt={fs.product_name} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line)' }} />
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{fs.product_name}</td>
+                          <td style={{ color: "var(--muted)", textDecoration: "line-through" }}>{vnd(fs.original_price)} đ</td>
+                          <td style={{ color: "var(--red)", fontWeight: 700 }}>{vnd(fs.price)} đ</td>
+                          <td>
+                            <span style={{ background: "#fee2e2", color: "#ef4444", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+                              -{discount}%
+                            </span>
+                          </td>
+                          <td>{fs.stock}</td>
+                          <td>{fs.sold}</td>
+                          <td style={{ fontSize: 12, color: "var(--muted)" }}>
+                            <div>Bắt đầu: {startStr}</div>
+                            <div>Kết thúc: {endStr}</div>
+                          </td>
+                          <td>
+                            <span style={{
+                              display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                              fontSize: 12, fontWeight: 700,
+                              background: fs.active ? "#dcfce7" : "#fee2e2",
+                              color: fs.active ? "var(--green-ink)" : "#ef4444",
+                            }}>
+                              {fs.active ? "✅ Hoạt động" : "❌ Tạm ngưng"}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="admin-actions">
+                              <button className="admin-btn-sm edit" onClick={() => handleOpenEditFlash(fs)}>Sửa</button>
+                              <button className="admin-btn-sm delete" onClick={() => handleDeleteFlash(fs.id)}>Xóa</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {flashSales.length === 0 && (
+                      <tr><td colSpan="10" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Chưa cấu hình chương trình Flash Sale nào</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* ===== MODAL: ADD PRODUCT ===== */}
@@ -1395,6 +1633,128 @@ export function AdminDashboard() {
               </div>
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowEditNewsModal(false)}>Hủy bỏ</button>
+                <button type="submit" className="btn-pill">Cập nhật</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ===== MODAL: ADD FLASH SALE ===== */}
+      {showAddFlashModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowAddFlashModal(false)}>
+          <div className="admin-modal-panel" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setShowAddFlashModal(false)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title">Thêm sản phẩm Flash Sale</h3>
+            <form onSubmit={handleCreateFlash}>
+              <div className="admin-form-group">
+                <label>Sản phẩm áp dụng *</label>
+                <select className="admin-select" required value={flashFormData.productId} onChange={e => handleFlashProductChange(e.target.value)}>
+                  <option value="" disabled>-- Chọn sản phẩm --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} ({vnd(p.price)} đ)</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Giá gốc sản phẩm</label>
+                  <input type="text" className="admin-input" disabled value={vnd(flashFormData.originalPrice) + " đ"} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Giảm giá (%) *</label>
+                  <input type="number" min="0" max="100" className="admin-input" required value={flashFormData.discountPct} onChange={e => handleFlashDiscountChange(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Giá bán Flash Sale *</label>
+                  <input type="number" min="1" className="admin-input" required value={flashFormData.price} onChange={e => handleFlashPriceChange(e.target.value)} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Số lượng kho sale *</label>
+                  <input type="number" min="1" className="admin-input" required value={flashFormData.stock} onChange={e => setFlashFormData({ ...flashFormData, stock: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Thời gian bắt đầu *</label>
+                  <input type="datetime-local" className="admin-input" required value={flashFormData.startsAt} onChange={e => setFlashFormData({ ...flashFormData, startsAt: e.target.value })} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Thời gian kết thúc</label>
+                  <input type="datetime-local" className="admin-input" value={flashFormData.endsAt} onChange={e => setFlashFormData({ ...flashFormData, endsAt: e.target.value })} />
+                </div>
+              </div>
+              <div className="admin-form-group" style={{ display: "flex", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 12 }}>
+                <input type="checkbox" id="add-flash-active" checked={flashFormData.active} onChange={e => setFlashFormData({ ...flashFormData, active: e.target.checked })} />
+                <label htmlFor="add-flash-active" style={{ marginBottom: 0, cursor: "pointer" }}>Kích hoạt</label>
+              </div>
+              <div className="admin-form-actions" style={{ marginTop: 20 }}>
+                <button type="button" className="btn-pill ghost" onClick={() => setShowAddFlashModal(false)}>Hủy bỏ</button>
+                <button type="submit" className="btn-pill">Tạo chương trình</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL: EDIT FLASH SALE ===== */}
+      {showEditFlashModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowEditFlashModal(false)}>
+          <div className="admin-modal-panel" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setShowEditFlashModal(false)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title">Cấu hình Flash Sale</h3>
+            <form onSubmit={handleUpdateFlash}>
+              <div className="admin-form-group">
+                <label>Sản phẩm áp dụng</label>
+                <select className="admin-select" disabled value={flashFormData.productId}>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Giá gốc sản phẩm</label>
+                  <input type="text" className="admin-input" disabled value={vnd(flashFormData.originalPrice) + " đ"} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Giảm giá (%) *</label>
+                  <input type="number" min="0" max="100" className="admin-input" required value={flashFormData.discountPct} onChange={e => handleFlashDiscountChange(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Giá bán Flash Sale *</label>
+                  <input type="number" min="1" className="admin-input" required value={flashFormData.price} onChange={e => handleFlashPriceChange(e.target.value)} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Số lượng kho sale *</label>
+                  <input type="number" min="1" className="admin-input" required value={flashFormData.stock} onChange={e => setFlashFormData({ ...flashFormData, stock: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Thời gian bắt đầu *</label>
+                  <input type="datetime-local" className="admin-input" required value={flashFormData.startsAt} onChange={e => setFlashFormData({ ...flashFormData, startsAt: e.target.value })} />
+                </div>
+                <div className="admin-form-group">
+                  <label>Thời gian kết thúc</label>
+                  <input type="datetime-local" className="admin-input" value={flashFormData.endsAt} onChange={e => setFlashFormData({ ...flashFormData, endsAt: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="admin-form-group">
+                  <label>Số lượng đã bán</label>
+                  <input type="number" min="0" className="admin-input" required value={flashFormData.sold} onChange={e => setFlashFormData({ ...flashFormData, sold: e.target.value })} />
+                </div>
+                <div className="admin-form-group" style={{ display: "flex", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 24 }}>
+                  <input type="checkbox" id="edit-flash-active" checked={flashFormData.active} onChange={e => setFlashFormData({ ...flashFormData, active: e.target.checked })} />
+                  <label htmlFor="edit-flash-active" style={{ marginBottom: 0, cursor: "pointer" }}>Kích hoạt</label>
+                </div>
+              </div>
+              <div className="admin-form-actions" style={{ marginTop: 20 }}>
+                <button type="button" className="btn-pill ghost" onClick={() => setShowEditFlashModal(false)}>Hủy bỏ</button>
                 <button type="submit" className="btn-pill">Cập nhật</button>
               </div>
             </form>

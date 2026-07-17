@@ -225,3 +225,55 @@ export async function deleteProduct(id) {
   // Invalidate cache
   dbCache.deletePattern('products:');
 }
+
+export async function listFlashSalesAdmin() {
+  const res = await db.query(`
+    SELECT fs.*, p.name AS product_name, p.price AS product_price, p.img AS product_img
+    FROM flash_sales fs
+    JOIN products p ON fs.product_id = p.id
+    ORDER BY fs.id DESC
+  `);
+  return res.rows;
+}
+
+export async function createFlashSale(data) {
+  const { productId, price, originalPrice, stock, sold, startsAt, endsAt, active } = data;
+  const res = await db.query(`
+    INSERT INTO flash_sales (product_id, price, original_price, stock, sold, starts_at, ends_at, active)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+  `, [productId, price, originalPrice, stock || 0, sold || 0, startsAt || new Date(), endsAt || null, active !== false]);
+  dbCache.deletePattern('products:flash_sales');
+  return res.rows[0];
+}
+
+export async function updateFlashSale(id, data) {
+  const fields = [
+    ['productId', 'product_id'],
+    ['price', 'price'],
+    ['originalPrice', 'original_price'],
+    ['stock', 'stock'],
+    ['sold', 'sold'],
+    ['startsAt', 'starts_at'],
+    ['endsAt', 'ends_at'],
+    ['active', 'active'],
+  ].filter(([key]) => data[key] !== undefined);
+
+  if (fields.length === 0) return { id };
+
+  const values = fields.map(([key]) => data[key]);
+  const assignments = fields.map(([, column], index) => `${column} = $${index + 1}`);
+  const result = await db.query(
+    `UPDATE flash_sales SET ${assignments.join(', ')} WHERE id = $${values.length + 1} RETURNING id`,
+    [...values, id]
+  );
+  if (result.rows.length === 0) throw new AppError('Không tìm thấy flash sale', 404);
+  dbCache.deletePattern('products:flash_sales');
+  return result.rows[0];
+}
+
+export async function deleteFlashSale(id) {
+  const result = await db.query('DELETE FROM flash_sales WHERE id = $1 RETURNING id', [id]);
+  if (result.rows.length === 0) throw new AppError('Không tìm thấy flash sale', 404);
+  dbCache.deletePattern('products:flash_sales');
+  return result.rows[0];
+}

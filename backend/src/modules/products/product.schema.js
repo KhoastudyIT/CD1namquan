@@ -33,3 +33,16 @@ export const productQuerySchema = z.object({
   sizes:     z.string().optional(),
   brands:    z.string().optional(),
 });
+
+export const createFlashSaleSchema = z.object({
+  productId:     z.coerce.number().int().positive(),
+  price:         z.coerce.number().int().positive(),
+  originalPrice: z.coerce.number().int().positive(),
+  stock:         z.coerce.number().int().nonnegative().optional().default(0),
+  sold:          z.coerce.number().int().nonnegative().optional().default(0),
+  startsAt:      z.string().optional(),
+  endsAt:        z.string().nullable().optional(),
+  active:        z.boolean().optional().default(true),
+});
+
+export const updateFlashSaleSchema = createFlashSaleSchema.partial();

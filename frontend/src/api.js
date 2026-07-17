@@ -100,5 +100,11 @@ export const api = {
   // Admin — News
   createNews: (data) => fetchAPI('/news', { method: 'POST', body: JSON.stringify(data) }),
   updateNews: (id, data) => fetchAPI(`/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteNews: (id) => fetchAPI(`/news/${id}`, { method: 'DELETE' })
+  deleteNews: (id) => fetchAPI(`/news/${id}`, { method: 'DELETE' }),
+
+  // Admin — Flash Sales
+  getFlashSalesAdmin: () => fetchAPI('/products/flash-sales/admin'),
+  createFlashSale: (data) => fetchAPI('/products/flash-sales/admin', { method: 'POST', body: JSON.stringify(data) }),
+  updateFlashSale: (id, data) => fetchAPI(`/products/flash-sales/admin/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFlashSale: (id) => fetchAPI(`/products/flash-sales/admin/${id}`, { method: 'DELETE' })
 };
