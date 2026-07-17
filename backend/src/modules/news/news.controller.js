@@ -18,19 +18,31 @@ export async function getById(req, res, next) {
 }
 
 
-export function create(req, res) {
-  const article = newsService.createNews(req.body);
-  created(res, article, 'Tạo bài viết thành công');
+export async function create(req, res, next) {
+  try {
+    const article = await newsService.createNews(req.body);
+    created(res, article, 'Tạo bài viết thành công');
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function update(req, res) {
-  const id = parseInt(req.params.id, 10);
-  const article = newsService.updateNews(id, req.body);
-  ok(res, article, 'Cập nhật bài viết thành công');
+export async function update(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const article = await newsService.updateNews(id, req.body);
+    ok(res, article, 'Cập nhật bài viết thành công');
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function remove(req, res) {
-  const id = parseInt(req.params.id, 10);
-  newsService.deleteNews(id);
-  noContent(res);
+export async function remove(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    await newsService.deleteNews(id);
+    noContent(res);
+  } catch (error) {
+    next(error);
+  }
 }

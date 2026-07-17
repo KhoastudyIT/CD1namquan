@@ -7,9 +7,9 @@ export function Drawer({ open, onClose }) {
   const navigate = useNavigate();
   const links = [
     { label: "Cửa hàng", path: "/shop" },
-    { label: "Bộ sưu tập", hash: "showroom" },
+    { label: "Bộ sưu tập", hash: "collections" },
     { label: "Showroom", hash: "showroom" },
-    { label: "Tin tức", hash: "showroom" },
+    { label: "Tin tức", hash: "news" },
   ];
 
   const handleNav = (link) => {
