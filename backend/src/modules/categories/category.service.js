@@ -51,7 +51,7 @@ export async function createCategory(data) {
 
 export async function updateCategory(id, data) {
   const existing = await db.query('SELECT * FROM categories WHERE id = $1', [id]);
-  if (existing.rows.length === 0) throw new AppError('Category not found', 404);
+  if (existing.rows.length === 0) throw new AppError('Không tìm thấy danh mục', 404);
 
   const name = data.name ?? existing.rows[0].name;
   const img = data.img ?? existing.rows[0].img;
@@ -68,9 +68,9 @@ export async function updateCategory(id, data) {
 export async function deleteCategory(id) {
   const usage = await db.query('SELECT COUNT(*)::int AS count FROM products WHERE category_id = $1', [id]);
   if (usage.rows[0].count > 0) {
-    throw new AppError('Cannot delete a category that is assigned to products', 409);
+    throw new AppError('Không thể xóa danh mục đang được gán cho sản phẩm', 409);
   }
   const res = await db.query('DELETE FROM categories WHERE id = $1 RETURNING *', [id]);
-  if (res.rows.length === 0) throw new AppError('Category not found', 404);
+  if (res.rows.length === 0) throw new AppError('Không tìm thấy danh mục', 404);
   dbCache.delete('categories:list');
 }

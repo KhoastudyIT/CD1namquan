@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Img, Icon, toast } from "../components/ui.jsx";
+import { vnd, Img, Icon, toast, confirm } from "../components/ui.jsx";
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
@@ -41,7 +42,18 @@ const STATUS_COLORS = {
 };
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news"];
+  const hashTab = location.hash.replace("#", "");
+  const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
+
+  // Thay đổi tab → cập nhật URL hash (reload sẽ giữ đúng tab)
+  const setActiveTab = useCallback((tab) => {
+    navigate(`/admin#${tab}`, { replace: true });
+  }, [navigate]);
 
   // ── Chung ─────────────────────────────────────────────────────────
   const [products, setProducts] = useState([]);
@@ -85,6 +97,11 @@ export function AdminDashboard() {
   // ── Products filter ───────────────────────────────────────────────
   const [productSearch, setProductSearch] = useState("");
   const [productCategory, setProductCategory] = useState("all");
+  const [productStock, setProductStock] = useState("all");     // all | in | low | out
+  const [productSort, setProductSort] = useState("default");   // default | price-asc | price-desc | stock-asc | sold-desc
+
+  // ── Mobile nav (menu hamburger) ───────────────────────────────────
+  const [mobileNav, setMobileNav] = useState(false);
 
   // ── Modals ────────────────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
@@ -188,12 +205,12 @@ export function AdminDashboard() {
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
   const handleOpenAdd = () => {
     if (allCategories.length === 0) {
-      toast("Create a category before adding a product");
+      toast("Vui lòng tạo danh mục trước khi thêm sản phẩm");
       return;
     }
     setFormData({
-      name: "", type: "", price: 1000000, categoryId: String(allCategories[0].id),
-      img: "/images/placeholder.jpg", stock: 10, description: ""
+      name: "", type: "Ghế Sofa", price: 1000000, categoryId: String(allCategories[0].id),
+      img: "/images/placeholder.jpg", stock: 10, description: "Mô tả sản phẩm chất lượng cao."
     });
     setShowAddModal(true);
   };
@@ -230,7 +247,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteProduct = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}"?`)) {
       try {
         await api.deleteProduct(id);
         toast("Xóa sản phẩm thành công!");
@@ -301,7 +318,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteCategory = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?`)) {
       try {
         await api.deleteCategory(id);
         toast("Xóa danh mục thành công!");
@@ -345,7 +362,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteCollection = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa bộ sưu tập "${name}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa bộ sưu tập "${name}"?`)) {
       try {
         await api.deleteCollection(id);
         toast("Xóa bộ sưu tập thành công!");
@@ -395,7 +412,7 @@ export function AdminDashboard() {
   };
 
   const handleDeleteNews = async (id, title) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}"?`)) {
+    if (await confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}"?`)) {
       try {
         await api.deleteNews(id);
         toast("Xóa bài viết thành công!");
@@ -414,8 +431,8 @@ export function AdminDashboard() {
   const lowStockCount  = stats?.lowStockCount  ?? products.filter(p => p.stock < 10).length;
   const totalUsers     = stats?.totalUsers     ?? 0;
   const avgOrderValue  = stats?.avgOrderValue  ?? 0;
-  const ordersByStatus = stats?.ordersByStatus ?? [];
-  const revenueByDay   = stats?.revenueByDay   ?? [];
+  const ordersByStatus = Array.isArray(stats?.ordersByStatus) ? stats.ordersByStatus : [];
+  const revenueByDay   = Array.isArray(stats?.revenueByDay)   ? stats.revenueByDay   : [];
   const topProducts    = stats?.topProducts    ?? [];
 
   const displayCategories = allCategories;
@@ -443,11 +460,30 @@ export function AdminDashboard() {
   };
 
   const lowStockProducts = products.filter(p => Number(p.stock) < 10);
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = (p.name || "").toLowerCase().includes(productSearch.toLowerCase()) || (p.type || "").toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = productCategory === "all" || getProductCategoryId(p) === Number(productCategory);
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products
+    .filter(p => {
+      const q = productSearch.toLowerCase();
+      const matchesSearch = (p.name || "").toLowerCase().includes(q) || (p.type || "").toLowerCase().includes(q);
+      const matchesCategory = productCategory === "all" || getProductCategoryId(p) === Number(productCategory);
+      const matchesStock =
+        productStock === "all" ||
+        (productStock === "in"  && Number(p.stock) >= 10) ||
+        (productStock === "low" && Number(p.stock) > 0 && Number(p.stock) < 10) ||
+        (productStock === "out" && Number(p.stock) === 0);
+      return matchesSearch && matchesCategory && matchesStock;
+    })
+    .sort((a, b) => {
+      switch (productSort) {
+        case "price-asc":  return a.price - b.price;
+        case "price-desc": return b.price - a.price;
+        case "stock-asc":  return Number(a.stock) - Number(b.stock);
+        case "sold-desc":  return (Number(b.sold) || 0) - (Number(a.sold) || 0);
+        default:           return 0;
+      }
+    });
+
+  const productFilterActive = productSearch || productCategory !== "all" || productStock !== "all" || productSort !== "default";
+  const resetProductFilters = () => { setProductSearch(""); setProductCategory("all"); setProductStock("all"); setProductSort("default"); };
 
   if (loading) {
     return (
@@ -458,28 +494,39 @@ export function AdminDashboard() {
     );
   }
 
+  const NAV_ITEMS = [
+    { key: "overview",    icon: "leaf",  label: "Tổng quan" },
+    { key: "products",    icon: "cart",  label: `Sản phẩm (${totalProducts})` },
+    { key: "categories",  icon: "menu",  label: "Danh mục" },
+    { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
+    { key: "news",        icon: "bell",  label: "Tin tức" },
+    { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
+    { key: "users",       icon: "user",  label: "Người dùng" },
+  ];
+  const currentNavLabel = NAV_ITEMS.find(t => t.key === activeTab)?.label || "Quản trị";
+
   return (
     <div className="admin-layout">
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className="admin-sidebar">
+      {/* ── Thanh bar mobile: hamburger + tên tab hiện tại ────────── */}
+      <div className="admin-mobile-bar">
+        <button className="admin-burger" onClick={() => setMobileNav(v => !v)} aria-label="Menu quản trị" aria-expanded={mobileNav}>
+          <Icon name={mobileNav ? "close" : "menu"} size={20} />
+        </button>
+        <span className="admin-mobile-title">{currentNavLabel}</span>
+      </div>
+
+      {/* ── Sidebar (mobile: sổ xuống dưới thanh bar từ hamburger) ── */}
+      <aside className={`admin-sidebar ${mobileNav ? "open" : ""}`}>
         <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--line)", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--green-ink)" }}>HỆ THỐNG QUẢN TRỊ</h3>
           <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>Nam Quan Premium Shop</span>
         </div>
 
-        {[
-          { key: "overview",    icon: "leaf",  label: "Tổng quan" },
-          { key: "products",    icon: "cart",  label: `Sản phẩm (${totalProducts})` },
-          { key: "categories",  icon: "menu",  label: "Danh mục" },
-          { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
-          { key: "news",        icon: "bell",  label: "Tin tức" },
-          { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
-          { key: "users",       icon: "user",  label: "Người dùng" },
-        ].map(({ key, icon, label }) => (
+        {NAV_ITEMS.map(({ key, icon, label }) => (
           <button
             key={key}
             className={`admin-sidebar-btn ${activeTab === key ? "active" : ""}`}
-            onClick={() => setActiveTab(key)}
+            onClick={() => { setActiveTab(key); setMobileNav(false); }}
           >
             <Icon name={icon} size={16} fill={activeTab === key ? "#fff" : "none"} />
             <span>{label}</span>
@@ -499,7 +546,7 @@ export function AdminDashboard() {
             </div>
 
             {/* 6 Stat Cards */}
-            <div className="admin-stats-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+            <div className="admin-ov-stats">
               {[
                 { icon: "💰", label: "Doanh thu",              val: `${vnd(totalRevenue)} đ`,        accent: "var(--green)" },
                 { icon: "📦", label: "Tổng đơn hàng",          val: totalOrders,                     accent: "var(--gold)" },
@@ -519,7 +566,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Row 2: biểu đồ doanh thu + trạng thái đơn */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr", gap: 20, marginBottom: 20 }}>
+            <div className="admin-ov-row2">
               <div className="admin-card">
                 <h4 className="admin-card-title">📊 Doanh thu 7 ngày gần nhất</h4>
                 {revenueByDay.length > 0
@@ -550,7 +597,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Row 3: top sản phẩm + đơn mới + tồn kho */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 0.8fr", gap: 20 }}>
+            <div className="admin-ov-row3">
               <div className="admin-card">
                 <h4 className="admin-card-title">🏆 Top 5 bán chạy</h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -618,12 +665,31 @@ export function AdminDashboard() {
             </div>
 
             <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <input type="text" placeholder="Tìm kiếm sản phẩm theo tên hoặc loại..." className="admin-input" style={{ flex: 1, minWidth: 200 }} value={productSearch} onChange={e => setProductSearch(e.target.value)} />
-                <select className="admin-select" style={{ width: 200 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
+                <select className="admin-select" style={{ width: 180 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
                   <option value="all">Tất cả danh mục</option>
                   {displayCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                <select className="admin-select" style={{ width: 160 }} value={productStock} onChange={e => setProductStock(e.target.value)}>
+                  <option value="all">Tất cả tồn kho</option>
+                  <option value="in">Còn hàng (≥ 10)</option>
+                  <option value="low">Sắp hết (1 – 9)</option>
+                  <option value="out">Hết hàng (0)</option>
+                </select>
+                <select className="admin-select" style={{ width: 170 }} value={productSort} onChange={e => setProductSort(e.target.value)}>
+                  <option value="default">Sắp xếp mặc định</option>
+                  <option value="price-asc">Giá tăng dần</option>
+                  <option value="price-desc">Giá giảm dần</option>
+                  <option value="stock-asc">Tồn kho ít nhất</option>
+                  <option value="sold-desc">Bán chạy nhất</option>
+                </select>
+                {productFilterActive && (
+                  <button className="btn-pill ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={resetProductFilters}>✕ Xóa lọc</button>
+                )}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+                Hiển thị <b style={{ color: "var(--green-ink)" }}>{filteredProducts.length}</b> / {products.length} sản phẩm
               </div>
             </div>
 

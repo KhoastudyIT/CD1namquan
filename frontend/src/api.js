@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 async function fetchAPI(endpoint, options = {}, returnFull = false) {
   try {
@@ -12,6 +12,13 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
     }
 
     const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+
+    // Handle 204 No Content (e.g. DELETE endpoints) — no body to parse
+    if (res.status === 204) {
+      if (!res.ok) throw new Error('Lỗi kết nối server');
+      return { success: true };
+    }
+
     const json = await res.json();
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Lỗi kết nối server');

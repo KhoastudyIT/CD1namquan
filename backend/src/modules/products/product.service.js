@@ -152,7 +152,7 @@ export async function listFlashSales() {
 async function ensureCategoryExists(categoryId) {
   const result = await db.query('SELECT 1 FROM categories WHERE id = $1', [categoryId]);
   if (result.rows.length === 0) {
-    throw new AppError('Selected category does not exist', 400);
+    throw new AppError('Danh mục đã chọn không tồn tại', 400);
   }
 }
 
@@ -179,13 +179,13 @@ async function generateUniqueSlug(name) {
 }
 
 export async function createProduct(data) {
-  const { name, type, price, categoryId, img, stock, description } = data;
+  const { name, type, price, categoryId, img, stock, description, sku } = data;
   await ensureCategoryExists(categoryId);
-  const slug = await generateUniqueSlug(name);
+  const slug = data.slug || await generateUniqueSlug(name);
   const res = await db.query(`
-    INSERT INTO products (name, slug, type, price, category_id, img, stock, description)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
-  `, [name, slug, type, price, categoryId, img, stock, description]);
+    INSERT INTO products (name, slug, type, price, category_id, img, stock, description, sku)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
+  `, [name, slug, type, price, categoryId, img, stock, description, sku || null]);
 
   dbCache.deletePattern('products:');
   return getProductById(res.rows[0].id);
@@ -202,6 +202,7 @@ export async function updateProduct(id, data) {
     ['img', 'img'],
     ['stock', 'stock'],
     ['description', 'description'],
+    ['sku', 'sku'],
   ].filter(([key]) => data[key] !== undefined);
 
   if (fields.length === 0) return getProductById(id);
@@ -212,12 +213,11 @@ export async function updateProduct(id, data) {
     `UPDATE products SET ${assignments.join(', ')} WHERE id = $${values.length + 1} RETURNING id`,
     [...values, id]
   );
-  if (result.rows.length === 0) throw new AppError('Product not found', 404);
+  if (result.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
 
   dbCache.deletePattern('products:');
   return getProductById(id);
 }
-
 export async function deleteProduct(id) {
   const res = await db.query(`DELETE FROM products WHERE id = $1 RETURNING *`, [id]);
   if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
