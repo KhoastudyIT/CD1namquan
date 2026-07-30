@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "node tests/api.test.js"
   },
   "dependencies": {
     "@scalar/express-api-reference": "^0.10.3",
