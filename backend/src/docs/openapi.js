@@ -170,6 +170,25 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           stock:         { type: 'integer', example: 80 },
         },
       },
+      AdminFlashSaleProduct: {
+        type: 'object',
+        properties: {
+          id:             { type: 'integer', example: 101 },
+          product_id:     { type: 'integer', example: 5 },
+          price:          { type: 'integer', description: 'Giá flash sale (VND)', example: 11000000 },
+          original_price: { type: 'integer', description: 'Giá gốc (VND)', example: 16500000 },
+          stock:          { type: 'integer', example: 80 },
+          sold:           { type: 'integer', example: 64 },
+          starts_at:      { type: 'string', format: 'date-time', example: '2026-07-07T03:20:56.731Z' },
+          ends_at:        { type: 'string', format: 'date-time', nullable: true, example: null },
+          active:         { type: 'boolean', example: true },
+          created_at:     { type: 'string', format: 'date-time', example: '2026-07-07T03:20:56.731Z' },
+          updated_at:     { type: 'string', format: 'date-time', example: '2026-07-07T03:20:56.731Z' },
+          product_name:   { type: 'string', example: 'Giường Ngủ Tân Cổ Điển' },
+          product_price:  { type: 'integer', example: 16500000 },
+          product_img:    { type: 'string', example: '/images/bedClassic.jpg' },
+        },
+      },
       ProductListResponse: {
         type: 'object',
         properties: {
@@ -513,6 +532,133 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
               },
             },
           },
+        },
+      },
+    },
+    '/api/v1/products/flash-sales/admin': {
+      get: {
+        tags: ['Products'],
+        summary: '[Admin] Danh sách tất cả Flash Sale',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Danh sách toàn bộ Flash Sale (cả active & inactive)',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/AdminFlashSaleProduct' } } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+      post: {
+        tags: ['Products'],
+        summary: '[Admin] Thêm sản phẩm Flash Sale mới',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['productId', 'price', 'originalPrice'],
+                properties: {
+                  productId:     { type: 'integer', example: 5 },
+                  price:         { type: 'integer', description: 'Giá bán flash sale (VND)', example: 11000000 },
+                  originalPrice: { type: 'integer', description: 'Giá gốc (VND)', example: 16500000 },
+                  stock:         { type: 'integer', default: 0, example: 80 },
+                  sold:          { type: 'integer', default: 0, example: 0 },
+                  startsAt:      { type: 'string', format: 'date-time', example: '2026-07-07T03:20:56.731Z' },
+                  endsAt:        { type: 'string', format: 'date-time', nullable: true, example: null },
+                  active:        { type: 'boolean', default: true, example: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Tạo Flash Sale thành công',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { type: 'object', properties: { id: { type: 'integer', example: 101 } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/products/flash-sales/admin/{id}': {
+      put: {
+        tags: ['Products'],
+        summary: '[Admin] Cập nhật chương trình Flash Sale',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 101 }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  productId:     { type: 'integer' },
+                  price:         { type: 'integer' },
+                  originalPrice: { type: 'integer' },
+                  stock:         { type: 'integer' },
+                  sold:          { type: 'integer' },
+                  startsAt:      { type: 'string', format: 'date-time' },
+                  endsAt:        { type: 'string', format: 'date-time', nullable: true },
+                  active:        { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Cập nhật thành công',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { type: 'object', properties: { id: { type: 'integer', example: 101 } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+      delete: {
+        tags: ['Products'],
+        summary: '[Admin] Xóa chương trình Flash Sale',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 101 }],
+        responses: {
+          '204': { description: 'Xóa thành công' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
         },
       },
     },
