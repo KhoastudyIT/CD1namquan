@@ -78,8 +78,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    # Cổng bên trong container luôn là 3000; chỉ cổng publish ra host đổi được.
+    # Đặt API_PORT trong .env khi cổng 3000 của máy chủ đã có thứ khác dùng.
     ports:
-      - "3000:3000"
+      - "${API_PORT:-3000}:3000"
 
   frontend:
     build:
