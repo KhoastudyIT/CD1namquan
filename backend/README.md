@@ -69,6 +69,35 @@ File `migration.sql` bao gồm:
 npm run dev    # Dev server với hot-reload → http://localhost:3000
 ```
 
+### 5. MinIO — lưu trữ ảnh bài viết (tuỳ chọn)
+
+Dashboard tải ảnh bìa bài viết lên MinIO theo luồng **presigned URL 2 bước**: backend
+ký một URL `PUT` tạm thời, trình duyệt đẩy file thẳng lên MinIO (không đi qua API),
+rồi lưu `publicUrl` vào cột `news.img`.
+
+```bash
+docker compose up -d minio     # từ thư mục gốc dự án
+```
+
+| | |
+|---|---|
+| S3 API | http://localhost:9000 |
+| Console quản trị | http://localhost:9001 (`minioadmin` / `minioadmin`) |
+| Bucket | `namquan` — backend tự tạo lúc khởi động và mở quyền đọc ẩn danh |
+
+Bốn biến `MINIO_*` trong `.env` (xem `.env.example`) là đủ để chạy. **Bỏ trống cả
+`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY` và `MINIO_SECRET_KEY` sẽ tắt tính năng tải ảnh**:
+backend vẫn chạy đầy đủ, chỉ riêng `POST /news/images/upload-url` trả `503` kèm lý do,
+và admin vẫn dán được đường dẫn ảnh thủ công trong form soạn bài.
+
+Ràng buộc phía server (không phụ thuộc client): chỉ nhận `image/jpeg`, `image/png`,
+`image/webp`; tối đa 5MB; tên file do server sinh bằng UUID nên tên client gửi lên
+không thể gây ghi đè hay path traversal.
+
+Khi deploy, `MINIO_ENDPOINT` là địa chỉ nội bộ backend gọi MinIO, còn `MINIO_PUBLIC_URL`
+là địa chỉ trình duyệt truy cập — chữ ký được ký theo `MINIO_PUBLIC_URL` nên hai giá trị
+này phải khai báo đúng, nếu không MinIO sẽ từ chối chữ ký.
+
 ---
 
 ## Environment variables
@@ -81,6 +110,12 @@ npm run dev    # Dev server với hot-reload → http://localhost:3000
 | `NODE_ENV` | — | `development` | `development` hoặc `production` |
 | `CORS_ORIGIN` | — | `http://localhost:5173` | Allowed origin cho CORS (frontend URL) |
 | `OPENAPI_ENABLED` | — | `true` (trừ khi set `false`) | `false` để tắt Scalar docs |
+| `MINIO_ENDPOINT` | — | — | Địa chỉ backend gọi MinIO (vd `http://minio:9000`). Bỏ trống = tắt tải ảnh |
+| `MINIO_PUBLIC_URL` | — | = `MINIO_ENDPOINT` | Địa chỉ trình duyệt truy cập MinIO — chữ ký ký theo host này |
+| `MINIO_ACCESS_KEY` | — | — | Access key MinIO |
+| `MINIO_SECRET_KEY` | — | — | Secret key MinIO |
+| `MINIO_PUBLIC_BUCKET` | — | `namquan` | Bucket chứa ảnh công khai |
+| `STORAGE_UPLOAD_URL_TTL` | — | `3600` | Hạn dùng URL upload (giây) |
 
 ---
 

@@ -33,6 +33,28 @@ services:
       retries: 10
       start_period: 10s
 
+  minio:
+    image: minio/minio:latest
+    container_name: namquan_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # Cho phép trình duyệt (5173) gọi thẳng MinIO khi PUT file lên
+      MINIO_API_CORS_ALLOW_ORIGIN: ${STORAGE_CORS_ORIGINS:-*}
+    volumes:
+      - namquan_minio:/data
+    ports:
+      - "9000:9000"   # S3 API — trình duyệt PUT/GET ảnh qua cổng này
+      - "9001:9001"   # Console quản trị: http://localhost:9001
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   backend:
     build: ./backend
     container_name: namquan_backend
@@ -44,8 +66,17 @@ services:
       JWT_EXPIRES_IN: 7d
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/nam_quan
+      # endpoint = địa chỉ nội bộ giữa các container;
+      # publicUrl = địa chỉ trình duyệt dùng (chữ ký phải khớp Host này)
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-namquan}
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     ports:
       - "3000:3000"
@@ -64,3 +95,4 @@ services:
 
 volumes:
   namquan_pgdata:
+  namquan_minio:

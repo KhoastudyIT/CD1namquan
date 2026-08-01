@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { vnd, Img, Icon, toast, confirm } from "../components/ui.jsx";
+import { ImageField } from "../components/ImageField.jsx";
+import { ContentEditor } from "../components/ContentEditor.jsx";
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
@@ -40,6 +42,28 @@ const STATUS_COLORS = {
   delivered: "var(--green)",
   cancelled: "#ef4444",
 };
+
+// ── Tin tức ────────────────────────────────────────────────────────────
+const NEWS_STATUS_META = {
+  published: { label: "Đã đăng",   bg: "#dcfce7", color: "var(--green-ink)" },
+  draft:     { label: "Bản nháp",  bg: "#fef3c7", color: "#92400e" },
+  hidden:    { label: "Đã ẩn",     bg: "#e5e7eb", color: "#4b5563" },
+};
+
+const EMPTY_NEWS_FORM = {
+  title: "", slug: "", img: "/images/news1.jpg", excerpt: "", content: "",
+  categoryId: "", tags: "", status: "draft", featured: false, date: "",
+  seoTitle: "", seoDescription: "", seoKeywords: "", ogImage: "",
+};
+
+// Xem trước slug sẽ được backend sinh ra khi admin để trống ô slug.
+const slugify = (value) => value
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/\u0111/g, "d").replace(/\u0110/g, "D")
+  .toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "") || "bai-viet";
 
 export function AdminDashboard() {
   const location = useLocation();
@@ -88,11 +112,21 @@ export function AdminDashboard() {
 
   // ── News tab ──────────────────────────────────────────────────────
   const [allNews, setAllNews] = useState([]);
+  const [newsMeta, setNewsMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [newsCategories, setNewsCategories] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
-  const [showAddNewsModal, setShowAddNewsModal] = useState(false);
-  const [showEditNewsModal, setShowEditNewsModal] = useState(false);
-  const [selectedNews, setSelectedNews] = useState(null);
-  const [newsFormData, setNewsFormData] = useState({ title: "", img: "", excerpt: "", content: "", date: "" });
+  const [newsSearch, setNewsSearch] = useState("");
+  const [newsStatus, setNewsStatus] = useState("");     // "" = tất cả
+  const [newsCategory, setNewsCategory] = useState(""); // slug danh mục
+  const [newsPage, setNewsPage] = useState(1);
+  // Một modal dùng chung cho cả tạo mới và sửa — mode: "create" | "edit"
+  const [newsModal, setNewsModal] = useState(null);
+  const [newsSaving, setNewsSaving] = useState(false);
+  const [newsSeoOpen, setNewsSeoOpen] = useState(false);
+  const [newsFormData, setNewsFormData] = useState(EMPTY_NEWS_FORM);
+
+  // Dùng chung cho mọi modal có ảnh — mỗi lúc chỉ mở được một modal.
+  const [imageUploading, setImageUploading] = useState(false);
 
   // ── Flash Sales tab ────────────────────────────────────────────────
   const [flashSales, setFlashSales] = useState([]);
@@ -209,11 +243,22 @@ export function AdminDashboard() {
     }
   };
 
-  const fetchNewsList = async () => {
+  // overrides: cho phép gọi ngay với giá trị mới mà không chờ state cập nhật
+  const fetchNewsList = async (overrides = {}) => {
     setNewsLoading(true);
     try {
-      const newsData = await api.getNews();
-      setAllNews(newsData || []);
+      const params = {
+        page:     overrides.page     ?? newsPage,
+        limit:    newsMeta.limit,
+        search:   overrides.search   ?? newsSearch,
+        status:   overrides.status   ?? newsStatus,
+        category: overrides.category ?? newsCategory,
+      };
+      Object.keys(params).forEach(k => { if (params[k] === "" || params[k] == null) delete params[k]; });
+
+      const res = await api.getNewsAdmin(params);
+      setAllNews(res.data || []);
+      if (res.meta) setNewsMeta(res.meta);
     } catch (err) {
       toast("Lỗi tải danh sách tin tức: " + err.message);
     } finally {
@@ -221,11 +266,17 @@ export function AdminDashboard() {
     }
   };
 
+  const fetchNewsCategories = async () => {
+    try {
+      setNewsCategories(await api.getNewsCategories() || []);
+    } catch { /* bộ lọc danh mục không có thì tab vẫn dùng được */ }
+  };
+
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { if (activeTab === "users") fetchUsers(); }, [activeTab]);
   useEffect(() => { if (activeTab === "categories") fetchCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
-  useEffect(() => { if (activeTab === "news") fetchNewsList(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
   useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
 
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
@@ -399,42 +450,91 @@ export function AdminDashboard() {
 
   // ─────────────── NEWS HANDLERS ───────────────────────────────────
   const handleOpenAddNews = () => {
-    setNewsFormData({ title: "", img: "/images/placeholder.jpg", excerpt: "", content: "", date: "" });
-    setShowAddNewsModal(true);
+    setNewsFormData(EMPTY_NEWS_FORM);
+    setNewsSeoOpen(false);
+    setNewsModal({ mode: "create", id: null });
   };
 
-  const handleOpenEditNews = (n) => {
-    setSelectedNews(n);
-    setNewsFormData({ title: n.title, img: n.img, excerpt: n.excerpt, content: n.content, date: n.date || "" });
-    setShowEditNewsModal(true);
+  // Danh sách không kèm `content` (cho nhẹ) → phải tải chi tiết trước khi sửa.
+  const handleOpenEditNews = async (n) => {
+    setNewsSeoOpen(false);
+    setNewsModal({ mode: "edit", id: n.id, loading: true });
+    try {
+      const a = await api.getNewsAdminById(n.id);
+      setNewsFormData({
+        title: a.title, slug: a.slug, img: a.img, excerpt: a.excerpt, content: a.content,
+        categoryId: a.category?.id ? String(a.category.id) : "",
+        tags: (a.tags || []).join(", "),
+        status: a.status,
+        featured: a.featured,
+        date: a.publishedAt || "",
+        seoTitle: a.seo?.title || "",
+        seoDescription: a.seo?.description || "",
+        seoKeywords: a.seo?.keywords || "",
+        ogImage: a.seo?.ogImage || "",
+      });
+      setNewsModal({ mode: "edit", id: n.id, loading: false });
+    } catch (err) {
+      toast("Lỗi tải bài viết: " + err.message);
+      setNewsModal(null);
+    }
   };
 
-  const handleCreateNews = async (e) => {
+  // Chỉ gửi các trường backend hiểu; chuỗi rỗng để backend tự xử lý (→ null).
+  const buildNewsPayload = () => ({
+    title:      newsFormData.title.trim(),
+    img:        newsFormData.img.trim(),
+    excerpt:    newsFormData.excerpt.trim(),
+    content:    newsFormData.content.trim(),
+    categoryId: newsFormData.categoryId ? Number(newsFormData.categoryId) : null,
+    tags:       newsFormData.tags.split(",").map(t => t.trim()).filter(Boolean),
+    status:     newsFormData.status,
+    featured:   newsFormData.featured,
+    date:       newsFormData.date || undefined,
+    seoTitle:       newsFormData.seoTitle,
+    seoDescription: newsFormData.seoDescription,
+    seoKeywords:    newsFormData.seoKeywords,
+    ogImage:        newsFormData.ogImage,
+    // Slug để trống khi tạo mới = backend tự sinh từ tiêu đề.
+    ...(newsFormData.slug.trim() ? { slug: newsFormData.slug.trim() } : {}),
+  });
+
+  const handleSubmitNews = async (e) => {
     e.preventDefault();
-    if (!newsFormData.title || !newsFormData.excerpt || !newsFormData.content) {
+    if (!newsFormData.title.trim() || !newsFormData.img.trim()
+      || !newsFormData.excerpt.trim() || !newsFormData.content.trim()) {
       toast("Vui lòng điền đầy đủ các thông tin bắt buộc");
       return;
     }
+    setNewsSaving(true);
     try {
-      await api.createNews(newsFormData);
-      toast("Thêm bài viết thành công!");
-      setShowAddNewsModal(false);
+      const payload = buildNewsPayload();
+      if (newsModal.mode === "create") {
+        await api.createNews(payload);
+        toast(payload.status === "published" ? "Đã đăng bài viết!" : "Đã lưu bản nháp!");
+      } else {
+        await api.updateNews(newsModal.id, payload);
+        toast("Cập nhật bài viết thành công!");
+      }
+      setNewsModal(null);
       fetchNewsList();
-    } catch (err) { toast("Lỗi: " + err.message); }
+      fetchNewsCategories(); // số bài theo danh mục đổi theo
+    } catch (err) {
+      toast("Lỗi: " + err.message);
+    } finally {
+      setNewsSaving(false);
+    }
   };
 
-  const handleUpdateNews = async (e) => {
-    e.preventDefault();
-    if (!newsFormData.title || !newsFormData.excerpt || !newsFormData.content) {
-      toast("Vui lòng điền đầy đủ các thông tin bắt buộc");
-      return;
-    }
+  // Đăng / gỡ nhanh ngay trên bảng, không cần mở form
+  const handleToggleNewsStatus = async (n) => {
+    const next = n.status === "published" ? "hidden" : "published";
     try {
-      await api.updateNews(selectedNews.id, newsFormData);
-      toast("Cập nhật bài viết thành công!");
-      setShowEditNewsModal(false);
-      fetchNewsList();
-    } catch (err) { toast("Lỗi: " + err.message); }
+      const res = await api.updateNewsStatus(n.id, next);
+      setAllNews(list => list.map(item => (item.id === n.id ? { ...item, status: res.status } : item)));
+      toast(next === "published" ? "Đã đăng bài viết!" : "Đã gỡ bài viết khỏi trang tin tức!");
+      fetchNewsCategories();
+    } catch (err) { toast("Lỗi đổi trạng thái: " + err.message); }
   };
 
   const handleDeleteNews = async (id, title) => {
@@ -442,7 +542,11 @@ export function AdminDashboard() {
       try {
         await api.deleteNews(id);
         toast("Xóa bài viết thành công!");
-        fetchNewsList();
+        // Xoá bài cuối của trang cuối → lùi về trang trước cho khỏi trống
+        const page = allNews.length === 1 && newsPage > 1 ? newsPage - 1 : newsPage;
+        setNewsPage(page);
+        fetchNewsList({ page });
+        fetchNewsCategories();
       } catch (err) { toast("Lỗi xóa bài viết: " + err.message); }
     }
   };
@@ -987,51 +1091,180 @@ export function AdminDashboard() {
         {activeTab === "news" && (
           <div>
             <div className="admin-sec-header">
-              <h2>Quản lý tin tức</h2>
+              <h2>Tin tức & bài viết</h2>
               <button className="btn-pill" onClick={handleOpenAddNews}>
-                <span style={{ fontSize: 16 }}>+</span> Thêm bài viết
+                <span style={{ fontSize: 16 }}>+</span> Viết bài mới
               </button>
+            </div>
+
+            {/* Lọc nhanh theo trạng thái */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+              {[
+                { value: "",          label: "Tất cả" },
+                { value: "published", label: "Đã đăng" },
+                { value: "draft",     label: "Bản nháp" },
+                { value: "hidden",    label: "Đã ẩn" },
+              ].map(t => (
+                <button
+                  key={t.value || "all"}
+                  onClick={() => { setNewsStatus(t.value); setNewsPage(1); fetchNewsList({ status: t.value, page: 1 }); }}
+                  style={{
+                    padding: "7px 16px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    border: `1.5px solid ${newsStatus === t.value ? "var(--green)" : "var(--line)"}`,
+                    background: newsStatus === t.value ? "var(--green)" : "#fff",
+                    color: newsStatus === t.value ? "#fff" : "var(--ink-2)",
+                    transition: ".18s",
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tìm kiếm + lọc danh mục */}
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Tìm theo tiêu đề hoặc mô tả ngắn (không cần gõ dấu)..."
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: 220 }}
+                  value={newsSearch}
+                  onChange={e => setNewsSearch(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") { setNewsPage(1); fetchNewsList({ page: 1, search: e.target.value }); }
+                  }}
+                />
+                <select
+                  className="admin-select"
+                  style={{ width: 200 }}
+                  value={newsCategory}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setNewsCategory(v); setNewsPage(1);
+                    fetchNewsList({ page: 1, category: v });
+                  }}
+                >
+                  <option value="">Tất cả danh mục</option>
+                  {newsCategories.map(c => (
+                    <option key={c.id} value={c.slug}>{c.name} ({c.articleCount})</option>
+                  ))}
+                </select>
+                <button
+                  className="btn-pill"
+                  style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => { setNewsPage(1); fetchNewsList({ page: 1 }); }}
+                >
+                  🔍 Tìm kiếm
+                </button>
+              </div>
             </div>
 
             {newsLoading ? (
               <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
             ) : (
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 80 }}>ID</th>
-                      <th style={{ width: 100 }}>Ảnh bìa</th>
-                      <th>Tiêu đề bài viết</th>
-                      <th style={{ width: 120 }}>Ngày tạo</th>
-                      <th style={{ width: 200 }}>Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allNews.map(n => (
-                      <tr key={n.id}>
-                        <td style={{ fontWeight: 600 }}>#{n.id}</td>
-                        <td>
-                          <div style={{ width: 56, height: 40, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
-                            <Img src={n.img} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          </div>
-                        </td>
-                        <td style={{ fontWeight: 600, fontSize: 13.5 }}>{n.title}</td>
-                        <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{n.date}</td>
-                        <td>
-                          <div className="admin-actions">
-                            <button className="admin-btn-sm edit" onClick={() => handleOpenEditNews(n)}>Sửa</button>
-                            <button className="admin-btn-sm delete" onClick={() => handleDeleteNews(n.id, n.title)}>Xóa</button>
-                          </div>
-                        </td>
+              <>
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 90 }}>Ảnh bìa</th>
+                        <th>Bài viết</th>
+                        <th style={{ width: 150 }}>Danh mục</th>
+                        <th style={{ width: 110 }}>Trạng thái</th>
+                        <th style={{ width: 90 }}>Lượt xem</th>
+                        <th style={{ width: 110 }}>Ngày đăng</th>
+                        <th style={{ width: 210 }}>Hành động</th>
                       </tr>
+                    </thead>
+                    <tbody>
+                      {allNews.map(n => {
+                        const meta = NEWS_STATUS_META[n.status] || NEWS_STATUS_META.draft;
+                        return (
+                          <tr key={n.id}>
+                            <td>
+                              <div style={{ width: 62, height: 44, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
+                                <Img src={n.img} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13.5, lineHeight: 1.4 }}>
+                                {n.featured && <span title="Bài nổi bật">⭐</span>}
+                                {n.title}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 3 }}>
+                                /{n.slug} · {n.readingTime} phút đọc
+                              </div>
+                            </td>
+                            <td>
+                              {n.category ? (
+                                <span style={{
+                                  display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                                  fontSize: 11.5, fontWeight: 700,
+                                  background: "var(--mint)", color: "var(--green-ink)",
+                                }}>
+                                  {n.category.name}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>
+                              )}
+                            </td>
+                            <td>
+                              <span style={{
+                                display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                                fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.color,
+                              }}>
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: 13, color: "var(--muted)" }}>{n.views?.toLocaleString("vi-VN")}</td>
+                            <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{n.date}</td>
+                            <td>
+                              <div className="admin-actions">
+                                <button className="admin-btn-sm edit" onClick={() => handleOpenEditNews(n)}>Sửa</button>
+                                <button
+                                  className="admin-btn-sm"
+                                  style={{
+                                    fontSize: 11,
+                                    background: n.status === "published" ? "#e5e7eb" : "#dcfce7",
+                                    color: n.status === "published" ? "#4b5563" : "var(--green-ink)",
+                                    border: "none", borderRadius: 7, padding: "5px 10px", fontWeight: 600, cursor: "pointer",
+                                  }}
+                                  title={n.status === "published" ? "Gỡ khỏi trang tin tức" : "Đăng lên trang tin tức"}
+                                  onClick={() => handleToggleNewsStatus(n)}
+                                >
+                                  {n.status === "published" ? "Gỡ bài" : "Đăng bài"}
+                                </button>
+                                <button className="admin-btn-sm delete" onClick={() => handleDeleteNews(n.id, n.title)}>Xóa</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {allNews.length === 0 && (
+                        <tr><td colSpan="7" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Không tìm thấy bài viết nào</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Phân trang */}
+                {newsMeta.totalPages > 1 && (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
+                    <button className="page-btn" disabled={newsPage <= 1}
+                      onClick={() => { const p = newsPage - 1; setNewsPage(p); fetchNewsList({ page: p }); }}>‹</button>
+                    {Array.from({ length: newsMeta.totalPages }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={`page-btn ${p === newsPage ? "active" : ""}`}
+                        onClick={() => { setNewsPage(p); fetchNewsList({ page: p }); }}>{p}</button>
                     ))}
-                    {allNews.length === 0 && (
-                      <tr><td colSpan="5" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Không tìm thấy bài viết nào</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    <button className="page-btn" disabled={newsPage >= newsMeta.totalPages}
+                      onClick={() => { const p = newsPage + 1; setNewsPage(p); fetchNewsList({ page: p }); }}>›</button>
+                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                      Trang {newsPage} / {newsMeta.totalPages} ({newsMeta.total} bài viết)
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1355,17 +1588,20 @@ export function AdminDashboard() {
                   <input type="number" className="admin-input" required min="0" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
                 </div>
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={formData.img} onChange={e => setFormData({ ...formData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh sản phẩm"
+                type="products"
+                value={formData.img}
+                onChange={img => setFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-group">
                 <label>Mô tả chi tiết</label>
                 <textarea className="admin-textarea" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
               </div>
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowAddModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Lưu sản phẩm</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Lưu sản phẩm</button>
               </div>
             </form>
           </div>
@@ -1406,17 +1642,20 @@ export function AdminDashboard() {
                   <input type="number" className="admin-input" required min="0" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
                 </div>
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={formData.img} onChange={e => setFormData({ ...formData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh sản phẩm"
+                type="products"
+                value={formData.img}
+                onChange={img => setFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-group">
                 <label>Mô tả chi tiết</label>
                 <textarea className="admin-textarea" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
               </div>
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowEditModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Cập nhật</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Cập nhật</button>
               </div>
             </form>
           </div>
@@ -1479,13 +1718,16 @@ export function AdminDashboard() {
                 <label>Tên danh mục *</label>
                 <input type="text" className="admin-input" required value={catFormData.name} onChange={e => setCatFormData({ ...catFormData, name: e.target.value })} />
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={catFormData.img} onChange={e => setCatFormData({ ...catFormData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh danh mục"
+                type="categories"
+                value={catFormData.img}
+                onChange={img => setCatFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowAddCatModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Lưu danh mục</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Lưu danh mục</button>
               </div>
             </form>
           </div>
@@ -1503,13 +1745,16 @@ export function AdminDashboard() {
                 <label>Tên danh mục *</label>
                 <input type="text" className="admin-input" required value={catFormData.name} onChange={e => setCatFormData({ ...catFormData, name: e.target.value })} />
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={catFormData.img} onChange={e => setCatFormData({ ...catFormData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh danh mục"
+                type="categories"
+                value={catFormData.img}
+                onChange={img => setCatFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowEditCatModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Cập nhật</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Cập nhật</button>
               </div>
             </form>
           </div>
@@ -1527,13 +1772,16 @@ export function AdminDashboard() {
                 <label>Tên bộ sưu tập *</label>
                 <input type="text" className="admin-input" required value={collFormData.name} onChange={e => setCollFormData({ ...collFormData, name: e.target.value })} />
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={collFormData.img} onChange={e => setCollFormData({ ...collFormData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh bộ sưu tập"
+                type="collections"
+                value={collFormData.img}
+                onChange={img => setCollFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowAddCollModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Lưu bộ sưu tập</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Lưu bộ sưu tập</button>
               </div>
             </form>
           </div>
@@ -1551,91 +1799,239 @@ export function AdminDashboard() {
                 <label>Tên bộ sưu tập *</label>
                 <input type="text" className="admin-input" required value={collFormData.name} onChange={e => setCollFormData({ ...collFormData, name: e.target.value })} />
               </div>
-              <div className="admin-form-group">
-                <label>Đường dẫn ảnh</label>
-                <input type="text" className="admin-input" value={collFormData.img} onChange={e => setCollFormData({ ...collFormData, img: e.target.value })} />
-              </div>
+              <ImageField
+                label="Ảnh bộ sưu tập"
+                type="collections"
+                value={collFormData.img}
+                onChange={img => setCollFormData(f => ({ ...f, img }))}
+                onUploadingChange={setImageUploading}
+              />
               <div className="admin-form-actions">
                 <button type="button" className="btn-pill ghost" onClick={() => setShowEditCollModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Cập nhật</button>
+                <button type="submit" className="btn-pill" disabled={imageUploading}>Cập nhật</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ===== MODAL: ADD NEWS ===== */}
-      {showAddNewsModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowAddNewsModal(false)}>
-          <div className="admin-modal-panel" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
-            <button className="admin-modal-close" onClick={() => setShowAddNewsModal(false)}><Icon name="close" size={14} /></button>
-            <h3 className="admin-modal-title">Thêm bài viết mới</h3>
-            <form onSubmit={handleCreateNews}>
-              <div className="admin-form-group">
-                <label>Tiêu đề bài viết *</label>
-                <input type="text" className="admin-input" required value={newsFormData.title} onChange={e => setNewsFormData({ ...newsFormData, title: e.target.value })} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <div className="admin-form-group">
-                  <label>Đường dẫn ảnh bìa</label>
-                  <input type="text" className="admin-input" value={newsFormData.img} onChange={e => setNewsFormData({ ...newsFormData, img: e.target.value })} />
-                </div>
-                <div className="admin-form-group">
-                  <label>Ngày hiển thị (để trống sẽ lấy ngày hôm nay)</label>
-                  <input type="text" className="admin-input" placeholder="VD: 11/03/2026" value={newsFormData.date} onChange={e => setNewsFormData({ ...newsFormData, date: e.target.value })} />
-                </div>
-              </div>
-              <div className="admin-form-group">
-                <label>Mô tả ngắn (excerpt) *</label>
-                <textarea className="admin-textarea" required style={{ height: 60 }} value={newsFormData.excerpt} onChange={e => setNewsFormData({ ...newsFormData, excerpt: e.target.value })} />
-              </div>
-              <div className="admin-form-group">
-                <label>Nội dung chi tiết bài viết *</label>
-                <textarea className="admin-textarea" required style={{ height: 160 }} value={newsFormData.content} onChange={e => setNewsFormData({ ...newsFormData, content: e.target.value })} />
-              </div>
-              <div className="admin-form-actions">
-                <button type="button" className="btn-pill ghost" onClick={() => setShowAddNewsModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Lưu bài viết</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ===== MODAL: SOẠN / SỬA BÀI VIẾT ===== */}
+      {newsModal && (
+        <div className="admin-modal-backdrop" onClick={() => !newsSaving && setNewsModal(null)}>
+          {/* Rộng hơn các modal khác: form này có thanh công cụ nhiều nút và
+              khung soạn nội dung dài, chật quá thì toolbar bị xuống dòng. */}
+          <div className="admin-modal-panel" style={{ maxWidth: 1080, width: "94%" }} onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setNewsModal(null)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title">
+              {newsModal.mode === "create" ? "Viết bài mới" : "Chỉnh sửa bài viết"}
+            </h3>
 
-      {/* ===== MODAL: EDIT NEWS ===== */}
-      {showEditNewsModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowEditNewsModal(false)}>
-          <div className="admin-modal-panel" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
-            <button className="admin-modal-close" onClick={() => setShowEditNewsModal(false)}><Icon name="close" size={14} /></button>
-            <h3 className="admin-modal-title">Chỉnh sửa bài viết</h3>
-            <form onSubmit={handleUpdateNews}>
-              <div className="admin-form-group">
-                <label>Tiêu đề bài viết *</label>
-                <input type="text" className="admin-input" required value={newsFormData.title} onChange={e => setNewsFormData({ ...newsFormData, title: e.target.value })} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {newsModal.loading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải nội dung bài viết...</div>
+            ) : (
+              <form onSubmit={handleSubmitNews}>
+                {/* ── Nội dung ───────────────────────────────────────── */}
                 <div className="admin-form-group">
-                  <label>Đường dẫn ảnh bìa</label>
-                  <input type="text" className="admin-input" value={newsFormData.img} onChange={e => setNewsFormData({ ...newsFormData, img: e.target.value })} />
+                  <label>Tiêu đề bài viết *</label>
+                  <input
+                    type="text" className="admin-input" required maxLength={500}
+                    value={newsFormData.title}
+                    onChange={e => setNewsFormData({ ...newsFormData, title: e.target.value })}
+                  />
                 </div>
+
                 <div className="admin-form-group">
-                  <label>Ngày hiển thị</label>
-                  <input type="text" className="admin-input" placeholder="VD: 11/03/2026" value={newsFormData.date} onChange={e => setNewsFormData({ ...newsFormData, date: e.target.value })} />
+                  <label>Đường dẫn (slug)</label>
+                  <input
+                    type="text" className="admin-input"
+                    placeholder={newsModal.mode === "create" ? "Để trống sẽ tự sinh từ tiêu đề" : ""}
+                    value={newsFormData.slug}
+                    onChange={e => setNewsFormData({ ...newsFormData, slug: e.target.value })}
+                  />
+                  <small style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                    /news/{newsFormData.slug.trim() || (newsFormData.title ? slugify(newsFormData.title) : "…")}
+                    {newsModal.mode === "edit" && " · đổi slug sẽ làm hỏng liên kết cũ đã chia sẻ"}
+                  </small>
                 </div>
-              </div>
-              <div className="admin-form-group">
-                <label>Mô tả ngắn (excerpt) *</label>
-                <textarea className="admin-textarea" required style={{ height: 60 }} value={newsFormData.excerpt} onChange={e => setNewsFormData({ ...newsFormData, excerpt: e.target.value })} />
-              </div>
-              <div className="admin-form-group">
-                <label>Nội dung chi tiết bài viết *</label>
-                <textarea className="admin-textarea" required style={{ height: 160 }} value={newsFormData.content} onChange={e => setNewsFormData({ ...newsFormData, content: e.target.value })} />
-              </div>
-              <div className="admin-form-actions">
-                <button type="button" className="btn-pill ghost" onClick={() => setShowEditNewsModal(false)}>Hủy bỏ</button>
-                <button type="submit" className="btn-pill">Cập nhật</button>
-              </div>
-            </form>
+
+                <ImageField
+                  label="Ảnh bìa"
+                  required
+                  type="news"
+                  value={newsFormData.img}
+                  onChange={img => setNewsFormData(f => ({ ...f, img }))}
+                  onUploadingChange={setImageUploading}
+                />
+
+                <div className="admin-form-group">
+                  <label>Ngày đăng</label>
+                  <input
+                    type="date" className="admin-input" style={{ maxWidth: 260 }}
+                    value={newsFormData.date}
+                    onChange={e => setNewsFormData({ ...newsFormData, date: e.target.value })}
+                  />
+                  <small style={{ fontSize: 11.5, color: "var(--muted)" }}>Để trống = ngày hôm nay</small>
+                </div>
+
+                <div className="admin-form-group">
+                  <label>
+                    Mô tả ngắn *
+                    <span style={{ float: "right", fontSize: 11.5, fontWeight: 500, color: newsFormData.excerpt.length > 500 ? "#ef4444" : "var(--muted)" }}>
+                      {newsFormData.excerpt.length}/500
+                    </span>
+                  </label>
+                  <textarea
+                    className="admin-textarea" required style={{ height: 66 }} maxLength={500}
+                    placeholder="Đoạn giới thiệu hiển thị ở card tin tức và kết quả tìm kiếm"
+                    value={newsFormData.excerpt}
+                    onChange={e => setNewsFormData({ ...newsFormData, excerpt: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-form-group">
+                  <label>Nội dung bài viết *</label>
+                  <ContentEditor
+                    value={newsFormData.content}
+                    onChange={content => setNewsFormData(f => ({ ...f, content }))}
+                    imageType="news"
+                    height={280}
+                  />
+                  <small style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                    Bôi đen chữ rồi bấm nút trên thanh công cụ. Dòng trống để ngăn đoạn.
+                    Thẻ HTML sẽ bị gỡ khi lưu.
+                  </small>
+                </div>
+
+                {/* ── Phân loại & hiển thị ───────────────────────────── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div className="admin-form-group">
+                    <label>Danh mục</label>
+                    <select
+                      className="admin-select"
+                      value={newsFormData.categoryId}
+                      onChange={e => setNewsFormData({ ...newsFormData, categoryId: e.target.value })}
+                    >
+                      <option value="">— Chưa phân loại —</option>
+                      {newsCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="admin-form-group">
+                    <label>Trạng thái</label>
+                    <select
+                      className="admin-select"
+                      value={newsFormData.status}
+                      onChange={e => setNewsFormData({ ...newsFormData, status: e.target.value })}
+                    >
+                      <option value="draft">Bản nháp — chưa hiển thị</option>
+                      <option value="published">Đã đăng — hiện trên website</option>
+                      <option value="hidden">Đã ẩn — gỡ khỏi website</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="admin-form-group">
+                  <label>Thẻ (tag)</label>
+                  <input
+                    type="text" className="admin-input"
+                    placeholder="Ngăn cách bằng dấu phẩy. VD: sofa, phòng khách, mẹo bài trí"
+                    value={newsFormData.tags}
+                    onChange={e => setNewsFormData({ ...newsFormData, tags: e.target.value })}
+                  />
+                  <small style={{ fontSize: 11.5, color: "var(--muted)" }}>Tối đa 10 thẻ</small>
+                </div>
+
+                <div className="admin-form-group">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={newsFormData.featured}
+                      onChange={e => setNewsFormData({ ...newsFormData, featured: e.target.checked })}
+                    />
+                    ⭐ Bài nổi bật — được ưu tiên hiển thị trên trang chủ
+                  </label>
+                </div>
+
+                {/* ── SEO (thu gọn) ──────────────────────────────────── */}
+                <div style={{ border: "1px solid var(--line)", borderRadius: 10, marginBottom: 18, overflow: "hidden" }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewsSeoOpen(o => !o)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "11px 14px", background: "var(--mint)", border: "none", cursor: "pointer",
+                      fontSize: 13.5, fontWeight: 700, color: "var(--green-ink)",
+                    }}
+                  >
+                    <span>Tối ưu SEO {newsSeoOpen ? "" : "(tùy chọn)"}</span>
+                    <span>{newsSeoOpen ? "▲" : "▼"}</span>
+                  </button>
+
+                  {newsSeoOpen && (
+                    <div style={{ padding: "16px 14px 2px" }}>
+                      <div className="admin-form-group">
+                        <label>
+                          Tiêu đề SEO
+                          <span style={{ float: "right", fontSize: 11.5, fontWeight: 500, color: newsFormData.seoTitle.length > 60 ? "#f59a1c" : "var(--muted)" }}>
+                            {newsFormData.seoTitle.length}/60 khuyến nghị
+                          </span>
+                        </label>
+                        <input
+                          type="text" className="admin-input" maxLength={255}
+                          placeholder="Để trống sẽ dùng tiêu đề bài viết"
+                          value={newsFormData.seoTitle}
+                          onChange={e => setNewsFormData({ ...newsFormData, seoTitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="admin-form-group">
+                        <label>
+                          Mô tả SEO
+                          <span style={{ float: "right", fontSize: 11.5, fontWeight: 500, color: newsFormData.seoDescription.length > 160 ? "#f59a1c" : "var(--muted)" }}>
+                            {newsFormData.seoDescription.length}/160 khuyến nghị
+                          </span>
+                        </label>
+                        <textarea
+                          className="admin-textarea" style={{ height: 60 }} maxLength={500}
+                          placeholder="Để trống sẽ dùng mô tả ngắn"
+                          value={newsFormData.seoDescription}
+                          onChange={e => setNewsFormData({ ...newsFormData, seoDescription: e.target.value })}
+                        />
+                      </div>
+                      <div className="admin-form-group">
+                        <label>Từ khóa</label>
+                        <input
+                          type="text" className="admin-input" maxLength={500}
+                          placeholder="ngăn cách bằng dấu phẩy"
+                          value={newsFormData.seoKeywords}
+                          onChange={e => setNewsFormData({ ...newsFormData, seoKeywords: e.target.value })}
+                        />
+                      </div>
+
+                      <ImageField
+                        label="Ảnh chia sẻ (OG image)"
+                        type="news"
+                        value={newsFormData.ogImage}
+                        onChange={ogImage => setNewsFormData(f => ({ ...f, ogImage }))}
+                        onUploadingChange={setImageUploading}
+                        hint="Ảnh hiện khi chia sẻ lên Facebook, Zalo… Để trống sẽ dùng ảnh bìa. Khuyến nghị 1200×630."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-form-actions">
+                  <button type="button" className="btn-pill ghost" disabled={newsSaving} onClick={() => setNewsModal(null)}>
+                    Hủy bỏ
+                  </button>
+                  <button type="submit" className="btn-pill" disabled={newsSaving || imageUploading}>
+                    {newsSaving
+                      ? "Đang lưu..."
+                      : newsModal.mode === "create"
+                        ? (newsFormData.status === "published" ? "Đăng bài" : "Lưu bản nháp")
+                        : "Cập nhật"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

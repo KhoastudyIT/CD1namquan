@@ -95,18 +95,33 @@ export function CategoryPill({ c }) {
 }
 
 export function NewsCard({ n }) {
+  // Ưu tiên slug cho URL thân thiện SEO; API vẫn nhận id nếu bài chưa có slug.
+  const href = `/news/${n.slug || n.id}`;
   return (
     <article className="news-card">
-      <Link to={`/news/${n.id}`} style={{ display: "block" }}>
+      <Link to={href} style={{ display: "block", position: "relative" }}>
         <div className="news-media"><Img src={n.img} alt={n.title} label="ảnh tin tức" /></div>
+        {n.category && (
+          <span style={{
+            position: "absolute", top: 12, left: 12,
+            background: "rgba(255,255,255,.94)", color: "var(--green-ink)",
+            padding: "4px 11px", borderRadius: 999,
+            fontSize: 11, fontWeight: 700, letterSpacing: ".02em",
+            boxShadow: "0 2px 8px rgba(0,0,0,.12)",
+          }}>
+            {n.category.name}
+          </span>
+        )}
       </Link>
       <div className="news-body">
-        <Link to={`/news/${n.id}`} style={{ textDecoration: "none" }}>
+        <Link to={href} style={{ textDecoration: "none" }}>
           <h4 className="news-title">{n.title}</h4>
         </Link>
-        <div className="news-date">{n.date}</div>
+        <div className="news-date">
+          {n.date}{n.readingTime ? ` · ${n.readingTime} phút đọc` : ""}
+        </div>
         <p className="news-ex">{n.excerpt}</p>
-        <Link to={`/news/${n.id}`} className="news-more">Đọc tiếp <Icon name="arrow" size={15} /></Link>
+        <Link to={href} className="news-more">Đọc tiếp <Icon name="arrow" size={15} /></Link>
       </div>
     </article>
   );

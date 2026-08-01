@@ -1,8 +1,13 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import config from './config/index.js';
+import { bootstrapStorage } from './services/storage/index.js';
 
 const app = createApp();
+
+// Tạo bucket nếu chưa có. Không chặn việc listen — MinIO chưa chạy thì các API
+// khác vẫn phục vụ bình thường, chỉ upload ảnh là chưa dùng được.
+await bootstrapStorage();
 
 const server = app.listen(config.port, () => {
   console.log('');

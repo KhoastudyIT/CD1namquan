@@ -30,12 +30,13 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
     { name: 'Products',    description: 'Sản phẩm nội thất — xem & quản lý' },
     { name: 'Categories',  description: 'Danh mục sản phẩm' },
     { name: 'Collections', description: 'Bộ sưu tập nội thất' },
-    { name: 'News',        description: 'Tin tức và bài viết' },
+    { name: 'News',        description: 'Tin tức và bài viết — danh mục, tag, trạng thái nháp/đăng/ẩn và SEO' },
     { name: 'Cart',        description: 'Giỏ hàng — yêu cầu đăng nhập' },
     { name: 'Orders',      description: 'Đơn hàng — yêu cầu đăng nhập' },
     { name: 'Notifications', description: 'Thông báo theo từng tài khoản' },
     { name: 'Users',       description: '[Admin] Quản lý người dùng — danh sách, phân quyền, khóa/mở' },
     { name: 'Stats',       description: '[Admin] Thống kê & báo cáo cho dashboard' },
+    { name: 'Uploads',     description: '[Admin] Tải ảnh lên MinIO qua URL có chữ ký' },
   ],
   components: {
     securitySchemes: {
@@ -221,15 +222,88 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           img:  { type: 'string', example: '/images/modern.jpg' },
         },
       },
+      NewsCategory: {
+        type: 'object',
+        properties: {
+          id:           { type: 'integer', example: 1 },
+          name:         { type: 'string', example: 'Xu hướng thiết kế' },
+          slug:         { type: 'string', example: 'xu-huong-thiet-ke' },
+          description:  { type: 'string', example: 'Phong cách, vật liệu và màu sắc đang dẫn dắt thị trường nội thất.' },
+          sortOrder:    { type: 'integer', example: 1 },
+          articleCount: { type: 'integer', description: 'Số bài đã đăng thuộc danh mục', example: 2 },
+        },
+      },
       NewsArticle: {
         type: 'object',
+        description: 'Bài viết. Danh sách (`GET /news`, `GET /news/admin/list`) không kèm `content`; chi tiết thì có.',
         properties: {
           id:      { type: 'integer', example: 1 },
           title:   { type: 'string', example: 'Xu Hướng Nội Thất 2026 – Tinh Tế & Bền Vững' },
-          date:    { type: 'string', example: '11/03/2026' },
+          slug:    { type: 'string', example: 'xu-huong-noi-that-2026-tinh-te-ben-vung' },
           img:     { type: 'string', example: '/images/news1.jpg' },
-          excerpt: { type: 'string', example: 'Khám phá những phong cách thiết kế nổi bật...' },
-          content: { type: 'string', example: 'Năm 2026 chứng kiến sự trỗi dậy mạnh mẽ...' },
+          excerpt: { type: 'string', example: 'Vật liệu tái tạo, đường nét tối giản và bảng màu lấy cảm hứng từ thiên nhiên...' },
+          content: {
+            type: 'string',
+            description: 'Văn bản thuần. Cú pháp rút gọn: `## ` tiêu đề mục, `- ` gạch đầu dòng, `**...**` in đậm, dòng trống ngăn đoạn. Thẻ HTML bị gỡ khi lưu.',
+            example: 'Năm 2026 đánh dấu giai đoạn...\n\n## Vật liệu tái tạo lên ngôi\n\n- **Gỗ sồi**: giữ được vân gỗ thật.',
+          },
+          author:      { type: 'string', example: 'NAM QUAN' },
+          category:    { allOf: [{ $ref: '#/components/schemas/NewsCategory' }], nullable: true, description: 'null nếu bài chưa gán danh mục' },
+          tags:        { type: 'array', items: { type: 'string' }, example: ['xu hướng', 'bền vững'] },
+          status:      { type: 'string', enum: ['draft', 'published', 'hidden'], example: 'published' },
+          featured:    { type: 'boolean', example: true },
+          views:       { type: 'integer', example: 412 },
+          readingTime: { type: 'integer', description: 'Phút đọc ước tính (~200 từ/phút)', example: 5 },
+          publishedAt: { type: 'string', format: 'date', description: 'Ngày đăng dạng yyyy-mm-dd (dùng cho input date)', example: '2026-03-11' },
+          date:        { type: 'string', description: 'Ngày đăng đã format để hiển thị', example: '11/03/2026' },
+          seo: {
+            type: 'object',
+            properties: {
+              title:       { type: 'string', nullable: true, example: 'Xu hướng nội thất 2026: tinh tế và bền vững' },
+              description: { type: 'string', nullable: true, example: 'Ba trụ cột định hình nội thất 2026...' },
+              keywords:    { type: 'string', nullable: true, example: 'xu hướng nội thất 2026, nội thất bền vững' },
+              ogImage:     { type: 'string', nullable: true, example: '/images/news1.jpg' },
+            },
+          },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      NewsInput: {
+        type: 'object',
+        required: ['title', 'img', 'excerpt', 'content'],
+        properties: {
+          title:      { type: 'string', maxLength: 500, example: 'Xu Hướng Nội Thất 2026' },
+          slug:       { type: 'string', description: 'Bỏ trống = tự sinh từ tiêu đề. Trùng thì tự thêm hậu tố -2, -3…', example: 'xu-huong-noi-that-2026' },
+          img:        { type: 'string', example: '/images/news1.jpg' },
+          excerpt:    { type: 'string', maxLength: 500, example: 'Mô tả ngắn hiển thị ở card tin tức...' },
+          content:    { type: 'string', example: 'Nội dung bài viết...\n\n## Mục đầu tiên\n\n- **Ý chính**: diễn giải.' },
+          author:     { type: 'string', example: 'NAM QUAN' },
+          categoryId: { type: 'integer', nullable: true, example: 1 },
+          tags:       { type: 'array', maxItems: 10, items: { type: 'string' }, example: ['xu hướng', '2026'] },
+          status:     { type: 'string', enum: ['draft', 'published', 'hidden'], default: 'draft' },
+          featured:   { type: 'boolean', default: false },
+          date:       { type: 'string', description: 'Ngày đăng, nhận `dd/mm/yyyy` hoặc `yyyy-mm-dd`. Bỏ trống = hôm nay.', example: '11/03/2026' },
+          seoTitle:       { type: 'string', maxLength: 255 },
+          seoDescription: { type: 'string', maxLength: 500 },
+          seoKeywords:    { type: 'string', maxLength: 500 },
+          ogImage:        { type: 'string', maxLength: 500 },
+        },
+      },
+      NewsListResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data:    { type: 'array', items: { $ref: '#/components/schemas/NewsArticle' } },
+          meta: {
+            type: 'object',
+            properties: {
+              total:      { type: 'integer', example: 6 },
+              page:       { type: 'integer', example: 1 },
+              limit:      { type: 'integer', example: 9 },
+              totalPages: { type: 'integer', example: 1 },
+            },
+          },
         },
       },
       CartItemEnriched: {
@@ -909,89 +983,148 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
     '/api/v1/news': {
       get: {
         tags: ['News'],
-        summary: 'Danh sách tin tức',
+        summary: 'Danh sách bài viết đã đăng',
+        description: 'Chỉ trả về bài có `status = published`. Không kèm `content` — dùng `GET /news/{idOrSlug}` để lấy nội dung đầy đủ.',
+        parameters: [
+          { name: 'page',     in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 9 } },
+          { name: 'search',   in: 'query', description: 'Tìm trong tiêu đề và mô tả ngắn, bỏ qua dấu tiếng Việt', schema: { type: 'string' }, example: 'noi that' },
+          { name: 'category', in: 'query', description: 'Slug danh mục', schema: { type: 'string' }, example: 'meo-bai-tri' },
+          { name: 'tag',      in: 'query', schema: { type: 'string' }, example: 'sofa' },
+          { name: 'featured', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'sort',     in: 'query', schema: { type: 'string', enum: ['newest', 'oldest', 'popular'], default: 'newest' } },
+        ],
         responses: {
           '200': {
-            description: 'Danh sách bài viết',
-            content: {
-              'application/json': {
-                schema: {
-                  allOf: [
-                    { $ref: '#/components/schemas/SuccessResponse' },
-                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/NewsArticle' } } } },
-                  ],
-                },
-              },
-            },
+            description: 'Danh sách bài viết (có phân trang)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/NewsListResponse' } } },
           },
+          '422': { $ref: '#/components/responses/ValidationError' },
         },
       },
       post: {
         tags: ['News'],
         summary: '[Admin] Tạo bài viết',
+        description: 'Mặc định lưu ở trạng thái `draft` nếu không truyền `status`.',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['title', 'img', 'excerpt', 'content'],
-                properties: {
-                  title:   { type: 'string', example: 'Xu Hướng Nội Thất 2026' },
-                  img:     { type: 'string', example: '/images/news1.jpg' },
-                  excerpt: { type: 'string', example: 'Mô tả ngắn cho bài viết...' },
-                  content: { type: 'string', example: 'Nội dung đầy đủ của bài viết...' },
-                  date:    { type: 'string', description: 'Tùy chọn — mặc định ngày hiện tại', example: '11/03/2026' },
-                },
-              },
-            },
-          },
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/NewsInput' } } },
         },
         responses: {
           '201': { description: 'Đã tạo bài viết', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '400': { description: 'Danh mục không tồn tại' },
           '401': { $ref: '#/components/responses/Unauthorized' },
           '403': { $ref: '#/components/responses/Forbidden' },
           '422': { $ref: '#/components/responses/ValidationError' },
         },
       },
     },
-    '/api/v1/news/{id}': {
+    '/api/v1/news/categories': {
       get: {
         tags: ['News'],
-        summary: 'Chi tiết bài viết',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        summary: 'Danh mục bài viết',
+        description: 'Kèm số bài đã đăng theo từng danh mục — dùng cho bộ lọc ở trang tin tức và dropdown ở dashboard.',
         responses: {
           '200': {
-            description: 'Chi tiết bài viết',
+            description: 'Danh sách danh mục',
             content: {
               'application/json': {
                 schema: {
                   allOf: [
                     { $ref: '#/components/schemas/SuccessResponse' },
-                    { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/NewsCategory' } } } },
                   ],
                 },
               },
             },
           },
+        },
+      },
+    },
+    '/api/v1/news/admin/list': {
+      get: {
+        tags: ['News'],
+        summary: '[Admin] Danh sách bài viết (mọi trạng thái)',
+        description: 'Gồm cả bản nháp và bài đã ẩn. Không kèm `content`.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page',     in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 } },
+          { name: 'status',   in: 'query', schema: { type: 'string', enum: ['draft', 'published', 'hidden'] } },
+          { name: 'search',   in: 'query', schema: { type: 'string' } },
+          { name: 'category', in: 'query', description: 'Slug danh mục', schema: { type: 'string' } },
+          { name: 'tag',      in: 'query', schema: { type: 'string' } },
+          { name: 'featured', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'sort',     in: 'query', schema: { type: 'string', enum: ['newest', 'oldest', 'popular'], default: 'newest' } },
+        ],
+        responses: {
+          '200': { description: 'Danh sách bài viết (có phân trang)', content: { 'application/json': { schema: { $ref: '#/components/schemas/NewsListResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+    },
+    '/api/v1/news/admin/{id}': {
+      get: {
+        tags: ['News'],
+        summary: '[Admin] Chi tiết bài viết để chỉnh sửa',
+        description: 'Trả về bài ở mọi trạng thái, kèm `content` đầy đủ. Không tăng lượt xem.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        responses: {
+          '200': { description: 'Chi tiết bài viết', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
         },
       },
+    },
+    '/api/v1/news/{idOrSlug}': {
+      get: {
+        tags: ['News'],
+        summary: 'Chi tiết bài viết',
+        description: 'Nhận cả id lẫn slug. Chỉ trả bài đã đăng và tự tăng `views` mỗi lượt gọi.',
+        parameters: [{ name: 'idOrSlug', in: 'path', required: true, schema: { type: 'string' }, example: 'xu-huong-noi-that-2026-tinh-te-ben-vung' }],
+        responses: {
+          '200': { description: 'Chi tiết bài viết', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/news/{idOrSlug}/related': {
+      get: {
+        tags: ['News'],
+        summary: 'Bài viết liên quan',
+        description: 'Ưu tiên bài cùng danh mục, thiếu thì bù bằng bài mới nhất — luôn trả đủ `limit` bài nếu còn bài khác.',
+        parameters: [
+          { name: 'idOrSlug', in: 'path', required: true, schema: { type: 'string' }, example: 'xu-huong-noi-that-2026-tinh-te-ben-vung' },
+          { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12, default: 3 } },
+        ],
+        responses: {
+          '200': { description: 'Danh sách bài liên quan', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/NewsArticle' } } } }] } } } },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/news/{id}': {
       put: {
         tags: ['News'],
         summary: '[Admin] Cập nhật bài viết',
+        description: 'Cập nhật từng phần — chỉ gửi trường cần đổi. Slug chỉ thay đổi khi truyền `slug` tường minh, đổi tiêu đề không phá URL đã công bố.',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { type: 'object', properties: { title: { type: 'string' }, img: { type: 'string' }, excerpt: { type: 'string' }, content: { type: 'string' }, date: { type: 'string' } } } } },
+          content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/NewsInput' }, { required: [] }] } } },
         },
         responses: {
           '200': { description: 'Đã cập nhật', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '400': { description: 'Danh mục không tồn tại' },
           '401': { $ref: '#/components/responses/Unauthorized' },
           '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
         },
       },
       delete: {
@@ -1004,6 +1137,34 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           '401': { $ref: '#/components/responses/Unauthorized' },
           '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/news/{id}/status': {
+      patch: {
+        tags: ['News'],
+        summary: '[Admin] Đổi trạng thái bài viết',
+        description: 'Đăng / gỡ / chuyển về nháp ngay từ bảng danh sách, không cần mở form sửa.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['status'],
+                properties: { status: { type: 'string', enum: ['draft', 'published', 'hidden'], example: 'published' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Đã đổi trạng thái', content: { 'application/json': { schema: { allOf: [{ $ref: '#/components/schemas/SuccessResponse' }, { properties: { data: { $ref: '#/components/schemas/NewsArticle' } } }] } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
         },
       },
     },
@@ -1387,6 +1548,71 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
           '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+
+    // ─── UPLOADS (Admin) ───────────────────────────────────────────────────────
+    '/api/v1/uploads/image-url': {
+      post: {
+        tags: ['Uploads'],
+        summary: '[Admin] Xin URL tải ảnh lên',
+        description:
+          'Bước 1 của luồng tải ảnh 2 bước, dùng chung cho ảnh bài viết, sản phẩm, danh mục và bộ sưu tập.\n\n'
+          + '1. Gọi endpoint này để lấy `uploadUrl` có chữ ký (hết hạn sau 1 giờ).\n'
+          + '2. `PUT` file thẳng lên `uploadUrl` với header `Content-Type` **đúng bằng** `mimeType` đã khai báo — '
+          + 'file đi trực tiếp lên MinIO, không qua backend.\n'
+          + '3. Lưu `publicUrl` vào trường `img` của thực thể tương ứng.\n\n'
+          + 'Tên file client gửi lên chỉ dùng để suy ra đuôi file; object key luôn do server sinh bằng UUID '
+          + 'nên không thể ghi đè file khác hay thoát ra ngoài thư mục cho phép.\n\n'
+          + 'Trả **503** nếu backend chưa cấu hình MinIO (xem `MINIO_*` trong `backend/.env.example`).',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['type', 'mimeType', 'size'],
+                properties: {
+                  type:         { type: 'string', enum: ['news', 'products', 'categories', 'collections'], description: 'Quyết định thư mục lưu ảnh', example: 'products' },
+                  mimeType:     { type: 'string', enum: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], example: 'image/png' },
+                  size:         { type: 'integer', maximum: 5242880, description: 'Kích thước file tính bằng byte, tối đa 5MB', example: 248310 },
+                  originalName: { type: 'string', maxLength: 255, example: 'sofa-goc.png' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'URL tải lên đã ký',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            uploadUrl: { type: 'string', description: 'PUT file lên đây', example: 'http://localhost:9000/namquan/products/e066e334-....png?X-Amz-Signature=...' },
+                            objectKey: { type: 'string', example: 'products/e066e334-f454-487b-b1cd-c0f94d66be58.png' },
+                            publicUrl: { type: 'string', description: 'Lưu giá trị này vào trường `img`', example: 'http://localhost:9000/namquan/products/e066e334-f454-487b-b1cd-c0f94d66be58.png' },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+          '503': { description: 'Backend chưa cấu hình MinIO' },
         },
       },
     },

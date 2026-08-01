@@ -30,7 +30,44 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
   }
 }
 
+// Chặn sớm ở client cho phản hồi tức thì — backend vẫn kiểm tra lại y hệt.
+export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+export function validateImageFile(file) {
+  if (!IMAGE_MIMES.includes(file.type)) return 'Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP.';
+  if (file.size > IMAGE_MAX_BYTES) return 'Ảnh tối đa 5MB.';
+  return null;
+}
+
 export const api = {
+  /**
+   * Tải ảnh lên theo 2 bước: xin URL có chữ ký từ backend, rồi PUT file thẳng
+   * lên MinIO. File không đi qua API nên không vướng giới hạn body của Express.
+   * @param {File} file
+   * @param {'news'|'products'|'categories'|'collections'} type Quyết định thư mục lưu
+   * @returns {Promise<string>} publicUrl để lưu vào trường `img`
+   */
+  uploadImage: async (file, type) => {
+    const invalid = validateImageFile(file);
+    if (invalid) throw new Error(invalid);
+
+    const { uploadUrl, publicUrl } = await fetchAPI('/uploads/image-url', {
+      method: 'POST',
+      body: JSON.stringify({ type, mimeType: file.type, size: file.size, originalName: file.name }),
+    });
+
+    // Gọi thẳng MinIO — không dùng fetchAPI vì khác origin và không cần token.
+    const put = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!put.ok) throw new Error(`Tải ảnh lên thất bại (HTTP ${put.status}).`);
+
+    return publicUrl;
+  },
+
   // Products & Public
   getProducts: (params = {}) => {
     const q = new URLSearchParams(params).toString();
@@ -44,8 +81,19 @@ export const api = {
   getFlashSales: () => fetchAPI('/products/flash-sales'),
   getCategories: () => fetchAPI('/categories'),
   getCollections: () => fetchAPI('/collections'),
-  getNews: () => fetchAPI('/news'),
-  getNewsById: (id) => fetchAPI(`/news/${id}`),
+  // News — công khai (chỉ bài đã đăng)
+  getNews: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/news${q ? `?${q}` : ''}`);
+  },
+  getNewsPaginated: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/news${q ? `?${q}` : ''}`, {}, true);
+  },
+  getNewsCategories: () => fetchAPI('/news/categories'),
+  // Nhận cả id lẫn slug
+  getNewsById: (idOrSlug) => fetchAPI(`/news/${idOrSlug}`),
+  getRelatedNews: (idOrSlug, limit = 3) => fetchAPI(`/news/${idOrSlug}/related?limit=${limit}`),
 
   // Auth
   login: (data) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -98,8 +146,14 @@ export const api = {
   deleteCollection: (id) => fetchAPI(`/collections/${id}`, { method: 'DELETE' }),
 
   // Admin — News
+  getNewsAdmin: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/news/admin/list${q ? `?${q}` : ''}`, {}, true);
+  },
+  getNewsAdminById: (id) => fetchAPI(`/news/admin/${id}`),
   createNews: (data) => fetchAPI('/news', { method: 'POST', body: JSON.stringify(data) }),
   updateNews: (id, data) => fetchAPI(`/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateNewsStatus: (id, status) => fetchAPI(`/news/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   deleteNews: (id) => fetchAPI(`/news/${id}`, { method: 'DELETE' }),
 
   // Admin — Flash Sales

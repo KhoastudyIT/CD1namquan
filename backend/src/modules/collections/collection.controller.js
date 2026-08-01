@@ -10,19 +10,19 @@ export async function list(_req, res, next) {
 }
 
 
-export function create(req, res) {
-  const collection = collectionService.createCollection(req.body);
+export async function create(req, res) {
+  const collection = await collectionService.createCollection(req.body);
   created(res, collection, 'Tạo bộ sưu tập thành công');
 }
 
-export function update(req, res) {
+export async function update(req, res) {
   const id = parseInt(req.params.id, 10);
-  const collection = collectionService.updateCollection(id, req.body);
+  const collection = await collectionService.updateCollection(id, req.body);
   ok(res, collection, 'Cập nhật bộ sưu tập thành công');
 }
 
-export function remove(req, res) {
+export async function remove(req, res) {
   const id = parseInt(req.params.id, 10);
-  collectionService.deleteCollection(id);
+  await collectionService.deleteCollection(id);
   noContent(res);
 }

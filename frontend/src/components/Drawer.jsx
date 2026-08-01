@@ -9,7 +9,7 @@ export function Drawer({ open, onClose }) {
     { label: "Cửa hàng", path: "/shop" },
     { label: "Bộ sưu tập", hash: "collections" },
     { label: "Showroom", hash: "showroom" },
-    { label: "Tin tức", hash: "news" },
+    { label: "Tin tức", path: "/news" },
   ];
 
   const handleNav = (link) => {

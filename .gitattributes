@@ -1,0 +1,5 @@
+# Giữ file SQL luôn ở LF kể cả khi máy dev đặt core.autocrlf=true.
+# Nội dung bài viết trong nam_quan_database.sql được seed thẳng vào cột TEXT;
+# nếu file mang CRLF thì DB lưu \r\n và bộ render tách đoạn (/\n{2,}/) không khớp,
+# khiến cả bài dồn thành một khối văn bản thô trên trang tin tức.
+*.sql text eol=lf

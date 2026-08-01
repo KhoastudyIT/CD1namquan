@@ -17,6 +17,7 @@ import { Checkout } from "./pages/Checkout.jsx";
 import { Orders } from "./pages/Orders.jsx";
 import { OrderDetail } from "./pages/OrderDetail.jsx";
 import { Profile } from "./pages/Profile.jsx";
+import { NewsList } from "./pages/NewsList.jsx";
 import { NewsDetail } from "./pages/NewsDetail.jsx";
 import { Favorites } from "./pages/Favorites.jsx";
 import { Notifications } from "./pages/Notifications.jsx";
@@ -144,7 +145,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/news/:id" element={<NewsDetail />} />
+          <Route path="/news" element={<NewsList />} />
+          <Route path="/news/:idOrSlug" element={<NewsDetail />} />
           <Route path="/cart" element={<RequireAuth><Cart /></RequireAuth>} />
           <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
           <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />

@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Img, Icon, toast } from "../components/ui.jsx";
+import { ArticleContent } from "../components/ArticleContent.jsx";
 
 export function NewsDetail() {
-  const { id } = useParams();
+  const { idOrSlug } = useParams();
   const navigate = useNavigate();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ export function NewsDetail() {
   useEffect(() => {
     window.scrollTo(0, 0);
     setLoading(true);
-    api.getNewsById(id)
+    api.getNewsById(idOrSlug)
       .then(data => {
         if (data) setArticle(data);
       })
@@ -22,17 +23,61 @@ export function NewsDetail() {
         navigate("/");
       })
       .finally(() => setLoading(false));
-  }, [id, navigate]);
+  }, [idOrSlug, navigate]);
 
+  // Bài liên quan do backend chọn (ưu tiên cùng danh mục)
   useEffect(() => {
-    api.getNews()
-      .then(data => {
-        if (Array.isArray(data)) {
-          setRelated(data.filter(n => String(n.id) !== String(id)).slice(0, 3));
-        }
-      })
+    api.getRelatedNews(idOrSlug, 3)
+      .then(data => setRelated(Array.isArray(data) ? data : []))
       .catch(() => {});
-  }, [id]);
+  }, [idOrSlug]);
+
+  // Thẻ tiêu đề/description/Open Graph cho SEO và khi chia sẻ liên kết.
+  // Ảnh chia sẻ: dùng OG image nếu admin đặt riêng, không thì lấy ảnh bìa.
+  useEffect(() => {
+    if (!article) return;
+
+    const seoTitle = article.seo?.title || article.title;
+    const seoDesc  = article.seo?.description || article.excerpt;
+    const shareImg = article.seo?.ogImage || article.img;
+    // Ảnh chia sẻ phải là URL tuyệt đối — mạng xã hội không đọc được '/images/x.jpg'
+    const absoluteImg = shareImg?.startsWith("http")
+      ? shareImg
+      : `${window.location.origin}${shareImg || ""}`;
+
+    const previousTitle = document.title;
+    document.title = `${seoTitle} | NAM QUAN`;
+
+    // Tạo thẻ nếu chưa có, nhớ giá trị cũ để trả lại khi rời trang
+    const managed = [];
+    const setMeta = (selector, attrs, content) => {
+      let tag = document.head.querySelector(selector);
+      const existed = Boolean(tag);
+      if (!tag) {
+        tag = document.createElement("meta");
+        Object.entries(attrs).forEach(([k, v]) => tag.setAttribute(k, v));
+        document.head.appendChild(tag);
+      }
+      managed.push({ tag, existed, previous: tag.getAttribute("content") });
+      tag.setAttribute("content", content);
+    };
+
+    setMeta('meta[name="description"]',      { name: "description" },      seoDesc);
+    setMeta('meta[property="og:type"]',      { property: "og:type" },      "article");
+    setMeta('meta[property="og:title"]',     { property: "og:title" },     seoTitle);
+    setMeta('meta[property="og:description"]', { property: "og:description" }, seoDesc);
+    setMeta('meta[property="og:image"]',     { property: "og:image" },     absoluteImg);
+    setMeta('meta[property="og:url"]',       { property: "og:url" },       window.location.href);
+    setMeta('meta[name="twitter:card"]',     { name: "twitter:card" },     "summary_large_image");
+
+    return () => {
+      document.title = previousTitle;
+      managed.forEach(({ tag, existed, previous }) => {
+        if (existed) tag.setAttribute("content", previous || "");
+        else tag.remove();
+      });
+    };
+  }, [article]);
 
   if (loading) {
     return (
@@ -92,19 +137,42 @@ export function NewsDetail() {
               Trang chủ
             </Link>
             <span style={{ opacity: 0.5 }}>/</span>
-            <span style={{ color: "rgba(255,255,255,0.95)", fontWeight: 600 }}>Tin tức</span>
+            <Link to="/news" style={{ color: "rgba(255,255,255,0.75)", transition: ".2s" }}>Tin tức</Link>
+            {article.category && (
+              <>
+                <span style={{ opacity: 0.5 }}>/</span>
+                <Link
+                  to={`/news?category=${article.category.slug}`}
+                  style={{ color: "rgba(255,255,255,0.95)", fontWeight: 600 }}
+                >
+                  {article.category.name}
+                </Link>
+              </>
+            )}
           </nav>
 
-          {/* Date badge */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            background: "var(--green)", color: "#fff",
-            padding: "5px 14px", borderRadius: 999,
-            fontSize: 12, fontWeight: 600, letterSpacing: ".04em",
-            marginBottom: 14, width: "fit-content",
-          }}>
-            <Icon name="bell" size={12} stroke={2} />
-            {article.date}
+          {/* Danh mục · ngày đăng · thời gian đọc */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            {article.category && (
+              <span style={{
+                display: "inline-flex", alignItems: "center",
+                background: "var(--green)", color: "#fff",
+                padding: "5px 14px", borderRadius: 999,
+                fontSize: 12, fontWeight: 700, letterSpacing: ".04em",
+              }}>
+                {article.category.name}
+              </span>
+            )}
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "rgba(255,255,255,.16)", color: "#fff",
+              padding: "5px 14px", borderRadius: 999,
+              fontSize: 12, fontWeight: 600,
+              backdropFilter: "blur(4px)",
+            }}>
+              <Icon name="bell" size={12} stroke={2} />
+              {article.date} · {article.readingTime} phút đọc
+            </span>
           </div>
 
           {/* Tiêu đề */}
@@ -125,15 +193,15 @@ export function NewsDetail() {
 
       {/* Body */}
       <section style={{ background: "var(--paper-2)", padding: "0 0 80px" }}>
-        <div className="wrap" style={{ maxWidth: 900 }}>
+        <div className="wrap" style={{ maxWidth: 1120 }}>
 
-          {/* Card nội dung chính */}
+          {/* Card nội dung chính — đặt hẳn dưới hero để không che ảnh bìa */}
           <div style={{
             background: "#fff",
             borderRadius: "var(--radius-lg)",
             boxShadow: "var(--shadow-md)",
-            padding: "48px 56px",
-            marginTop: "-60px",
+            padding: "52px 64px",
+            marginTop: 40,
             position: "relative",
             zIndex: 2,
           }}>
@@ -153,21 +221,40 @@ export function NewsDetail() {
             </p>
 
             {/* Nội dung chính */}
-            <div style={{
-              fontSize: 16.5,
-              color: "var(--ink-2)",
-              lineHeight: 1.85,
-              whiteSpace: "pre-wrap",
-            }}>
-              {article.content}
+            <div style={{ fontSize: 16.5, color: "var(--ink-2)" }}>
+              <ArticleContent content={article.content} />
             </div>
+
+            {/* Thẻ — bấm vào để xem các bài cùng thẻ */}
+            {article.tags?.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 36 }}>
+                {article.tags.map(tag => (
+                  <Link
+                    key={tag}
+                    to={`/news?tag=${encodeURIComponent(tag)}`}
+                    style={{
+                      background: "var(--mint)", color: "var(--green-ink)",
+                      padding: "5px 13px", borderRadius: 999,
+                      fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+                      transition: ".18s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--mint-2)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "var(--mint)"}
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {/* Footer của bài */}
             <div style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginTop: 48,
+              flexWrap: "wrap",
+              gap: 16,
+              marginTop: 40,
               paddingTop: 24,
               borderTop: "1px solid var(--line)",
             }}>
@@ -180,17 +267,19 @@ export function NewsDetail() {
                   <Icon name="leaf" size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Đội ngũ NAM QUAN</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Nội thất cao cấp · {article.date}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{article.author}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {article.date} · {article.views?.toLocaleString("vi-VN")} lượt xem
+                  </div>
                 </div>
               </div>
               <Link
-                to="/"
+                to="/news"
                 className="btn-pill ghost"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14 }}
               >
                 <Icon name="arrowL" size={15} />
-                Quay về trang chủ
+                Tất cả bài viết
               </Link>
             </div>
           </div>
@@ -209,7 +298,7 @@ export function NewsDetail() {
                 {related.map(n => (
                   <Link
                     key={n.id}
-                    to={`/news/${n.id}`}
+                    to={`/news/${n.slug || n.id}`}
                     style={{
                       display: "block", borderRadius: "var(--radius)", overflow: "hidden",
                       background: "#fff", border: "1px solid var(--line)",
@@ -228,7 +317,9 @@ export function NewsDetail() {
                       />
                     </div>
                     <div style={{ padding: "14px 16px 16px" }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>{n.date}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>
+                        {n.category?.name ? `${n.category.name} · ` : ""}{n.date}
+                      </div>
                       <h4 style={{
                         fontSize: 14, fontWeight: 700, color: "var(--green-ink)",
                         margin: 0, lineHeight: 1.4,

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { NewsCard } from "./cards.jsx";
+import { Icon } from "./ui.jsx";
 import { api } from "../api.js";
 
 export function News() {
@@ -8,7 +10,8 @@ export function News() {
 
   useEffect(() => {
     setLoading(true);
-    api.getNews()
+    // Chỉ lấy 3 bài mới nhất cho khối tin tức ở trang chủ
+    api.getNews({ limit: 3 })
       .then(data => {
         if (Array.isArray(data)) setNews(data);
         else if (data?.data) setNews(data.data);
@@ -40,6 +43,11 @@ export function News() {
               <NewsCard n={n} />
             </div>
           ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
+          <Link to="/news" className="btn-pill ghost" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            Xem tất cả bài viết <Icon name="arrow" size={15} />
+          </Link>
         </div>
       </div>
     </section>
