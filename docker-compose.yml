@@ -9,6 +9,12 @@
 #   frontend  : React build tĩnh, phục vụ bằng nginx
 #
 # Giá trị nhạy cảm có thể override qua file .env cùng cấp (xem .env.example).
+#
+# BIND_IP quyết định cổng nghe ở đâu:
+#   không đặt (mặc định 0.0.0.0) → truy cập được từ máy khác. Dùng khi chạy local.
+#   BIND_IP=127.0.0.1            → chỉ nghe loopback. BẮT BUỘC khi chạy trên VPS
+#                                  có reverse proxy (Nginx Proxy Manager) đứng trước,
+#                                  nếu không Postgres và MinIO lộ thẳng ra Internet.
 
 services:
   postgres:
@@ -21,7 +27,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     # 5433 ở host để tránh đụng Postgres cài sẵn trên máy (trong container vẫn là 5432)
     ports:
-      - "5433:5432"
+      - "${BIND_IP:-0.0.0.0}:5433:5432"
     volumes:
       - namquan_pgdata:/var/lib/postgresql/data
       # File .sql duy nhất — Postgres tự chạy khi khởi tạo DB lần đầu
@@ -46,8 +52,8 @@ services:
     volumes:
       - namquan_minio:/data
     ports:
-      - "9000:9000"   # S3 API — trình duyệt PUT/GET ảnh qua cổng này
-      - "9001:9001"   # Console quản trị: http://localhost:9001
+      - "${BIND_IP:-0.0.0.0}:9000:9000"   # S3 API — trình duyệt PUT/GET ảnh qua cổng này
+      - "${BIND_IP:-0.0.0.0}:9001:9001"   # Console quản trị: http://localhost:9001
     healthcheck:
       test: ["CMD-SHELL", "mc ready local || exit 1"]
       interval: 10s
@@ -81,7 +87,7 @@ services:
     # Cổng bên trong container luôn là 3000; chỉ cổng publish ra host đổi được.
     # Đặt API_PORT trong .env khi cổng 3000 của máy chủ đã có thứ khác dùng.
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${BIND_IP:-0.0.0.0}:${API_PORT:-3000}:3000"
 
   frontend:
     build:
@@ -93,7 +99,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "${BIND_IP:-0.0.0.0}:${WEB_PORT:-5173}:80"
 
 volumes:
   namquan_pgdata:

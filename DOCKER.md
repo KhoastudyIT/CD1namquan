@@ -77,35 +77,33 @@ VITE_API_URL=http://localhost:3000/api/v1
 | Frontend gọi API lỗi CORS | Đảm bảo `CORS_ORIGIN` khớp URL frontend (mặc định `http://localhost:5173`). |
 | Muốn làm sạch hoàn toàn | `docker compose down -v --rmi local` (xoá cả image build). |
 
-## 7. Deploy lên VPS (chạy bằng IP, chưa có tên miền)
+## 7. Deploy lên VPS (đã có Nginx Proxy Manager)
 
-> ⚠ **Không có HTTPS.** Mật khẩu đăng nhập và token đi qua mạng ở dạng thô, ai
-> chặn được đường truyền là đọc được. Chỉ dùng để demo/thử nghiệm — đừng nhập
-> dữ liệu thật. Khi có tên miền, xem mục 7.5 để bật TLS.
+Áp dụng cho VPS đang chạy **Nginx Proxy Manager** (NPM) ở network `host`, giữ
+cổng 80/443 và cấp chứng chỉ Let's Encrypt qua giao diện web.
 
-### 7.1. Chuẩn bị VPS
-Cần Ubuntu 22.04+ (hoặc tương đương), tối thiểu 2GB RAM.
+Stack này **không publish cổng nào ra Internet** — nhờ `BIND_IP=127.0.0.1` trong
+`.env`, tất cả chỉ nghe loopback; NPM gọi vào rồi phục vụ ra ngoài kèm HTTPS.
+Không cần mở thêm cổng ufw ngoài SSH + 80 + 443 (NPM đã dùng sẵn).
 
-```bash
-# Cài Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER && exec su -l $USER   # để chạy docker không cần sudo
+### 7.1. Tạo bản ghi DNS
 
-# Mở đúng 3 cổng cần thiết
-sudo ufw allow OpenSSH
-sudo ufw allow 5173/tcp    # frontend
-sudo ufw allow 3033/tcp    # API — 3000 đã có web API khác dùng nên đổi sang 3033
-sudo ufw allow 9000/tcp    # MinIO — trình duyệt tải/xem ảnh trực tiếp
-sudo ufw enable
+Ba subdomain, đều trỏ A record về IP VPS:
+
+```
+A   namquan.dienlanhkv.website           → <IP VPS>
+A   api-namquan.dienlanhkv.website       → <IP VPS>
+A   storage-namquan.dienlanhkv.website   → <IP VPS>
 ```
 
-Nếu 5173 hoặc 9000 cũng đã bị chiếm, kiểm tra bằng `sudo ss -tlnp | grep -E '5173|9000'`
-rồi sửa cổng publish tương ứng trong `docker-compose.yml` (phần bên trái dấu `:`).
+Chờ DNS lan rồi kiểm tra — NPM sẽ cấp chứng chỉ thất bại nếu chạy sớm:
 
-Cổng **5433** (Postgres) và **9001** (MinIO Console) cố ý KHÔNG mở. Overlay
-production đã ép chúng chỉ nghe trên `127.0.0.1`.
+```bash
+dig +short namquan.dienlanhkv.website
+```
 
 ### 7.2. Lấy mã nguồn và cấu hình
+
 ```bash
 git clone https://github.com/KhoastudyIT/CD1namquan.git
 cd CD1namquan
@@ -113,55 +111,98 @@ cp .env.example .env
 nano .env
 ```
 
-Trong `.env`, thay **toàn bộ** `<IP-VPS>` bằng IP thật và đổi hết mật khẩu:
+Sửa trong `.env`: đổi hết mật khẩu (`openssl rand -base64 32`) và thay tên miền
+cho khớp. Kiểm tra cổng định dùng còn trống:
 
 ```bash
-openssl rand -base64 32    # chạy 3 lần, lấy cho POSTGRES_PASSWORD / JWT_SECRET / MINIO_ROOT_PASSWORD
+sudo ss -tlnp | grep -E ':3033 |:5173 |:9000 |:5433 '   # không ra gì là trống
 ```
 
-> Đừng dùng lại giá trị trong `backend/.env` — file đó đã nằm trên GitHub.
+Trùng thì đổi `API_PORT` / `WEB_PORT` trong `.env`.
 
 ### 7.3. Khởi động
+
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
-**Luôn phải kèm cả hai `-f`.** Thiếu `docker-compose.prod.yml` là Postgres bị
-publish thẳng ra Internet.
+Trước khi chạy, **xác nhận `BIND_IP=127.0.0.1` đã có trong `.env`** — thiếu dòng
+này là Postgres, MinIO và API publish ra `0.0.0.0`, tức lộ thẳng ra Internet:
 
-### 7.4. Kiểm tra
 ```bash
-docker compose ps                                   # tất cả Up, postgres/minio là (healthy)
-curl http://localhost:3033/api/health                # {"status":"ok"}
-curl -s http://localhost:3033/api/v1/news | head -c 200
-docker compose logs backend | grep "Lưu trữ ảnh"     # phải thấy: MinIO bucket "namquan" sẵn sàng
+docker compose config | grep host_ip
 ```
 
-> Cổng **3033** là cổng publish ra máy chủ (đặt bằng `API_PORT` trong `.env`).
-> Bên trong container backend vẫn nghe 3000, nên `PORT` trong compose giữ nguyên.
+Phải ra đúng **5 dòng** `host_ip: 127.0.0.1`. Thấy `0.0.0.0` thì dừng lại, sửa
+`.env` rồi kiểm tra lại — đừng chạy tiếp.
 
-Mở `http://<IP-VPS>:5173`, đăng nhập `admin@namquan.vn` / `admin123`
-(**đổi mật khẩu ngay**), vào Dashboard → Tin tức → thử tải một ảnh lên.
+Kiểm tra tại chỗ trước khi cấu hình NPM:
+
+```bash
+docker compose ps                                    # đều Up, postgres/minio (healthy)
+curl http://127.0.0.1:3033/api/health                 # {"status":"ok"}
+curl -sI http://127.0.0.1:5173 | head -1              # 200 OK
+curl -sI http://127.0.0.1:9000/minio/health/live | head -1
+docker compose logs backend | grep "Lưu trữ ảnh"      # MinIO bucket "namquan" sẵn sàng
+```
+
+### 7.4. Tạo Proxy Host trong NPM
+
+Vào giao diện NPM → **Hosts → Proxy Hosts → Add Proxy Host**, tạo 3 mục:
+
+| Domain Names | Forward Hostname | Forward Port |
+|---|---|---|
+| `namquan.dienlanhkv.website` | `127.0.0.1` | `5173` |
+| `api-namquan.dienlanhkv.website` | `127.0.0.1` | `3033` |
+| `storage-namquan.dienlanhkv.website` | `127.0.0.1` | `9000` |
+
+Mỗi mục: Scheme để `http`, bật **Block Common Exploits**, sang tab **SSL** chọn
+*Request a new SSL Certificate* + **Force SSL** + đồng ý điều khoản.
+
+Riêng host **storage**, mở tab **Advanced** và dán:
+
+```nginx
+client_max_body_size 10m;
+```
+
+MinIO nhận file tối đa 5MB; không đặt dòng này thì nginx có thể chặn trước ở mức
+mặc định 1MB và ảnh tải lên sẽ lỗi `413`.
+
+### 7.5. Kiểm tra từ ngoài
+
+```bash
+curl https://api-namquan.dienlanhkv.website/api/health
+curl -sI https://storage-namquan.dienlanhkv.website/minio/health/live | head -1
+```
+
+Mở `https://namquan.dienlanhkv.website`, đăng nhập `admin@namquan.vn` /
+`admin123` (**đổi mật khẩu ngay**), vào Dashboard → Tin tức → tải thử một ảnh.
+Ảnh hiện ra là toàn bộ chuỗi đã thông.
 
 Vào MinIO Console khi cần — không mở cổng, đi qua SSH tunnel:
+
 ```bash
-ssh -L 9001:localhost:9001 user@<IP-VPS>    # rồi mở http://localhost:9001
+ssh -L 9001:localhost:9001 user@<IP VPS>    # rồi mở http://localhost:9001
 ```
 
-### 7.5. Ba lỗi hay gặp
+### 7.6. Bốn lỗi hay gặp
 
 | Triệu chứng | Nguyên nhân |
 |---|---|
-| Trang load nhưng trống trơn, Console báo lỗi CORS | `CORS_ORIGIN` trong `.env` không khớp URL đang mở. Sửa rồi `docker compose ... up -d backend`. |
-| `port is already allocated` khi khởi động | Cổng publish đã có dịch vụ khác chiếm. Xem `sudo ss -tlnp \| grep <cổng>`, đổi `API_PORT` trong `.env` (hoặc `ports` trong compose với 5173/9000). |
-| Tải ảnh báo `SignatureDoesNotMatch` | `MINIO_PUBLIC_URL` còn là `localhost` hoặc sai IP. Chữ ký ký theo host này nên phải đúng tuyệt đối. |
-| Đổi `VITE_API_URL` mà frontend vẫn gọi địa chỉ cũ | Biến này nhúng lúc **build**. Phải `up -d --build frontend`, restart không ăn thua. |
+| Trang trắng, Console báo lỗi CORS | `CORS_ORIGIN` không khớp domain đang mở. Sửa `.env` rồi `up -d backend`. |
+| Tải ảnh lỗi `SignatureDoesNotMatch` | `MINIO_PUBLIC_URL` không khớp domain trong NPM. Chữ ký ký theo host này nên phải đúng từng ký tự, kể cả `https://`. |
+| Tải ảnh lỗi `413 Request Entity Too Large` | Thiếu `client_max_body_size` ở tab Advanced của host storage. |
+| Đổi `VITE_API_URL` mà frontend vẫn gọi địa chỉ cũ | Biến nhúng lúc **build**. Phải `up -d --build frontend`. |
 
-### 7.6. Khi có tên miền
-Đổi sang HTTPS cần: 2 bản ghi A (`domain.com` và `storage.domain.com`), thêm
-nginx reverse proxy + certbot, rồi sửa `.env` thành `https://`. Lưu ý **MinIO
-phải có subdomain riêng** — URL upload được ký kèm đường dẫn nên không đặt sau
-path con (`/storage/...`) được, nginx cắt tiền tố đi là chữ ký hỏng.
+### 7.7. Cập nhật khi có code mới
+
+```bash
+cd CD1namquan
+git pull origin dev
+docker compose up -d --build
+```
+
+`.env` nằm trong `.gitignore` nên `git pull` không ghi đè cấu hình.
 
 ---
 
