@@ -6,6 +6,25 @@ import { Img, Icon } from "../components/ui.jsx";
 
 const LIMIT = 9;
 
+/**
+ * Rút gọn dãy số trang quanh trang hiện tại, luôn giữ trang đầu và trang cuối.
+ * Render đủ 20 trang thì trên điện thoại thanh phân trang tràn thành mấy hàng.
+ * Trả về mảng số, `null` là chỗ hiện dấu "…".
+ */
+function pageWindow(current, total, span = 1) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages = new Set([1, total]);
+  for (let p = current - span; p <= current + span; p++) {
+    if (p > 1 && p < total) pages.add(p);
+  }
+
+  const sorted = [...pages].sort((a, b) => a - b);
+  return sorted.flatMap((p, i) =>
+    i > 0 && p - sorted[i - 1] > 1 ? [null, p] : [p]
+  );
+}
+
 const SORT_OPTIONS = [
   { value: "newest",  label: "🕒 Mới nhất" },
   { value: "popular", label: "🔥 Xem nhiều nhất" },
@@ -17,62 +36,26 @@ const SORT_OPTIONS = [
 function FeaturedArticle({ article }) {
   const href = `/news/${article.slug || article.id}`;
   return (
-    <Link
-      to={href}
-      style={{
-        display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 1fr)",
-        background: "#fff", border: "1px solid var(--line)",
-        borderRadius: "var(--radius-lg)", overflow: "hidden",
-        boxShadow: "var(--shadow-sm)", textDecoration: "none",
-        marginBottom: 34, transition: ".2s",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow-md)"; e.currentTarget.style.transform = "translateY(-3px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.transform = ""; }}
-    >
-      <div style={{ position: "relative", minHeight: 300, overflow: "hidden" }}>
+    <Link to={href} className="news-featured">
+      <div className="news-featured-media">
         <Img
           src={article.img}
           alt={article.title}
           label="ảnh bài viết nổi bật"
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
-        <span style={{
-          position: "absolute", top: 16, left: 16,
-          background: "var(--gold)", color: "#fff",
-          padding: "5px 14px", borderRadius: 999,
-          fontSize: 11.5, fontWeight: 800, letterSpacing: ".05em",
-          boxShadow: "0 3px 10px rgba(0,0,0,.18)",
-        }}>
-          ⭐ NỔI BẬT
-        </span>
+        <span className="news-featured-badge">⭐ NỔI BẬT</span>
       </div>
 
-      <div style={{ padding: "34px 36px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div className="news-featured-body">
         {article.category && (
-          <span style={{
-            alignSelf: "flex-start", background: "var(--mint)", color: "var(--green-ink)",
-            padding: "4px 12px", borderRadius: 999,
-            fontSize: 11.5, fontWeight: 700, marginBottom: 14,
-          }}>
-            {article.category.name}
-          </span>
+          <span className="news-featured-cat">{article.category.name}</span>
         )}
-        <h2 style={{
-          fontSize: "clamp(20px, 2.4vw, 27px)", fontWeight: 800,
-          color: "var(--green-ink)", margin: "0 0 12px",
-          lineHeight: 1.3, fontFamily: "var(--serif)",
-        }}>
-          {article.title}
-        </h2>
-        <div style={{ fontSize: 12.5, color: "var(--muted-2)", marginBottom: 14 }}>
+        <h2 className="news-featured-title">{article.title}</h2>
+        <div className="news-featured-meta">
           {article.date} · {article.readingTime} phút đọc · {article.views?.toLocaleString("vi-VN")} lượt xem
         </div>
-        <p style={{
-          fontSize: 14.5, color: "var(--ink-2)", lineHeight: 1.7, margin: "0 0 20px",
-          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-        }}>
-          {article.excerpt}
-        </p>
+        <p className="news-featured-ex">{article.excerpt}</p>
         <span className="news-more">Đọc bài viết <Icon name="arrow" size={15} /></span>
       </div>
     </Link>
@@ -178,74 +161,47 @@ export function NewsList() {
           <div className="shop-banner-right">📰</div>
         </div>
 
-        {/* Lọc theo danh mục */}
-        <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 18 }}>
+        {/* Lọc theo danh mục — mobile cuộn ngang một hàng */}
+        <div className="news-cats">
           <button
+            className={"news-cat-btn" + (!category ? " active" : "")}
             onClick={() => updateParams({ category: "", tag: "" })}
-            style={{
-              padding: "8px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: "pointer",
-              border: `1.5px solid ${!category ? "var(--green)" : "var(--line)"}`,
-              background: !category ? "var(--green)" : "#fff",
-              color: !category ? "#fff" : "var(--ink-2)",
-              transition: ".18s",
-            }}
           >
             Tất cả
           </button>
           {categories.filter(c => c.articleCount > 0).map(c => (
             <button
               key={c.id}
+              className={"news-cat-btn" + (category === c.slug ? " active" : "")}
               onClick={() => updateParams({ category: c.slug, tag: "" })}
-              style={{
-                padding: "8px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: "pointer",
-                border: `1.5px solid ${category === c.slug ? "var(--green)" : "var(--line)"}`,
-                background: category === c.slug ? "var(--green)" : "#fff",
-                color: category === c.slug ? "#fff" : "var(--ink-2)",
-                transition: ".18s",
-              }}
             >
-              {c.name} <span style={{ opacity: .65, fontWeight: 600 }}>({c.articleCount})</span>
+              {c.name} <span className="count">({c.articleCount})</span>
             </button>
           ))}
         </div>
 
-        {/* Tìm kiếm + sắp xếp */}
-        <div style={{
-          background: "#fff", border: "1px solid var(--line)", borderRadius: "var(--radius)",
-          padding: 14, marginBottom: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center",
-        }}>
+        {/* Tìm kiếm + sắp xếp — mobile xếp dọc */}
+        <div className="news-toolbar">
           <form
+            className="news-search"
             onSubmit={e => { e.preventDefault(); updateParams({ q: searchInput.trim() }); }}
-            style={{ display: "flex", gap: 10, flex: 1, minWidth: 240 }}
           >
-            <div style={{
-              display: "flex", alignItems: "center", gap: 9, flex: 1,
-              background: "var(--paper-2)", borderRadius: 9, padding: "0 14px",
-              border: "1px solid var(--line)",
-            }}>
+            <div className="news-search-box">
               <Icon name="search" size={17} style={{ color: "var(--muted)" }} />
               <input
-                type="text"
+                type="search"
                 placeholder="Tìm bài viết (không cần gõ dấu)..."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                style={{
-                  border: "none", background: "transparent", outline: "none",
-                  flex: 1, fontSize: 14.5, padding: "11px 0", color: "var(--ink)",
-                }}
               />
             </div>
             <button type="submit" className="btn-pill" style={{ padding: "0 22px", fontSize: 14 }}>Tìm</button>
           </form>
 
           <select
+            className="news-sort"
             value={sort}
             onChange={e => updateParams({ sort: e.target.value })}
-            style={{
-              border: "1px solid var(--line)", borderRadius: 9, padding: "11px 14px",
-              fontSize: 14, background: "#fff", color: "var(--ink-2)", cursor: "pointer",
-              fontWeight: 600, minWidth: 175,
-            }}
           >
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -310,14 +266,18 @@ export function NewsList() {
             {meta.totalPages > 1 && (
               <div className="pagination">
                 <button className="page-btn" disabled={page === 1} onClick={() => goToPage(page - 1)}>‹</button>
-                {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map(p => (
-                  <button
-                    key={p}
-                    className={"page-btn" + (p === page ? " active" : "")}
-                    onClick={() => goToPage(p)}
-                  >
-                    {p}
-                  </button>
+                {pageWindow(page, meta.totalPages).map((p, i) => (
+                  p === null
+                    ? <span key={`gap-${i}`} className="page-gap">…</span>
+                    : (
+                      <button
+                        key={p}
+                        className={"page-btn" + (p === page ? " active" : "")}
+                        onClick={() => goToPage(p)}
+                      >
+                        {p}
+                      </button>
+                    )
                 ))}
                 <button className="page-btn" disabled={page === meta.totalPages} onClick={() => goToPage(page + 1)}>›</button>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom";
 import { useReveal, toast } from "./components/ui.jsx";
 import { Header } from "./components/Header.jsx";
 import { Drawer } from "./components/Drawer.jsx";
@@ -24,6 +24,7 @@ import { Notifications } from "./pages/Notifications.jsx";
 import { AdminDashboard } from "./pages/AdminDashboard.jsx";
 import { RequireAuth } from "./components/RequireAuth.jsx";
 import { LoginModal } from "./components/LoginModal.jsx";
+import { ChatWidget } from "./components/ChatWidget.jsx";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -37,7 +38,12 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState(null);
   const [notifs, setNotifs] = useState([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  // Sản phẩm được gắn kèm khi khách bấm "Hỏi tư vấn" từ trang chi tiết —
+  // gửi kèm tin nhắn đầu tiên để bot biết chắc đang nói về mẫu nào.
+  const [chatProduct, setChatProduct] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useReveal();
 
@@ -110,6 +116,20 @@ export default function App() {
     });
   }, [requireLogin]);
 
+  const openChat = useCallback((product = null) => {
+    if (!requireLogin("Vui lòng đăng nhập để chat với tư vấn viên.", "/")) return;
+    setChatProduct(product);
+    setChatOpen(true);
+  }, [requireLogin]);
+
+  // Thông báo "nhân viên đã phản hồi" trỏ về /?chat=1 — mở sẵn khung chat rồi
+  // dọn query khỏi URL để F5 sau đó không tự bật lại.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("chat") !== "1") return;
+    openChat();
+    navigate(location.pathname, { replace: true });
+  }, [location.search, location.pathname, navigate, openChat]);
+
   const logout = async () => {
     try {
       await api.logout();
@@ -120,12 +140,14 @@ export default function App() {
       setUser(null);
       setCart([]);
       setNotifs([]);
+      setChatOpen(false);
+      setChatProduct(null);
       navigate('/');
       toast("Đã đăng xuất");
     }
   };
 
-  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead };
+  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat };
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const isAdmin = user?.role === 'admin';
 
@@ -178,6 +200,14 @@ export default function App() {
         )}
       </main>
       {!isAdmin && <Footer />}
+      {!isAdmin && (
+        <ChatWidget
+          open={chatOpen}
+          setOpen={setChatOpen}
+          product={chatProduct}
+          clearProduct={() => setChatProduct(null)}
+        />
+      )}
       <LoginModal prompt={loginPrompt} onClose={() => setLoginPrompt(null)} />
     </AppContext.Provider>
   );

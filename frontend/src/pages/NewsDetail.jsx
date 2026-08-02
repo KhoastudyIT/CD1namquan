@@ -101,13 +101,7 @@ export function NewsDetail() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Hero với ảnh bìa */}
-      <div style={{
-        position: "relative",
-        width: "100%",
-        height: "480px",
-        overflow: "hidden",
-        background: "var(--ink)",
-      }}>
+      <div className="news-hero">
         <div style={{
           position: "absolute", inset: 0,
           background: "linear-gradient(180deg, rgba(20,30,22,0.1) 0%, rgba(20,30,22,0.75) 100%)",
@@ -129,7 +123,7 @@ export function NewsDetail() {
         </div>
 
         {/* Breadcrumb + tiêu đề trên ảnh */}
-        <div className="wrap" style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: 48 }}>
+        <div className="wrap news-hero-inner">
           {/* Breadcrumb */}
           <nav style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
             <Link to="/" style={{ color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: 4, transition: ".2s" }}>
@@ -176,18 +170,7 @@ export function NewsDetail() {
           </div>
 
           {/* Tiêu đề */}
-          <h1 style={{
-            fontSize: "clamp(24px, 4vw, 38px)",
-            fontWeight: 800,
-            color: "#fff",
-            margin: 0,
-            lineHeight: 1.25,
-            maxWidth: 780,
-            textShadow: "0 2px 12px rgba(0,0,0,0.3)",
-            fontFamily: "var(--serif)",
-          }}>
-            {article.title}
-          </h1>
+          <h1 className="news-hero-title">{article.title}</h1>
         </div>
       </div>
 
@@ -196,32 +179,12 @@ export function NewsDetail() {
         <div className="wrap" style={{ maxWidth: 1120 }}>
 
           {/* Card nội dung chính — đặt hẳn dưới hero để không che ảnh bìa */}
-          <div style={{
-            background: "#fff",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-md)",
-            padding: "52px 64px",
-            marginTop: 40,
-            position: "relative",
-            zIndex: 2,
-          }}>
+          <div className="news-article-card">
             {/* Excerpt — nổi bật */}
-            <p style={{
-              fontSize: 18,
-              color: "var(--green-ink)",
-              fontWeight: 600,
-              lineHeight: 1.7,
-              paddingBottom: 28,
-              borderBottom: "2px solid var(--mint-2)",
-              marginBottom: 32,
-              fontStyle: "italic",
-              letterSpacing: ".01em",
-            }}>
-              {article.excerpt}
-            </p>
+            <p className="news-article-excerpt">{article.excerpt}</p>
 
             {/* Nội dung chính */}
-            <div style={{ fontSize: 16.5, color: "var(--ink-2)" }}>
+            <div className="news-article-body">
               <ArticleContent content={article.content} />
             </div>
 
@@ -248,16 +211,7 @@ export function NewsDetail() {
             )}
 
             {/* Footer của bài */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 16,
-              marginTop: 40,
-              paddingTop: 24,
-              borderTop: "1px solid var(--line)",
-            }}>
+            <div className="news-article-foot">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 38, height: 38, borderRadius: "50%",
@@ -294,7 +248,7 @@ export function NewsDetail() {
                 <span style={{ width: 4, height: 22, background: "var(--green)", borderRadius: 2, display: "inline-block" }} />
                 Bài viết liên quan
               </h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
+              <div className="news-related-grid">
                 {related.map(n => (
                   <Link
                     key={n.id}

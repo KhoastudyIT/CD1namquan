@@ -7,7 +7,7 @@ import { Img, Icon, Stars, ColorDots, vnd, toast } from "../components/ui.jsx";
 export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { favs, toggleFav, addToCart } = useAppContext();
+  const { favs, toggleFav, addToCart, openChat } = useAppContext();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -109,6 +109,16 @@ export function ProductDetail() {
                 <Icon name="cart" size={18} /> Thêm vào giỏ
               </button>
             </div>
+
+            {/* Mở khung chat với sản phẩm này gắn sẵn vào ngữ cảnh, để khách
+                hỏi "còn hàng không" mà không phải gõ lại tên mẫu. */}
+            <button
+              onClick={() => openChat(product)}
+              className="btn-pill ghost"
+              style={{ width: "100%", justifyContent: "center", height: 46, marginBottom: 28 }}
+            >
+              <Icon name="chat" size={17} /> Hỏi tư vấn về sản phẩm này
+            </button>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "var(--ink-2)" }}>

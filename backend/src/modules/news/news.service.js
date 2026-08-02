@@ -230,8 +230,20 @@ async function findPublished(idOrSlug) {
 
 export async function getPublishedNews(idOrSlug) {
   const row = await findPublished(idOrSlug);
-  await db.query('UPDATE news SET views = views + 1 WHERE id = $1', [row.id]);
-  return mapRow({ ...row, views: row.views + 1 });
+
+  // RETURNING để lấy đúng số sau khi cộng. Tự tính `row.views + 1` thì hai
+  // request đồng thời cùng đọc số cũ rồi cùng trả về một giá trị, lệch với DB.
+  const updated = await db.query(
+    'UPDATE news SET views = views + 1 WHERE id = $1 RETURNING views',
+    [row.id],
+  );
+
+  // Danh sách công khai có hiển thị lượt xem và có kiểu sắp xếp "xem nhiều
+  // nhất", nên phải bỏ cache — không thì con số đứng yên tới 5 phút. Chỉ xoá
+  // 'news:public:', giữ 'news:categories' vì nó không chứa lượt xem.
+  dbCache.deletePattern('news:public:');
+
+  return mapRow({ ...row, views: updated.rows[0]?.views ?? row.views + 1 });
 }
 
 // Ưu tiên bài cùng danh mục, thiếu thì bù bằng bài mới nhất — luôn đủ `limit` bài.

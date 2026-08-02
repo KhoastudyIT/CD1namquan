@@ -113,6 +113,29 @@ export const api = {
   markNotificationRead: (id) => fetchAPI(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsRead: () => fetchAPI('/notifications/read-all', { method: 'PUT' }),
 
+  // Chat — khách hàng
+  getChatConversation: () => fetchAPI('/chat/conversation'),
+  // afterId = id tin nhắn cuối client đang có; server chỉ trả phần mới hơn.
+  pollChatMessages: (afterId = 0) => fetchAPI(`/chat/messages?after=${afterId}`),
+  sendChatMessage: (message, productId = null) =>
+    fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify({ message, productId }) }),
+  markChatRead: () => fetchAPI('/chat/read', { method: 'PUT' }),
+
+  // Chat — quản trị
+  getChatConversations: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/chat/admin/conversations${q ? `?${q}` : ''}`);
+  },
+  getChatConversationDetail: (id, afterId = 0) =>
+    fetchAPI(`/chat/admin/conversations/${id}?after=${afterId}`),
+  replyChatAsStaff: (id, message) =>
+    fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
+  updateChatConversation: (id, data) =>
+    fetchAPI(`/chat/admin/conversations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  markChatConversationRead: (id) =>
+    fetchAPI(`/chat/admin/conversations/${id}/read`, { method: 'PUT' }),
+  getChatUnreadCount: () => fetchAPI('/chat/admin/unread-count'),
+
   // Orders
   getOrders: () => fetchAPI('/orders'),
   getOrderById: (id) => fetchAPI(`/orders/${id}`),

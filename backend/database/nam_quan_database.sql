@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS tags CASCADE;
 DROP TABLE IF EXISTS coupon_usage CASCADE;
 DROP TABLE IF EXISTS coupons CASCADE;
 DROP TABLE IF EXISTS chat_messages CASCADE;
+DROP TABLE IF EXISTS chat_conversations CASCADE;
 DROP TABLE IF EXISTS faqs CASCADE;
 DROP TABLE IF EXISTS search_history CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
@@ -465,14 +466,50 @@ CREATE TABLE faqs (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Mỗi khách hàng có ĐÚNG MỘT hội thoại duy nhất, tồn tại mãi mãi (xem ràng
+-- buộc UNIQUE bên dưới). 'closed' chỉ nghĩa là nhân viên đã xử lý xong, không
+-- sinh luồng mới — khách nhắn tiếp thì chính luồng này mở lại, giữ nguyên
+-- toàn bộ lịch sử ở một chỗ.
+CREATE TABLE chat_conversations (
+  id SERIAL PRIMARY KEY,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+  -- FALSE khi khách xin gặp người thật hoặc nhân viên đã vào trả lời: bot
+  -- ngừng tự động đáp để không cướp lời nhân viên.
+  ai_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Sản phẩm khách nhắc tới gần nhất. Nhờ nó mà câu "giá bao nhiêu?" đi ngay
+  -- sau "sofa Milano còn hàng không?" vẫn được hiểu là đang hỏi về Milano.
+  last_product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+  last_message TEXT NOT NULL DEFAULT '',
+  last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  customer_unread INTEGER NOT NULL DEFAULT 0,
+  staff_unread INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_conversations_recent
+  ON chat_conversations(last_message_at DESC);
+
 CREATE TABLE chat_messages (
   id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  -- Tác giả tin nhắn. NULL với tin của bot và tin hệ thống.
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  sender_type VARCHAR(20) NOT NULL CHECK (sender_type IN ('customer','staff','system')),
+  sender_type VARCHAR(20) NOT NULL CHECK (sender_type IN ('customer','staff','ai','system')),
   message TEXT NOT NULL,
+  -- Sản phẩm mà tin nhắn này nói tới (khách hỏi từ trang chi tiết, hoặc bot
+  -- đã nhận diện được tên sản phẩm trong câu hỏi).
+  product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+  -- Thẻ sản phẩm bot đính kèm câu trả lời: [{id,name,slug,price,salePrice,img}, ...]
+  suggestions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- Ý định bot nhận ra (price, stock, material...). Rỗng với tin của người.
+  intent VARCHAR(40) NOT NULL DEFAULT '',
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_chat_messages_conversation ON chat_messages(conversation_id, id);
 
 -- =============================================================
 -- PROJECT / REVIEW / ANALYTICS
@@ -590,6 +627,7 @@ CREATE TRIGGER trg_consultation_updated_at BEFORE UPDATE ON consultation_request
 CREATE TRIGGER trg_faqs_updated_at BEFORE UPDATE ON faqs FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+CREATE TRIGGER trg_chat_conversations_updated_at BEFORE UPDATE ON chat_conversations FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 
 -- =============================================================
 -- SEED DATA
@@ -1008,9 +1046,13 @@ INSERT INTO notifications (user_id, title, content, type, target_url, is_read) V
 INSERT INTO search_history (user_id, keyword) VALUES
 ('22222222-2222-2222-2222-222222222222','sofa'),('22222222-2222-2222-2222-222222222222','bàn trà'),('22222222-2222-2222-2222-222222222222','giường ngủ');
 
-INSERT INTO chat_messages (user_id, sender_type, message, is_read) VALUES
-('22222222-2222-2222-2222-222222222222','customer','Tôi cần tư vấn sofa cho phòng khách 25m2.',TRUE),
-('22222222-2222-2222-2222-222222222222','staff','NAM QUAN sẽ tư vấn mẫu sofa phù hợp với diện tích và phong cách của anh/chị.',FALSE);
+INSERT INTO chat_conversations (id, user_id, ai_enabled, last_message, staff_unread) VALUES
+(1,'22222222-2222-2222-2222-222222222222',TRUE,'NAM QUAN sẽ tư vấn mẫu sofa phù hợp với diện tích và phong cách của anh/chị.',0);
+SELECT setval('chat_conversations_id_seq', 1, TRUE);
+
+INSERT INTO chat_messages (conversation_id, user_id, sender_type, message, is_read) VALUES
+(1,'22222222-2222-2222-2222-222222222222','customer','Tôi cần tư vấn sofa cho phòng khách 25m2.',TRUE),
+(1,NULL,'staff','NAM QUAN sẽ tư vấn mẫu sofa phù hợp với diện tích và phong cách của anh/chị.',FALSE);
 
 -- =============================================================
 -- VIEWS FOR FRONTEND

@@ -4,6 +4,8 @@ import { api } from "../api.js";
 import { vnd, Img, Icon, toast, confirm } from "../components/ui.jsx";
 import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
+import { AdminChat } from "../components/AdminChat.jsx";
+import { useAppContext } from "../context.js";
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
@@ -68,9 +70,10 @@ const slugify = (value) => value
 export function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAppContext();
 
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales"];
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "chat"];
   const hashTab = location.hash.replace("#", "");
   const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
 
@@ -84,6 +87,8 @@ export function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Số tin khách chưa được trả lời — hiện ngay trên nhãn tab Chat ở sidebar.
+  const [chatUnread, setChatUnread] = useState(0);
 
   // ── Users tab ─────────────────────────────────────────────────────
   const [users, setUsers] = useState([]);
@@ -278,6 +283,16 @@ export function AdminDashboard() {
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
   useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
+
+  // Badge chat chạy nền ở mọi tab để admin thấy khách nhắn dù đang ở trang khác.
+  useEffect(() => {
+    const poll = () => api.getChatUnreadCount()
+      .then(data => setChatUnread(data?.total ?? 0))
+      .catch(() => {});
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => clearInterval(id);
+  }, []);
 
   // ─────────────── PRODUCT HANDLERS ────────────────────────────────
   const handleOpenAdd = () => {
@@ -764,6 +779,7 @@ export function AdminDashboard() {
     { key: "flash_sales", icon: "fire",  label: `Flash Sale (${flashSales.length})` },
     { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
     { key: "users",       icon: "user",  label: "Người dùng" },
+    { key: "chat",        icon: "chat",  label: chatUnread > 0 ? `Chat (${chatUnread})` : "Chat" },
   ];
   const currentNavLabel = NAV_ITEMS.find(t => t.key === activeTab)?.label || "Quản trị";
 
@@ -794,6 +810,19 @@ export function AdminDashboard() {
             <span>{label}</span>
           </button>
         ))}
+
+        {/* Nút Thoát trên header bị ẩn ở mobile (.hdr .btn-pill{display:none}),
+            và admin không có Drawer như khách — nên cần lối đăng xuất ở đây. */}
+        <div className="admin-sidebar-foot">
+          <span className="admin-sidebar-user">
+            <Icon name="user" size={14} />
+            {user?.name || "Quản trị viên"}
+          </span>
+          <button className="admin-logout-btn" onClick={logout}>
+            <Icon name="arrow" size={16} />
+            <span>Đăng xuất</span>
+          </button>
+        </div>
       </aside>
 
       {/* ── Main ────────────────────────────────────────────────── */}
@@ -1092,9 +1121,22 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Tin tức & bài viết</h2>
-              <button className="btn-pill" onClick={handleOpenAddNews}>
-                <span style={{ fontSize: 16 }}>+</span> Viết bài mới
-              </button>
+              <div className="admin-sec-actions">
+                {/* Lượt xem tăng khi khách đọc bài, nhưng bảng chỉ nạp lại lúc
+                    mở tab. Nút này để xem số mới mà không phải F5 cả trang. */}
+                <button
+                  className="btn-pill ghost"
+                  onClick={() => fetchNewsList()}
+                  disabled={newsLoading}
+                  title="Tải lại lượt xem và trạng thái mới nhất"
+                >
+                  <Icon name="refresh" size={15} />
+                  {newsLoading ? "Đang tải…" : "Làm mới"}
+                </button>
+                <button className="btn-pill" onClick={handleOpenAddNews}>
+                  <span style={{ fontSize: 16 }}>+</span> Viết bài mới
+                </button>
+              </div>
             </div>
 
             {/* Lọc nhanh theo trạng thái */}
@@ -1165,7 +1207,7 @@ export function AdminDashboard() {
             ) : (
               <>
                 <div className="admin-table-wrap">
-                  <table className="admin-table">
+                  <table className="admin-table admin-news-table">
                     <thead>
                       <tr>
                         <th style={{ width: 90 }}>Ảnh bìa</th>
@@ -1194,6 +1236,11 @@ export function AdminDashboard() {
                               </div>
                               <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 3 }}>
                                 /{n.slug} · {n.readingTime} phút đọc
+                              </div>
+                              {/* Mobile ẩn 3 cột danh mục/lượt xem/ngày để cột
+                                  tiêu đề rộng ra — gộp lại đây cho khỏi mất. */}
+                              <div className="admin-news-meta">
+                                {n.category?.name || "Chưa phân loại"} · {n.date} · {n.views?.toLocaleString("vi-VN")} lượt xem
                               </div>
                             </td>
                             <td>
@@ -1552,6 +1599,9 @@ export function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* ===== TAB 9: CHAT ===== */}
+        {activeTab === "chat" && <AdminChat />}
       </main>
 
       {/* ===== MODAL: ADD PRODUCT ===== */}

@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/ui.jsx";
 import { useAppContext } from "../context.js";
-import { ICON_BY_TYPE, timeAgo } from "../utils/notif.js";
+import { ICON_BY_TYPE, timeAgo, isChatLink } from "../utils/notif.js";
 
 const PER_PAGE = 6;
 
 export function Notifications() {
-  const { notifs, fetchNotifs, markNotifRead, markAllNotifsRead } = useAppContext();
+  const { notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat } = useAppContext();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
@@ -29,6 +29,8 @@ export function Notifications() {
 
   const handleClick = (n) => {
     if (!n.read) markNotifRead(n.id);
+    // Thông báo chat: bật khung chat ngay tại chỗ, không rời trang.
+    if (isChatLink(n.link)) { openChat(); return; }
     if (n.link) navigate(n.link);
   };
 

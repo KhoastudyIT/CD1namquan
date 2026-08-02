@@ -13,6 +13,7 @@ const spec = {
 - Flash sale theo thời gian thực
 - Giỏ hàng & đặt hàng
 - Tin tức & blog
+- Chat tư vấn với bot tự động và nhân viên
 
 ### Xác thực
 Các endpoint có **khóa** yêu cầu header:
@@ -34,6 +35,7 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
     { name: 'Cart',        description: 'Giỏ hàng — yêu cầu đăng nhập' },
     { name: 'Orders',      description: 'Đơn hàng — yêu cầu đăng nhập' },
     { name: 'Notifications', description: 'Thông báo theo từng tài khoản' },
+    { name: 'Chat',        description: 'Chat tư vấn — khách hàng nhắn, bot trả lời tự động theo dữ liệu sản phẩm thật, nhân viên tiếp quản khi cần' },
     { name: 'Users',       description: '[Admin] Quản lý người dùng — danh sách, phân quyền, khóa/mở' },
     { name: 'Stats',       description: '[Admin] Thống kê & báo cáo cho dashboard' },
     { name: 'Uploads',     description: '[Admin] Tải ảnh lên MinIO qua URL có chữ ký' },
@@ -343,6 +345,51 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           note:            { type: 'string', example: 'Giao buổi sáng' },
           status:          { type: 'string', enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'], example: 'pending' },
           createdAt:       { type: 'string', format: 'date-time', example: '2026-06-16T10:00:00.000Z' },
+        },
+      },
+      ChatProductCard: {
+        type: 'object',
+        description: 'Thẻ sản phẩm bot đính kèm câu trả lời — bấm vào mở trang chi tiết.',
+        properties: {
+          id:        { type: 'integer', example: 46 },
+          name:      { type: 'string', example: 'Vòi Rửa Tay Rinto' },
+          slug:      { type: 'string', example: 'voi-rua-tay-rinto' },
+          price:     { type: 'integer', description: 'Giá niêm yết (VND)', example: 1290000 },
+          salePrice: { type: 'integer', nullable: true, description: 'Giá ưu đãi, null nếu không giảm', example: null },
+          img:       { type: 'string', example: '/images/voiRinto.jpg' },
+        },
+      },
+      ChatMessage: {
+        type: 'object',
+        properties: {
+          id:             { type: 'integer', example: 128 },
+          conversationId: { type: 'integer', example: 4 },
+          senderType:     { type: 'string', enum: ['customer', 'ai', 'staff', 'system'], example: 'ai' },
+          senderName:     { type: 'string', nullable: true, description: 'Tên khách; null với tin của bot và nhân viên', example: null },
+          message:        { type: 'string', description: 'Nội dung. Bot dùng **in đậm** và xuống dòng.', example: '**Vòi Rửa Tay Rinto**\nGiá niêm yết: **1.290.000 đ**.' },
+          productId:      { type: 'integer', nullable: true, description: 'Sản phẩm tin nhắn này nói tới', example: 46 },
+          suggestions:    { type: 'array', items: { $ref: '#/components/schemas/ChatProductCard' }, description: 'Thẻ sản phẩm bot gợi ý; rỗng với tin của người' },
+          intent:         { type: 'string', description: 'Ý định bot nhận ra: price, stock, material, size, color, warranty, origin, shipping, payment, returns, promo, showroom, contact, suggest, handoff, greeting, thanks, unknown. Rỗng với tin của người.', example: 'price' },
+          read:           { type: 'boolean', example: false },
+          createdAt:      { type: 'string', format: 'date-time', example: '2026-08-02T04:30:00.000Z' },
+        },
+      },
+      ChatConversation: {
+        type: 'object',
+        description: 'Mỗi khách hàng có ĐÚNG MỘT hội thoại, tồn tại vĩnh viễn.',
+        properties: {
+          id:             { type: 'integer', example: 4 },
+          userId:         { type: 'string', format: 'uuid' },
+          userName:       { type: 'string', example: 'Nguyễn Văn An' },
+          userEmail:      { type: 'string', format: 'email', example: 'an@example.com' },
+          userPhone:      { type: 'string', example: '0901234567' },
+          status:         { type: 'string', enum: ['open', 'closed'], description: '"closed" = nhân viên đã xử lý xong. Khách nhắn tiếp sẽ tự mở lại chính hội thoại này.', example: 'open' },
+          aiEnabled:      { type: 'boolean', description: 'Bot có tự trả lời không. Tự tắt khi khách xin gặp nhân viên hoặc nhân viên vào trả lời; tự bật lại sau 15 phút nhân viên im lặng.', example: true },
+          lastMessage:    { type: 'string', example: 'Dạ sản phẩm này bên em còn hàng ạ.' },
+          lastMessageAt:  { type: 'string', format: 'date-time' },
+          customerUnread: { type: 'integer', description: 'Số tin khách chưa đọc', example: 0 },
+          staffUnread:    { type: 'integer', description: 'Số tin nhân viên chưa đọc', example: 2 },
+          createdAt:      { type: 'string', format: 'date-time' },
         },
       },
       SuccessResponse: {
@@ -1667,6 +1714,362 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           '401': { $ref: '#/components/responses/Unauthorized' },
           '403': { $ref: '#/components/responses/Forbidden' },
           '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+
+    // ── Chat: phía khách hàng ────────────────────────────────────────────
+    '/api/v1/chat/conversation': {
+      get: {
+        tags: ['Chat'],
+        summary: 'Mở khung chat của tôi',
+        description: 'Trả hội thoại duy nhất của khách kèm toàn bộ tin nhắn. Lần đầu gọi sẽ tự tạo hội thoại và lời chào của bot.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Hội thoại và lịch sử tin nhắn',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            conversation: {
+                              type: 'object',
+                              properties: {
+                                id:             { type: 'integer', example: 4 },
+                                status:         { type: 'string', enum: ['open', 'closed'], example: 'open' },
+                                aiEnabled:      { type: 'boolean', example: true },
+                                customerUnread: { type: 'integer', example: 0 },
+                              },
+                            },
+                            messages: { type: 'array', items: { $ref: '#/components/schemas/ChatMessage' } },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+    '/api/v1/chat/messages': {
+      get: {
+        tags: ['Chat'],
+        summary: 'Lấy tin nhắn mới (polling)',
+        description: 'Dùng `after` để chỉ lấy phần tin mới hơn id client đang có. Frontend poll 4 giây khi khung chat mở, 30 giây khi đóng.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'after', in: 'query', required: false, schema: { type: 'integer', default: 0 }, description: 'Id tin nhắn cuối client đang có' },
+        ],
+        responses: {
+          '200': {
+            description: 'Tin nhắn mới hơn `after`',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            messages:       { type: 'array', items: { $ref: '#/components/schemas/ChatMessage' } },
+                            aiEnabled:      { type: 'boolean', example: true },
+                            status:         { type: 'string', enum: ['open', 'closed'], example: 'open' },
+                            customerUnread: { type: 'integer', example: 1 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+      post: {
+        tags: ['Chat'],
+        summary: 'Khách gửi tin nhắn',
+        description: 'Trả về tin của khách, kèm phản hồi bot nếu `aiEnabled` đang bật (khi đó mảng có 2 phần tử). Hội thoại đã đóng sẽ tự mở lại.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['message'],
+                properties: {
+                  message:   { type: 'string', minLength: 1, maxLength: 2000, example: 'Vòi Rửa Tay Rinto còn hàng không?' },
+                  productId: { type: 'integer', nullable: true, description: 'Sản phẩm khách đang xem — giúp bot hiểu "cái này" là gì', example: 46 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Đã gửi. Mảng gồm tin của khách và (nếu bot đang bật) tin trả lời của bot.',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            messages: { type: 'array', items: { $ref: '#/components/schemas/ChatMessage' } },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/chat/read': {
+      put: {
+        tags: ['Chat'],
+        summary: 'Khách đánh dấu đã đọc',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Đã xoá badge chưa đọc phía khách', content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+
+    // ── Chat: phía quản trị ──────────────────────────────────────────────
+    '/api/v1/chat/admin/conversations': {
+      get: {
+        tags: ['Chat'],
+        summary: '[Admin] Danh sách hội thoại',
+        description: 'Sắp xếp theo tin nhắn mới nhất, tối đa 100 hội thoại.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['open', 'closed'] }, description: 'Bỏ trống để lấy tất cả' },
+          { name: 'search', in: 'query', required: false, schema: { type: 'string' }, description: 'Tìm theo tên hoặc email khách' },
+        ],
+        responses: {
+          '200': {
+            description: 'Danh sách hội thoại',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/ChatConversation' } } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+        },
+      },
+    },
+    '/api/v1/chat/admin/conversations/{id}': {
+      get: {
+        tags: ['Chat'],
+        summary: '[Admin] Xem nội dung một hội thoại',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'Id hội thoại' },
+          { name: 'after', in: 'query', required: false, schema: { type: 'integer', default: 0 }, description: 'Chỉ lấy tin mới hơn id này (polling)' },
+        ],
+        responses: {
+          '200': {
+            description: 'Hội thoại và tin nhắn',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            conversation: { $ref: '#/components/schemas/ChatConversation' },
+                            messages:     { type: 'array', items: { $ref: '#/components/schemas/ChatMessage' } },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      patch: {
+        tags: ['Chat'],
+        summary: '[Admin] Bật/tắt bot hoặc đóng/mở hội thoại',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          description: 'Gửi ít nhất một trong hai trường.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                minProperties: 1,
+                properties: {
+                  aiEnabled: { type: 'boolean', description: 'Bật/tắt bot trả lời tự động cho hội thoại này', example: false },
+                  status:    { type: 'string', enum: ['open', 'closed'], example: 'closed' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Hội thoại sau khi cập nhật',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { $ref: '#/components/schemas/ChatConversation' } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/chat/admin/conversations/{id}/messages': {
+      post: {
+        tags: ['Chat'],
+        summary: '[Admin] Nhân viên trả lời khách',
+        description: 'Gửi tin sẽ TỰ ĐỘNG TẮT bot cho hội thoại này (tránh hai bên cùng trả lời một khách) và gửi thông báo cho khách. Bot tự bật lại nếu nhân viên im lặng quá 15 phút.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['message'],
+                properties: {
+                  message: { type: 'string', minLength: 1, maxLength: 2000, example: 'Dạ em chào anh/chị, em là tư vấn viên của NAM QUAN ạ.' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Tin nhắn vừa gửi',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { $ref: '#/components/schemas/ChatMessage' } } },
+                  ],
+                },
+              },
+            },
+          },
+          '400': { description: 'Hội thoại đã đóng — mở lại trước khi gửi', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/chat/admin/conversations/{id}/read': {
+      put: {
+        tags: ['Chat'],
+        summary: '[Admin] Đánh dấu đã đọc tin của khách',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': {
+            description: 'Hội thoại sau khi xoá badge',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { $ref: '#/components/schemas/ChatConversation' } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+    '/api/v1/chat/admin/unread-count': {
+      get: {
+        tags: ['Chat'],
+        summary: '[Admin] Tổng số tin chưa đọc',
+        description: 'Dùng cho badge trên sidebar quản trị. Frontend poll 15 giây.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Số tin và số hội thoại đang chờ trả lời',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    {
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            total:         { type: 'integer', description: 'Tổng tin chưa đọc', example: 5 },
+                            conversations: { type: 'integer', description: 'Số hội thoại có tin chưa đọc', example: 2 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/Forbidden' },
         },
       },
     },

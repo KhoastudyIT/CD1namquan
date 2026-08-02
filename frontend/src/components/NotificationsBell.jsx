@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "./ui.jsx";
 import { useAppContext } from "../context.js";
-import { ICON_BY_TYPE, timeAgo } from "../utils/notif.js";
+import { ICON_BY_TYPE, timeAgo, isChatLink } from "../utils/notif.js";
 
 export function NotificationsBell() {
-  const { user, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, requireLogin } = useAppContext();
+  const { user, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, requireLogin, openChat } = useAppContext();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -32,6 +32,8 @@ export function NotificationsBell() {
   const handleItem = (n) => {
     if (!n.read) markNotifRead(n.id);
     setOpen(false);
+    // Thông báo chat: bật khung chat ngay tại trang đang đứng, không điều hướng.
+    if (isChatLink(n.link)) { openChat(); return; }
     if (n.link) navigate(n.link);
   };
 
