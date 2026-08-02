@@ -11,25 +11,37 @@ export function NewsDetail() {
   const [loading, setLoading] = useState(true);
   const [related, setRelated] = useState([]);
 
+  // Route giữ nguyên component khi chuyển từ bài này sang bài khác, chỉ đổi
+  // idOrSlug — nên request của bài cũ có thể về sau và ghi đè bài đang mở.
+  // Nguy hiểm nhất là nhánh catch: một lỗi 404 muộn của bài cũ sẽ đá khách ra
+  // trang chủ giữa lúc họ đang đọc bài mới.
   useEffect(() => {
+    let cancelled = false;
     window.scrollTo(0, 0);
     setLoading(true);
     api.getNewsById(idOrSlug)
       .then(data => {
-        if (data) setArticle(data);
+        if (cancelled || !data) return;
+        setArticle(data);
       })
       .catch(err => {
+        if (cancelled) return;
         toast(err.message || "Không tìm thấy bài viết");
         navigate("/");
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [idOrSlug, navigate]);
 
   // Bài liên quan do backend chọn (ưu tiên cùng danh mục)
   useEffect(() => {
+    let cancelled = false;
     api.getRelatedNews(idOrSlug, 3)
-      .then(data => setRelated(Array.isArray(data) ? data : []))
+      .then(data => { if (!cancelled) setRelated(Array.isArray(data) ? data : []); })
       .catch(() => {});
+
+    return () => { cancelled = true; };
   }, [idOrSlug]);
 
   // Thẻ tiêu đề/description/Open Graph cho SEO và khi chia sẻ liên kết.
