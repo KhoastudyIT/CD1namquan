@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Hero } from "../components/Hero.jsx";
 import { Categories } from "../components/Categories.jsx";
 import { Showcase } from "../components/Showcase.jsx";
@@ -14,16 +15,25 @@ import { useAppContext } from "../context.js";
 
 export function Home() {
   const { favs, toggleFav, addToCart } = useAppContext();
+  const [selectedCat, setSelectedCat] = useState("Tất cả");
   const sharedP = { favs, onFav: toggleFav, onAdd: addToCart };
+
+  const handleCategorySelect = (catName) => {
+    setSelectedCat(catName);
+    const showroomEl = document.getElementById("showroom");
+    if (showroomEl) {
+      showroomEl.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
     <>
       <Hero />
-      <Categories />
+      <Categories onSelectCategory={handleCategorySelect} />
       <Showcase />
       <FlashSale {...sharedP} />
       <NewArrivals {...sharedP} />
-      <Showroom {...sharedP} />
+      <Showroom {...sharedP} selectedCategory={selectedCat} onCategoryChange={setSelectedCat} />
       <Collections />
       <BigImage />
       <Trust />

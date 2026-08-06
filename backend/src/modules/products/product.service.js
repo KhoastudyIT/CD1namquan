@@ -21,9 +21,8 @@ export async function listProducts({
     params.push(categoryId);
     whereClauses.push(`p.category_id = $${params.length}`);
   } else if (category) {
-    // Backwards-compatible filtering by name. The authoritative value remains category_id.
-    params.push(category);
-    whereClauses.push(`c.name = $${params.length}`);
+    params.push(`%${category.toLowerCase()}%`);
+    whereClauses.push(`(LOWER(c.name) LIKE $${params.length} OR LOWER(p.type) LIKE $${params.length})`);
   }
   if (type) {
     params.push(type);

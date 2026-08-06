@@ -1,15 +1,22 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Icon, toast } from "./ui.jsx";
 import { ProductCard } from "./cards.jsx";
 import { api } from "../api.js";
 
-export function Showroom({ favs, onFav, onAdd }) {
-  const [cat, setCat] = useState("Tất cả");
+export function Showroom({ favs, onFav, onAdd, selectedCategory, onCategoryChange }) {
+  const [cat, setCat] = useState(selectedCategory || "Tất cả");
   const [sale, setSale] = useState(false);
   const [cats, setCats] = useState([]);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const filters = ["Loại sản phẩm", "Giá", "Màu sắc", "Phong cách", "Chất liệu", "Kích thước", "Thương hiệu"];
+
+  useEffect(() => {
+    if (selectedCategory && selectedCategory !== cat) {
+      setCat(selectedCategory);
+    }
+  }, [selectedCategory]);
 
   useEffect(() => {
     api.getCategories().then(data => {
@@ -30,6 +37,10 @@ export function Showroom({ favs, onFav, onAdd }) {
     }).catch(() => setList([])).finally(() => setLoading(false));
   }, [cat, sale]);
 
+  const handleTabClick = (c) => {
+    setCat(c);
+    if (onCategoryChange) onCategoryChange(c);
+  };
 
   const catList = ["Tất cả", ...cats];
 
@@ -41,7 +52,7 @@ export function Showroom({ favs, onFav, onAdd }) {
 
         <div className="chip-tabs reveal">
           {catList.map((c) => (
-            <button key={c} className={"chip-tab" + (cat === c ? " active" : "")} onClick={() => setCat(c)}>{c}</button>
+            <button key={c} className={"chip-tab" + (cat === c ? " active" : "")} onClick={() => handleTabClick(c)}>{c}</button>
           ))}
         </div>
 
@@ -65,7 +76,13 @@ export function Showroom({ favs, onFav, onAdd }) {
         </div>
 
         <div className="center-cta">
-          <button className="btn-pill" onClick={() => toast("Đang tải thêm sản phẩm…")}>Xem tất cả <Icon name="arrow" size={16} /></button>
+          <Link
+            to={cat !== "Tất cả" ? `/shop?category=${encodeURIComponent(cat)}` : "/shop"}
+            className="btn-pill"
+            onClick={() => window.scrollTo(0, 0)}
+          >
+            Xem tất cả {cat !== "Tất cả" ? `sản phẩm ${cat}` : "sản phẩm"} <Icon name="arrow" size={16} />
+          </Link>
         </div>
       </div>
     </section>

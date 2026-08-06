@@ -85,17 +85,22 @@ const pct = Math.min(100, Math.round((sold / stock) * 100));
   );
 }
 
-export function CategoryPill({ c }) {
+export function CategoryPill({ c, onClick }) {
   const catName = typeof c === 'string' ? c : c.name;
   return (
-    <Link
+    <a
       className="catpill"
-      to={`/shop?category=${encodeURIComponent(catName)}`}
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      href="#showroom"
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault();
+          onClick(catName);
+        }
+      }}
     >
       <div className="catpill-media"><Img src={c.img} alt={catName} label="ảnh" /></div>
       <span className="catpill-name">{catName}</span>
-    </Link>
+    </a>
   );
 }
 
