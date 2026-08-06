@@ -21,6 +21,7 @@ import { NewsList } from "./pages/NewsList.jsx";
 import { NewsDetail } from "./pages/NewsDetail.jsx";
 import { Favorites } from "./pages/Favorites.jsx";
 import { Notifications } from "./pages/Notifications.jsx";
+import { Policies } from "./pages/Policies.jsx";
 import { AdminDashboard } from "./pages/AdminDashboard.jsx";
 import { RequireAuth } from "./components/RequireAuth.jsx";
 import { LoginModal } from "./components/LoginModal.jsx";
@@ -176,6 +177,7 @@ export default function App() {
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
           <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+          <Route path="/policies" element={<Policies />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin" element={

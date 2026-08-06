@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Img } from "./ui.jsx";
 import { Logo } from "./Logo.jsx";
 import { IMG } from "../data.js";
@@ -7,6 +8,14 @@ export function Footer() {
     { l: "G", c: "#ea4335" }, { l: "f", c: "#1877f2" },
     { l: "z", c: "#0068ff" }, { l: "X", c: "#111" },
   ];
+  const policies = [
+    { title: "Chính sách bảo hành", id: "warranty" },
+    { title: "Vận chuyển & lắp đặt", id: "shipping" },
+    { title: "Chính sách đổi trả", id: "returns" },
+    { title: "Thanh toán & trả góp", id: "payment" },
+    { title: "Bảo mật thông tin", id: "privacy" },
+  ];
+
   return (
     <footer className="foot">
       <div className="wrap">
@@ -17,6 +26,22 @@ export function Footer() {
               Thương hiệu nội thất phong cách hiện đại tối giản. Đồng hành kiến tạo không gian
               tinh tế và sự phong thái thảnh thơi sang trọng bậc nhất cho ngôi nhà Việt.
             </p>
+          </div>
+          <div>
+            <h5>Chính Sách & Quy Định</h5>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {policies.map(p => (
+                <li key={p.id}>
+                  <Link
+                    to={`/policies#${p.id}`}
+                    style={{ fontSize: 13.5, color: "var(--ink-2)", transition: ".18s", textDecoration: "none" }}
+                    className="foot-link"
+                  >
+                    › {p.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <h5>Văn Phòng &amp; Showroom</h5>

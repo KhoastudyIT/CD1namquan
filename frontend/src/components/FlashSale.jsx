@@ -72,7 +72,7 @@ export function FlashSale({ favs, onFav, onAdd }) {
   return (
     <section className="section flash-sec" id="flash">
       <div className="wrap">
-        <div className="flash-shell reveal">
+        <div className="flash-shell">
           <div className="flash-head">
             <h3><span className="bolt">⚡</span> FLASH SALE NỘI THẤT</h3>
             <div className="flash-timer">

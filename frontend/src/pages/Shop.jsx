@@ -118,7 +118,9 @@ export function Shop() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get("q");
-    if (q) { setSearch(q); setSearchInput(q); setPage(1); }
+    const cat = params.get("category") || params.get("cat");
+    if (q !== null) { setSearch(q); setSearchInput(q); setPage(1); }
+    if (cat !== null) { setCategory(cat); setPage(1); }
   }, [location.search]);
 
   useEffect(() => {
