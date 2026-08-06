@@ -1545,11 +1545,8 @@
 .page-header { background: #f9f9f9; padding: 40px 0; margin-bottom: 40px; text-align: center; border-bottom: 1px solid var(--line); }
 .page-header-in h1 { font-size: 32px; font-weight: 700; color: var(--green-ink); margin-bottom: 12px; }
 .breadcrumb { display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: var(--ink-2); flex-wrap: wrap; gap: 4px; }
-.breadcrumb a { color: var(--muted); transition: 0.2s; }
-.breadcrumb a:hover { color: var(--green); }
 .breadcrumb .current { color: var(--green-ink); font-weight: 600; }
 
-<<<<<<< HEAD
 /* ============================================================
    TIN TỨC — danh sách & chi tiết
    ============================================================ */

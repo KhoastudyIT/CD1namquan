@@ -1,3 +1,5 @@
+import { products, categories, collections, news as sampleNews } from './data.js';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 async function fetchAPI(endpoint, options = {}, returnFull = false) {
@@ -25,7 +27,35 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
     }
     return returnFull ? json : (json.data || json);
   } catch (err) {
-    console.error('API Error:', err);
+    console.warn('API fallback active for endpoint:', endpoint);
+    // Graceful fallback for public deployments when localhost:3000 is unreachable
+    if (endpoint.includes('/products/flash-sales')) {
+      return products.slice(0, 8);
+    }
+    if (endpoint.includes('/products/')) {
+      const id = parseInt(endpoint.split('/products/')[1], 10);
+      const found = products.find(p => p.id === id) || products[0];
+      return returnFull ? { success: true, data: found } : found;
+    }
+    if (endpoint.includes('/products')) {
+      const searchParams = new URLSearchParams(endpoint.split('?')[1] || '');
+      const cat = searchParams.get('category');
+      const search = searchParams.get('search');
+      let filtered = [...products];
+      if (cat) {
+        filtered = filtered.filter(p =>
+          (p.category && p.category.toLowerCase().includes(cat.toLowerCase())) ||
+          (p.type && p.type.toLowerCase().includes(cat.toLowerCase()))
+        );
+      }
+      if (search) {
+        filtered = filtered.filter(p => p.name && p.name.toLowerCase().includes(search.toLowerCase()));
+      }
+      return returnFull ? { success: true, data: filtered, meta: { total: filtered.length, page: 1, limit: 12, totalPages: 1 } } : filtered;
+    }
+    if (endpoint.includes('/categories')) return categories;
+    if (endpoint.includes('/collections')) return collections;
+    if (endpoint.includes('/news')) return sampleNews;
     throw err;
   }
 }
