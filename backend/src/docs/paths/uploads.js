@@ -1,14 +1,14 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const uploadPaths = {
 '/api/v1/uploads/image-url': {
   post: {
-    tags: ['Admin — Tải ảnh'],
+    tags: ['Admin - Tải ảnh'],
     summary: '[Admin] Xin URL tải ảnh lên',
     description:
       'Bước 1 của luồng tải ảnh 2 bước, dùng chung cho ảnh bài viết, sản phẩm, danh mục và bộ sưu tập.\n\n'
       + '1. Gọi endpoint này để lấy `uploadUrl` có chữ ký (hết hạn sau 1 giờ).\n'
-      + '2. `PUT` file thẳng lên `uploadUrl` với header `Content-Type` **đúng bằng** `mimeType` đã khai báo — '
+      + '2. `PUT` file thẳng lên `uploadUrl` với header `Content-Type` **đúng bằng** `mimeType` đã khai báo - '
       + 'file đi trực tiếp lên MinIO, không qua backend.\n'
       + '3. Lưu `publicUrl` vào trường `img` của thực thể tương ứng.\n\n'
       + 'Tên file client gửi lên chỉ dùng để suy ra đuôi file; object key luôn do server sinh bằng UUID '

@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const notificationPaths = {
 '/api/v1/notifications': {
   get: {
-    tags: ['Tài khoản — Thông báo'],
+    tags: ['Tài khoản - Thông báo'],
     summary: 'Danh sách thông báo của tôi',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -17,7 +17,7 @@ export const notificationPaths = {
 },
 '/api/v1/notifications/read-all': {
   put: {
-    tags: ['Tài khoản — Thông báo'],
+    tags: ['Tài khoản - Thông báo'],
     summary: 'Đánh dấu tất cả đã đọc',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -28,7 +28,7 @@ export const notificationPaths = {
 },
 '/api/v1/notifications/{id}/read': {
   put: {
-    tags: ['Tài khoản — Thông báo'],
+    tags: ['Tài khoản - Thông báo'],
     summary: 'Đánh dấu một thông báo đã đọc',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Notification UUID' }],

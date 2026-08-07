@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const userPaths = {
 '/api/v1/users': {
   get: {
-    tags: ['Admin — Người dùng'],
+    tags: ['Admin - Người dùng'],
     summary: '[Admin] Danh sách người dùng (lọc & phân trang)',
     security: [{ bearerAuth: [] }],
     parameters: [
@@ -22,7 +22,7 @@ export const userPaths = {
 },
 '/api/v1/users/{id}': {
   get: {
-    tags: ['Admin — Người dùng'],
+    tags: ['Admin - Người dùng'],
     summary: '[Admin] Chi tiết người dùng',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
@@ -36,7 +36,7 @@ export const userPaths = {
 },
 '/api/v1/users/{id}/role': {
   put: {
-    tags: ['Admin — Người dùng'],
+    tags: ['Admin - Người dùng'],
     summary: '[Admin] Phân quyền người dùng (không thể tự đổi quyền mình)',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
@@ -56,7 +56,7 @@ export const userPaths = {
 },
 '/api/v1/users/{id}/status': {
   put: {
-    tags: ['Admin — Người dùng'],
+    tags: ['Admin - Người dùng'],
     summary: '[Admin] Khóa/mở khóa tài khoản (không thể tự khóa mình)',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],

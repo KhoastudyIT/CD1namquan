@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const statsPaths = {
 '/api/v1/stats/overview': {
   get: {
-    tags: ['Admin — Tổng quan'],
+    tags: ['Admin - Tổng quan'],
     summary: '[Admin] Số liệu tổng quan cho dashboard',
     security: [{ bearerAuth: [] }],
     responses: {

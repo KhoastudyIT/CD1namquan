@@ -1,11 +1,11 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const newsPaths = {
 '/api/v1/news': {
   get: {
-    tags: ['Cửa hàng — Tin tức'],
+    tags: ['Cửa hàng - Tin tức'],
     summary: 'Danh sách bài viết đã đăng',
-    description: 'Chỉ trả về bài có `status = published`. Không kèm `content` — dùng `GET /news/{idOrSlug}` để lấy nội dung đầy đủ.',
+    description: 'Chỉ trả về bài có `status = published`. Không kèm `content` - dùng `GET /news/{idOrSlug}` để lấy nội dung đầy đủ.',
     parameters: [
       { name: 'page',     in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
       { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 9 } },
@@ -24,7 +24,7 @@ export const newsPaths = {
     },
   },
   post: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Tạo bài viết',
     description: 'Mặc định lưu ở trạng thái `draft` nếu không truyền `status`.',
     security: [{ bearerAuth: [] }],
@@ -43,9 +43,9 @@ export const newsPaths = {
 },
 '/api/v1/news/categories': {
   get: {
-    tags: ['Cửa hàng — Tin tức'],
+    tags: ['Cửa hàng - Tin tức'],
     summary: 'Danh mục bài viết',
-    description: 'Kèm số bài đã đăng theo từng danh mục — dùng cho bộ lọc ở trang tin tức và dropdown ở dashboard.',
+    description: 'Kèm số bài đã đăng theo từng danh mục - dùng cho bộ lọc ở trang tin tức và dropdown ở dashboard.',
     responses: {
       '200': {
         description: 'Danh sách danh mục',
@@ -65,7 +65,7 @@ export const newsPaths = {
 },
 '/api/v1/news/admin/list': {
   get: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Danh sách bài viết (mọi trạng thái)',
     description: 'Gồm cả bản nháp và bài đã ẩn. Không kèm `content`.',
     security: [{ bearerAuth: [] }],
@@ -88,7 +88,7 @@ export const newsPaths = {
 },
 '/api/v1/news/admin/{id}': {
   get: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Chi tiết bài viết để chỉnh sửa',
     description: 'Trả về bài ở mọi trạng thái, kèm `content` đầy đủ. Không tăng lượt xem.',
     security: [{ bearerAuth: [] }],
@@ -103,7 +103,7 @@ export const newsPaths = {
 },
 '/api/v1/news/{idOrSlug}': {
   get: {
-    tags: ['Cửa hàng — Tin tức'],
+    tags: ['Cửa hàng - Tin tức'],
     summary: 'Chi tiết bài viết',
     description: 'Nhận cả id lẫn slug. Chỉ trả bài đã đăng và tự tăng `views` mỗi lượt gọi.',
     parameters: [{ name: 'idOrSlug', in: 'path', required: true, schema: { type: 'string' }, example: 'xu-huong-noi-that-2026-tinh-te-ben-vung' }],
@@ -115,9 +115,9 @@ export const newsPaths = {
 },
 '/api/v1/news/{idOrSlug}/related': {
   get: {
-    tags: ['Cửa hàng — Tin tức'],
+    tags: ['Cửa hàng - Tin tức'],
     summary: 'Bài viết liên quan',
-    description: 'Ưu tiên bài cùng danh mục, thiếu thì bù bằng bài mới nhất — luôn trả đủ `limit` bài nếu còn bài khác.',
+    description: 'Ưu tiên bài cùng danh mục, thiếu thì bù bằng bài mới nhất - luôn trả đủ `limit` bài nếu còn bài khác.',
     parameters: [
       { name: 'idOrSlug', in: 'path', required: true, schema: { type: 'string' }, example: 'xu-huong-noi-that-2026-tinh-te-ben-vung' },
       { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12, default: 3 } },
@@ -130,9 +130,9 @@ export const newsPaths = {
 },
 '/api/v1/news/{id}': {
   put: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Cập nhật bài viết',
-    description: 'Cập nhật từng phần — chỉ gửi trường cần đổi. Slug chỉ thay đổi khi truyền `slug` tường minh, đổi tiêu đề không phá URL đã công bố.',
+    description: 'Cập nhật từng phần - chỉ gửi trường cần đổi. Slug chỉ thay đổi khi truyền `slug` tường minh, đổi tiêu đề không phá URL đã công bố.',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
     requestBody: {
@@ -149,7 +149,7 @@ export const newsPaths = {
     },
   },
   delete: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Xóa bài viết',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
@@ -163,7 +163,7 @@ export const newsPaths = {
 },
 '/api/v1/news/{id}/status': {
   patch: {
-    tags: ['Admin — Tin tức'],
+    tags: ['Admin - Tin tức'],
     summary: '[Admin] Đổi trạng thái bài viết',
     description: 'Đăng / gỡ / chuyển về nháp ngay từ bảng danh sách, không cần mở form sửa.',
     security: [{ bearerAuth: [] }],

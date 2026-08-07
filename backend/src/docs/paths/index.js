@@ -1,4 +1,4 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 import { authPaths } from './auth.js';
 import { productPaths } from './products.js';

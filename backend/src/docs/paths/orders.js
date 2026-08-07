@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const orderPaths = {
 '/api/v1/orders': {
   get: {
-    tags: ['Tài khoản — Đơn hàng'],
+    tags: ['Tài khoản - Đơn hàng'],
     summary: 'Lịch sử đơn hàng của tôi',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -24,7 +24,7 @@ export const orderPaths = {
     },
   },
   post: {
-    tags: ['Tài khoản — Đơn hàng'],
+    tags: ['Tài khoản - Đơn hàng'],
     summary: 'Đặt hàng',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -66,7 +66,7 @@ export const orderPaths = {
 },
 '/api/v1/orders/{id}': {
   get: {
-    tags: ['Tài khoản — Đơn hàng'],
+    tags: ['Tài khoản - Đơn hàng'],
     summary: 'Chi tiết đơn hàng',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Order UUID' }],
@@ -92,7 +92,7 @@ export const orderPaths = {
 },
 '/api/v1/orders/admin/list': {
   get: {
-    tags: ['Admin — Đơn hàng'],
+    tags: ['Admin - Đơn hàng'],
     summary: '[Admin] Danh sách tất cả đơn hàng',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -116,7 +116,7 @@ export const orderPaths = {
 },
 '/api/v1/orders/{id}/status': {
   put: {
-    tags: ['Admin — Đơn hàng'],
+    tags: ['Admin - Đơn hàng'],
     summary: '[Admin] Cập nhật trạng thái đơn hàng',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Order UUID' }],

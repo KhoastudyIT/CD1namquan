@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const chatPaths = {
 '/api/v1/chat/conversation': {
   get: {
-    tags: ['Tài khoản — Tin nhắn'],
+    tags: ['Tài khoản - Tin nhắn'],
     summary: 'Mở khung chat của tôi',
     description: 'Trả hội thoại duy nhất của khách kèm toàn bộ tin nhắn. Lần đầu gọi sẽ tự tạo hội thoại và lời chào của bot.',
     security: [{ bearerAuth: [] }],
@@ -45,7 +45,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/messages': {
   get: {
-    tags: ['Tài khoản — Tin nhắn'],
+    tags: ['Tài khoản - Tin nhắn'],
     summary: 'Lấy tin nhắn mới (polling)',
     description: 'Dùng `after` để chỉ lấy phần tin mới hơn id client đang có. Frontend poll 4 giây khi khung chat mở, 30 giây khi đóng.',
     security: [{ bearerAuth: [] }],
@@ -82,7 +82,7 @@ export const chatPaths = {
     },
   },
   post: {
-    tags: ['Tài khoản — Tin nhắn'],
+    tags: ['Tài khoản - Tin nhắn'],
     summary: 'Khách gửi tin nhắn',
     description: 'Trả về tin của khách, kèm phản hồi bot nếu `aiEnabled` đang bật (khi đó mảng có 2 phần tử). Hội thoại đã đóng sẽ tự mở lại.',
     security: [{ bearerAuth: [] }],
@@ -124,7 +124,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/read': {
   put: {
-    tags: ['Tài khoản — Tin nhắn'],
+    tags: ['Tài khoản - Tin nhắn'],
     summary: 'Khách đánh dấu đã đọc',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -137,7 +137,7 @@ export const chatPaths = {
 // ── Chat: phía quản trị ──────────────────────────────────────────────
 '/api/v1/chat/admin/conversations': {
   get: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Danh sách hội thoại',
     description: 'Sắp xếp theo tin nhắn mới nhất, tối đa 100 hội thoại.',
     security: [{ bearerAuth: [] }],
@@ -166,7 +166,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/admin/conversations/{id}': {
   get: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Xem nội dung một hội thoại',
     security: [{ bearerAuth: [] }],
     parameters: [
@@ -203,7 +203,7 @@ export const chatPaths = {
     },
   },
   patch: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Bật/tắt bot hoặc đóng/mở hội thoại',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
@@ -239,7 +239,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/admin/conversations/{id}/messages': {
   post: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Nhân viên trả lời khách',
     description: 'Gửi tin sẽ TỰ ĐỘNG TẮT bot cho hội thoại này (tránh hai bên cùng trả lời một khách) và gửi thông báo cho khách. Bot tự bật lại nếu nhân viên im lặng quá 15 phút.',
     security: [{ bearerAuth: [] }],
@@ -266,7 +266,7 @@ export const chatPaths = {
           },
         },
       },
-      '400': { description: 'Hội thoại đã đóng — mở lại trước khi gửi', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+      '400': { description: 'Hội thoại đã đóng - mở lại trước khi gửi', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
       '401': { $ref: '#/components/responses/Unauthorized' },
       '403': { $ref: '#/components/responses/Forbidden' },
       '404': { $ref: '#/components/responses/NotFound' },
@@ -276,7 +276,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/admin/conversations/{id}/read': {
   put: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Đánh dấu đã đọc tin của khách',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
@@ -302,7 +302,7 @@ export const chatPaths = {
 },
 '/api/v1/chat/admin/unread-count': {
   get: {
-    tags: ['Admin — Tin nhắn'],
+    tags: ['Admin - Tin nhắn'],
     summary: '[Admin] Tổng số tin chưa đọc',
     description: 'Dùng cho badge trên sidebar quản trị. Frontend poll 15 giây.',
     security: [{ bearerAuth: [] }],

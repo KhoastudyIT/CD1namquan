@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const cartPaths = {
 '/api/v1/cart': {
   get: {
-    tags: ['Tài khoản — Giỏ hàng'],
+    tags: ['Tài khoản - Giỏ hàng'],
     summary: 'Xem giỏ hàng',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -24,7 +24,7 @@ export const cartPaths = {
     },
   },
   delete: {
-    tags: ['Tài khoản — Giỏ hàng'],
+    tags: ['Tài khoản - Giỏ hàng'],
     summary: 'Xóa toàn bộ giỏ hàng',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -35,7 +35,7 @@ export const cartPaths = {
 },
 '/api/v1/cart/items': {
   post: {
-    tags: ['Tài khoản — Giỏ hàng'],
+    tags: ['Tài khoản - Giỏ hàng'],
     summary: 'Thêm sản phẩm vào giỏ',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -68,7 +68,7 @@ export const cartPaths = {
 },
 '/api/v1/cart/items/{productId}': {
   put: {
-    tags: ['Tài khoản — Giỏ hàng'],
+    tags: ['Tài khoản - Giỏ hàng'],
     summary: 'Cập nhật số lượng sản phẩm trong giỏ',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
@@ -100,7 +100,7 @@ export const cartPaths = {
     },
   },
   delete: {
-    tags: ['Tài khoản — Giỏ hàng'],
+    tags: ['Tài khoản - Giỏ hàng'],
     summary: 'Xóa một sản phẩm khỏi giỏ',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],

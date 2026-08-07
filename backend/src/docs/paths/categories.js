@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const categoryPaths = {
 '/api/v1/categories': {
   get: {
-    tags: ['Cửa hàng — Danh mục & Bộ sưu tập'],
+    tags: ['Cửa hàng - Danh mục & Bộ sưu tập'],
     summary: 'Danh sách danh mục',
     responses: {
       '200': {
@@ -29,7 +29,7 @@ export const categoryPaths = {
     },
   },
   post: {
-    tags: ['Admin — Danh mục & Bộ sưu tập'],
+    tags: ['Admin - Danh mục & Bộ sưu tập'],
     summary: '[Admin] Tạo danh mục',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -50,7 +50,7 @@ export const categoryPaths = {
 },
 '/api/v1/categories/{id}': {
   put: {
-    tags: ['Admin — Danh mục & Bộ sưu tập'],
+    tags: ['Admin - Danh mục & Bộ sưu tập'],
     summary: '[Admin] Cập nhật danh mục',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
@@ -66,7 +66,7 @@ export const categoryPaths = {
     },
   },
   delete: {
-    tags: ['Admin — Danh mục & Bộ sưu tập'],
+    tags: ['Admin - Danh mục & Bộ sưu tập'],
     summary: '[Admin] Xóa danh mục',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],

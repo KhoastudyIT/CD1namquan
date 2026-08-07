@@ -1,9 +1,9 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const productPaths = {
 '/api/v1/products': {
   get: {
-    tags: ['Cửa hàng — Sản phẩm'],
+    tags: ['Cửa hàng - Sản phẩm'],
     summary: 'Danh sách sản phẩm (có lọc & phân trang)',
     parameters: [
       { name: 'category', in: 'query', schema: { type: 'string' },           description: 'Lọc theo danh mục (vd: Phòng khách, Phòng ngủ)' },
@@ -28,7 +28,7 @@ export const productPaths = {
     },
   },
   post: {
-    tags: ['Admin — Sản phẩm'],
+    tags: ['Admin - Sản phẩm'],
     summary: 'Tạo sản phẩm mới',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -60,7 +60,7 @@ export const productPaths = {
 },
 '/api/v1/products/flash-sales': {
   get: {
-    tags: ['Cửa hàng — Sản phẩm'],
+    tags: ['Cửa hàng - Sản phẩm'],
     summary: 'Sản phẩm flash sale',
     responses: {
       '200': {
@@ -81,7 +81,7 @@ export const productPaths = {
 },
 '/api/v1/products/flash-sales/admin': {
   get: {
-    tags: ['Admin — Flash sale'],
+    tags: ['Admin - Flash sale'],
     summary: '[Admin] Danh sách tất cả Flash Sale',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -103,7 +103,7 @@ export const productPaths = {
     },
   },
   post: {
-    tags: ['Admin — Flash sale'],
+    tags: ['Admin - Flash sale'],
     summary: '[Admin] Thêm sản phẩm Flash Sale mới',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -136,7 +136,7 @@ export const productPaths = {
 },
 '/api/v1/products/flash-sales/admin/{id}': {
   put: {
-    tags: ['Admin — Flash sale'],
+    tags: ['Admin - Flash sale'],
     summary: '[Admin] Cập nhật chương trình Flash Sale',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 101 }],
@@ -169,7 +169,7 @@ export const productPaths = {
     },
   },
   delete: {
-    tags: ['Admin — Flash sale'],
+    tags: ['Admin - Flash sale'],
     summary: '[Admin] Xóa chương trình Flash Sale',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 101 }],
@@ -183,7 +183,7 @@ export const productPaths = {
 },
 '/api/v1/products/{id}': {
   get: {
-    tags: ['Cửa hàng — Sản phẩm'],
+    tags: ['Cửa hàng - Sản phẩm'],
     summary: 'Chi tiết sản phẩm',
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
     responses: {
@@ -204,7 +204,7 @@ export const productPaths = {
     },
   },
   put: {
-    tags: ['Admin — Sản phẩm'],
+    tags: ['Admin - Sản phẩm'],
     summary: 'Cập nhật sản phẩm',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
@@ -236,7 +236,7 @@ export const productPaths = {
     },
   },
   delete: {
-    tags: ['Admin — Sản phẩm'],
+    tags: ['Admin - Sản phẩm'],
     summary: 'Xóa sản phẩm',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],

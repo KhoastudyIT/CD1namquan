@@ -1,4 +1,4 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const components = {
   securitySchemes: {
@@ -309,7 +309,7 @@ export const components = {
     },
     ChatProductCard: {
       type: 'object',
-      description: 'Thẻ sản phẩm bot đính kèm câu trả lời — bấm vào mở trang chi tiết.',
+      description: 'Thẻ sản phẩm bot đính kèm câu trả lời - bấm vào mở trang chi tiết.',
       properties: {
         id:        { type: 'integer', example: 46 },
         name:      { type: 'string', example: 'Vòi Rửa Tay Rinto' },
@@ -553,7 +553,7 @@ export const components = {
       required: ['message'],
       properties: {
         message:   { type: 'string', minLength: 1, maxLength: 2000, example: 'Vòi Rửa Tay Rinto còn hàng không?' },
-        productId: { type: 'integer', nullable: true, description: 'Sản phẩm khách đang xem — giúp bot hiểu "cái này" là gì', example: 46 },
+        productId: { type: 'integer', nullable: true, description: 'Sản phẩm khách đang xem - giúp bot hiểu "cái này" là gì', example: 46 },
       },
     },
     ChatConversationPatchBody: {

@@ -1,4 +1,4 @@
-// Sinh tu openapi.js goc — chi la lop tai lieu, khong co business logic.
+// Sinh tu openapi.js goc - chi la lop tai lieu, khong co business logic.
 
 export const authPaths = {
 '/api/v1/auth/register': {
@@ -15,7 +15,7 @@ export const authPaths = {
     },
     responses: {
       '201': {
-        description: 'Đăng ký thành công — trả về user + token',
+        description: 'Đăng ký thành công - trả về user + token',
         content: {
           'application/json': {
             schema: {
@@ -53,7 +53,7 @@ export const authPaths = {
     },
     responses: {
       '200': {
-        description: 'Đăng nhập thành công — trả về user + token',
+        description: 'Đăng nhập thành công - trả về user + token',
         content: {
           'application/json': {
             schema: {
@@ -72,7 +72,7 @@ export const authPaths = {
 },
 '/api/v1/auth/me': {
   get: {
-    tags: ['Tài khoản — Hồ sơ'],
+    tags: ['Tài khoản - Hồ sơ'],
     summary: 'Lấy thông tin người dùng hiện tại',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -93,7 +93,7 @@ export const authPaths = {
     },
   },
   put: {
-    tags: ['Tài khoản — Hồ sơ'],
+    tags: ['Tài khoản - Hồ sơ'],
     summary: 'Cập nhật thông tin cá nhân',
     security: [{ bearerAuth: [] }],
     requestBody: {
@@ -125,7 +125,7 @@ export const authPaths = {
 },
 '/api/v1/auth/password': {
   put: {
-    tags: ['Tài khoản — Hồ sơ'],
+    tags: ['Tài khoản - Hồ sơ'],
     summary: 'Đổi mật khẩu',
     description: 'Cần mật khẩu hiện tại. Mật khẩu mới phải khác mật khẩu đang dùng.',
     security: [{ bearerAuth: [] }],
