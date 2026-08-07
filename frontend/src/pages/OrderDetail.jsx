@@ -75,7 +75,7 @@ export function OrderDetail() {
                 <div style={{ width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
                   <Img src={item.img} alt={item.name} />
                 </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Link to={`/product/${item.productId}`} style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{item.name}</Link>
                   <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
                     {item.quantity} x {vnd(item.price)}đ

@@ -70,15 +70,13 @@ export function Notifications() {
                 <div className="notif-icon" style={{ background: !n.read ? 'var(--green)' : 'var(--mint)', color: !n.read ? '#fff' : 'var(--green-ink)' }}>
                   <Icon name={ICON_BY_TYPE[n.type] || "bell"} size={20} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div className="notif-body">
                   <div className="notif-header">
-                    <h3 style={{ fontSize: 16, margin: 0, color: 'var(--ink)' }}>{n.title}</h3>
+                    <h3>{n.title}</h3>
                     <span className="notif-time">{timeAgo(n.createdAt)}</span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}>{n.message}</p>
-                  {n.link && (
-                    <span style={{ display: 'inline-block', marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>Xem chi tiết →</span>
-                  )}
+                  <p>{n.message}</p>
+                  {n.link && <span className="notif-more">Xem chi tiết →</span>}
                 </div>
               </div>
             ))}
