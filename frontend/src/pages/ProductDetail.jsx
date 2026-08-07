@@ -69,7 +69,7 @@ export function ProductDetail() {
             <div style={{ fontSize: 13, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 700, marginBottom: 12 }}>
               {product.category} • {product.type}
             </div>
-            <h1 style={{ fontSize: 34, fontWeight: 800, color: "var(--green-ink)", margin: "0 0 16px", lineHeight: 1.2 }}>
+            <h1 className="pd-title" style={{ fontWeight: 800, color: "var(--green-ink)", margin: "0 0 16px", lineHeight: 1.2 }}>
               {product.name}
             </h1>
             
@@ -82,7 +82,7 @@ export function ProductDetail() {
               <span style={{ fontSize: 14, color: "var(--muted)" }}>Tồn kho: <b>{product.stock}</b></span>
             </div>
 
-            <div style={{ fontSize: 32, fontWeight: 800, color: "var(--green)", marginBottom: 30 }}>
+            <div className="pd-price" style={{ fontWeight: 800, color: "var(--green)", marginBottom: 30 }}>
               {vnd(product.price)} <span style={{ fontSize: 18, textDecoration: "underline" }}>đ</span>
             </div>
 
@@ -95,7 +95,7 @@ export function ProductDetail() {
               <ColorDots colors={["#c9bfa6","#2f6b46","#1d2722"]} />
             </div>
 
-            <div style={{ display: "flex", gap: 20, marginBottom: 40 }}>
+            <div className="pd-actions">
               <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid var(--line-2)", borderRadius: 12, padding: "4px" }}>
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)" }}>-</button>
                 <div style={{ width: 40, textAlign: "center", fontSize: 16, fontWeight: 600 }}>{quantity}</div>
@@ -103,8 +103,7 @@ export function ProductDetail() {
               </div>
               <button 
                 onClick={handleAddToCart}
-                className="btn-pill" 
-                style={{ flex: 1, justifyContent: "center", fontSize: 16, height: 50 }}
+                className="btn-pill"
               >
                 <Icon name="cart" size={18} /> Thêm vào giỏ
               </button>
@@ -120,7 +119,7 @@ export function ProductDetail() {
               <Icon name="chat" size={17} /> Hỏi tư vấn về sản phẩm này
             </button>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="pd-shipping-grid">
               <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "var(--ink-2)" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--mint)", color: "var(--green-ink)", display: "grid", placeItems: "center" }}><Icon name="truck" size={18} /></div>
                 <div><b>Miễn phí giao hàng</b><br/><span style={{ color: "var(--muted)", fontSize: 12 }}>Cho đơn từ 5.000.000đ</span></div>

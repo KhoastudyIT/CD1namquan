@@ -47,18 +47,18 @@ export function Orders() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {orders.map(o => (
               <Link 
-                to={`/orders/${o.id}`} 
+                to={`/orders/${o.id}`}
                 key={o.id}
-                style={{ 
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  background: '#fff', padding: 20, borderRadius: 12, 
+                className="order-card"
+                style={{
+                  background: '#fff', padding: 20, borderRadius: 12,
                   border: '1px solid var(--line)', boxShadow: 'var(--shadow-sm)',
                   transition: '.2s'
                 }}
                 onMouseOver={e => e.currentTarget.style.borderColor = 'var(--green)'}
                 onMouseOut={e => e.currentTarget.style.borderColor = 'var(--line)'}
               >
-                <div>
+                <div className="order-card-left">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <b style={{ color: 'var(--ink)' }}>#{o.id.split('-')[0].toUpperCase()}</b>
                     <span style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, background: o.status === 'pending' ? '#fff3cd' : 'var(--mint)', color: o.status === 'pending' ? '#856404' : 'var(--green-ink)', fontWeight: 600 }}>
@@ -69,7 +69,7 @@ export function Orders() {
                     Đặt ngày: {new Date(o.createdAt).toLocaleDateString('vi-VN')} • {o.items?.length ?? 0} sản phẩm
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div className="order-card-right">
                   <b style={{ color: 'var(--green-ink)', fontSize: 16 }}>{vnd(o.total)}đ</b>
                   <Icon name="arrowR" size={18} style={{ color: 'var(--muted)' }} />
                 </div>

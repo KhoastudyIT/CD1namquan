@@ -64,26 +64,20 @@ export function Notifications() {
               <div
                 key={n.id}
                 onClick={() => handleClick(n)}
+                className="notif-item"
                 style={{
                   background: !n.read ? '#f4faf5' : '#fff',
-                  border: '1px solid',
                   borderColor: !n.read ? 'var(--green)' : 'var(--line)',
-                  padding: 24,
-                  borderRadius: 16,
-                  display: 'flex',
-                  gap: 20,
-                  alignItems: 'flex-start',
-                  boxShadow: 'var(--shadow-sm)',
                   cursor: n.link ? 'pointer' : 'default',
                 }}
               >
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: !n.read ? 'var(--green)' : 'var(--mint)', color: !n.read ? '#fff' : 'var(--green-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div className="notif-icon" style={{ background: !n.read ? 'var(--green)' : 'var(--mint)', color: !n.read ? '#fff' : 'var(--green-ink)' }}>
                   <Icon name={ICON_BY_TYPE[n.type] || "bell"} size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 10 }}>
+                  <div className="notif-header">
                     <h3 style={{ fontSize: 16, margin: 0, color: 'var(--ink)' }}>{n.title}</h3>
-                    <span style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{timeAgo(n.createdAt)}</span>
+                    <span className="notif-time">{timeAgo(n.createdAt)}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}>{n.message}</p>
                   {n.link && (

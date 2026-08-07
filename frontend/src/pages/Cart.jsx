@@ -58,8 +58,8 @@ export function Cart() {
             <Link to="/" className="btn-pill" style={{ background: 'var(--green)', color: '#fff', display: 'inline-flex' }}>Tiếp tục mua sắm</Link>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 500px', background: '#fff', padding: 20, borderRadius: 12, boxShadow: 'var(--shadow-sm)' }}>
+          <div className="cart-layout">
+            <div className="cart-items">
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>
                 <b>Sản phẩm</b>
                 <button onClick={clearCart} style={{ color: 'var(--muted)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer' }}>Xóa tất cả</button>
@@ -69,8 +69,8 @@ export function Cart() {
                   <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden' }}>
                     <Img src={item.product.img} alt={item.product.name} />
                   </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="cart-item-details">
+                    <div className="cart-item-header">
                       <b style={{ fontSize: 15 }}>{item.product.name}</b>
                       <button onClick={() => removeItem(item.productId)} style={{ color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="close" size={16}/></button>
                     </div>
@@ -85,7 +85,7 @@ export function Cart() {
               ))}
             </div>
             
-            <div style={{ flex: '1 1 300px', background: '#fff', padding: 20, borderRadius: 12, boxShadow: 'var(--shadow-sm)', height: 'fit-content' }}>
+            <div className="cart-summary">
               <h3 style={{ marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>Tổng đơn hàng</h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15 }}>
                 <span>Tạm tính</span>
