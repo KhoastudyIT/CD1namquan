@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { vnd, Icon, toast } from "../components/ui.jsx";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
 export function Orders() {
   const { user } = useAppContext();
@@ -28,12 +29,8 @@ export function Orders() {
   if (!user) return null;
 
   return (
-    <section className="section" style={{ minHeight: '80vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
-      <div className="wrap" style={{ maxWidth: 800 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 24, color: "var(--green-ink)", margin: 0 }}>Lịch sử đơn hàng</h2>
-          <Link to="/profile" style={{ fontSize: 14, color: "var(--muted)" }}>← Về hồ sơ</Link>
-        </div>
+    <>
+      <AccountHeader title="Lịch sử đơn hàng" desc="Theo dõi tình trạng các đơn bạn đã đặt" />
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 50, color: 'var(--muted)' }}>Đang tải...</div>
@@ -47,7 +44,7 @@ export function Orders() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {orders.map(o => (
               <Link 
-                to={`/orders/${o.id}`}
+                to={`/account/orders/${o.id}`}
                 key={o.id}
                 className="order-card"
                 style={{
@@ -77,7 +74,6 @@ export function Orders() {
             ))}
           </div>
         )}
-      </div>
-    </section>
+    </>
   );
 }

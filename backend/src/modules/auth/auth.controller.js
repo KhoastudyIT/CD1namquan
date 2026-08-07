@@ -28,6 +28,24 @@ export async function getMe(req, res, next) {
   }
 }
 
+export async function updateProfile(req, res, next) {
+  try {
+    const user = await authService.updateProfile(req.user.id, req.body);
+    ok(res, user, 'Cập nhật thông tin thành công');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changePassword(req, res, next) {
+  try {
+    await authService.changePassword(req.user.id, req.body);
+    ok(res, null, 'Đổi mật khẩu thành công');
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function logout(_req, res) {
   ok(res, null, 'Đăng xuất thành công');
 }

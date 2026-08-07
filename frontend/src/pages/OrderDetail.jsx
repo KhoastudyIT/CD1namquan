@@ -24,7 +24,7 @@ export function OrderDetail() {
       })
       .catch(err => {
         toast(err.message || "Không tìm thấy đơn hàng");
-        navigate("/orders");
+        navigate("/account/orders");
       })
       .finally(() => setLoading(false));
   }, [id, navigate]);
@@ -38,10 +38,8 @@ export function OrderDetail() {
   if (!order) return null;
 
   return (
-    <section className="section" style={{ minHeight: '80vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
-      <div className="wrap" style={{ maxWidth: 800 }}>
-        
-        <Link to="/orders" style={{ display: 'inline-block', marginBottom: 20, fontSize: 14, color: "var(--muted)" }}>← Trở lại danh sách đơn hàng</Link>
+    <>
+      <Link to="/account/orders" style={{ display: 'inline-block', marginBottom: 20, fontSize: 14, color: "var(--muted)" }}>← Trở lại danh sách đơn hàng</Link>
 
         <div style={{ background: '#fff', padding: 30, borderRadius: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px dashed var(--line-2)', paddingBottom: 20, marginBottom: 20 }}>
@@ -108,7 +106,6 @@ export function OrderDetail() {
           </div>
 
         </div>
-      </div>
-    </section>
+    </>
   );
 }

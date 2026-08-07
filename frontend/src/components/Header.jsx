@@ -77,10 +77,10 @@ export function Header({ cartCount, favCount, onMenu }) {
               <>
                 <button className="icon-btn" aria-label="Tìm kiếm" onClick={() => setShowSearch(true)}><Icon name="search" size={19} /></button>
                 <NotificationsBell />
-                <button className="icon-btn" aria-label="Yêu thích" onClick={() => guardNav('/favorites', 'Vui lòng đăng nhập để xem sản phẩm yêu thích.')}>
+                <button className="icon-btn" aria-label="Yêu thích" onClick={() => guardNav('/account/favorites', 'Vui lòng đăng nhập để xem sản phẩm yêu thích.')}>
                   <Icon name="heart" size={19} />{user && favCount > 0 && <span className="badge">{favCount}</span>}
                 </button>
-                <button className="icon-btn" aria-label="Giỏ hàng" onClick={() => guardNav('/cart', 'Vui lòng đăng nhập để xem giỏ hàng của bạn.')}>
+                <button className="icon-btn" aria-label="Giỏ hàng" onClick={() => guardNav('/account/cart', 'Vui lòng đăng nhập để xem giỏ hàng của bạn.')}>
                   <Icon name="cart" size={19} />{cartCount > 0 && <span className="badge">{cartCount}</span>}
                 </button>
               </>
@@ -93,7 +93,7 @@ export function Header({ cartCount, favCount, onMenu }) {
                   </span>
                 )}
                 {!isAdmin && (
-                  <Link className="hdr-greeting hdr-user" to="/profile" title={user.name}>
+                  <Link className="hdr-greeting hdr-user" to="/account" title={user.name}>
                     <span className="hdr-avatar">{user.name?.charAt(0).toUpperCase() || "U"}</span>
                     <span className="hdr-user-name">{user.name}</span>
                   </Link>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/ui.jsx";
 import { useAppContext } from "../context.js";
 import { ICON_BY_TYPE, timeAgo, isChatLink } from "../utils/notif.js";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
 const PER_PAGE = 6;
 
@@ -35,21 +36,16 @@ export function Notifications() {
   };
 
   return (
-    <section className="section" style={{ minHeight: '80vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
-      <div className="wrap" style={{ maxWidth: 800 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 24, color: "var(--green-ink)", display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Icon name="bell" size={24} /> Thông báo
-            {unread > 0 && (
-              <span style={{ fontSize: 13, fontWeight: 700, background: 'var(--green)', color: '#fff', borderRadius: 20, padding: '2px 10px' }}>{unread} mới</span>
-            )}
-          </h2>
-          {unread > 0 && (
-            <button className="btn-pill ghost" style={{ fontSize: 13 }} onClick={markAllNotifsRead}>
-              Đánh dấu tất cả đã đọc
-            </button>
-          )}
-        </div>
+    <>
+      <AccountHeader
+        title="Thông báo"
+        desc={unread > 0 ? `Bạn có ${unread} thông báo chưa đọc` : "Cập nhật mới nhất từ NAM QUAN"}
+        action={unread > 0 && (
+          <button className="btn-pill ghost" style={{ fontSize: 13 }} onClick={markAllNotifsRead}>
+            Đánh dấu tất cả đã đọc
+          </button>
+        )}
+      />
 
         {notifs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 50, background: '#fff', borderRadius: 12, border: '1px solid var(--line)' }}>
@@ -130,7 +126,6 @@ export function Notifications() {
           )}
           </>
         )}
-      </div>
-    </section>
+    </>
   );
 }

@@ -15,7 +15,7 @@ export function Checkout() {
     if (!localStorage.getItem('token')) {
       navigate('/login');
     } else if (cart.length === 0) {
-      navigate('/cart');
+      navigate('/account/cart');
     }
   }, [cart.length, navigate]);
 
@@ -34,7 +34,7 @@ export function Checkout() {
       await api.createOrder({ shippingAddress: address, note, items });
       toast("🎉 Đặt hàng thành công!");
       fetchCart(); // This will clear the cart as backend deletes it
-      navigate("/orders");
+      navigate("/account/orders");
     } catch (err) {
       toast(err.message || "Lỗi khi đặt hàng");
     } finally {
@@ -139,7 +139,7 @@ export function Checkout() {
               <b style={{ fontSize: 22, color: 'var(--green-ink)' }}>{vnd(total)}đ</b>
             </div>
             
-            <Link to="/cart" style={{ display: 'block', textAlign: 'center', marginTop: 24, fontSize: 14, color: 'var(--green)', fontWeight: 500 }}>
+            <Link to="/account/cart" style={{ display: 'block', textAlign: 'center', marginTop: 24, fontSize: 14, color: 'var(--green)', fontWeight: 500 }}>
               ← Quay lại giỏ hàng
             </Link>
           </div>

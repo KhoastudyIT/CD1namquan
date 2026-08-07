@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams, Link } from "react-router-dom";
 import { useReveal, toast } from "./components/ui.jsx";
 import { Header } from "./components/Header.jsx";
 import { Drawer } from "./components/Drawer.jsx";
@@ -21,11 +21,21 @@ import { NewsList } from "./pages/NewsList.jsx";
 import { NewsDetail } from "./pages/NewsDetail.jsx";
 import { Favorites } from "./pages/Favorites.jsx";
 import { Notifications } from "./pages/Notifications.jsx";
-import { Policies } from "./pages/Policies.jsx";
+import { Policies, AccountPolicies } from "./pages/Policies.jsx";
+import { AccountLayout } from "./components/AccountLayout.jsx";
+import { AccountOverview } from "./pages/AccountOverview.jsx";
+import { AccountMessages } from "./pages/AccountMessages.jsx";
+import { AccountSettings } from "./pages/AccountSettings.jsx";
 import { AdminDashboard } from "./pages/AdminDashboard.jsx";
 import { RequireAuth } from "./components/RequireAuth.jsx";
 import { LoginModal } from "./components/LoginModal.jsx";
 import { ChatWidget } from "./components/ChatWidget.jsx";
+
+/** Giữ lại :id khi chuyển tiếp /orders/:id sang khu vực tài khoản. */
+function RedirectOrderDetail() {
+  const { id } = useParams();
+  return <Navigate to={`/account/orders/${id}`} replace />;
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -170,13 +180,30 @@ export default function App() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:idOrSlug" element={<NewsDetail />} />
-          <Route path="/cart" element={<RequireAuth><Cart /></RequireAuth>} />
           <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
-          <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />
-          <Route path="/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
-          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="/favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
-          <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+
+          {/* Khu vực tài khoản: sidebar dùng chung, trang con render vào Outlet */}
+          <Route path="/account" element={<RequireAuth><AccountLayout /></RequireAuth>}>
+            <Route index element={<AccountOverview />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="favorites" element={<Favorites />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="messages" element={<AccountMessages />} />
+            <Route path="policies" element={<AccountPolicies />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
+
+          {/* Đường dẫn cũ vẫn còn trong bookmark và link ngoài — chuyển tiếp thay vì 404 */}
+          <Route path="/cart" element={<Navigate to="/account/cart" replace />} />
+          <Route path="/orders" element={<Navigate to="/account/orders" replace />} />
+          <Route path="/orders/:id" element={<RedirectOrderDetail />} />
+          <Route path="/profile" element={<Navigate to="/account/profile" replace />} />
+          <Route path="/favorites" element={<Navigate to="/account/favorites" replace />} />
+          <Route path="/notifications" element={<Navigate to="/account/notifications" replace />} />
+
           <Route path="/policies" element={<Policies />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

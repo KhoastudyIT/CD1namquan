@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { Icon, Img, vnd, toast } from "../components/ui.jsx";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
 export function Cart() {
   const { cart, fetchCart, user } = useAppContext();
@@ -49,9 +50,8 @@ export function Cart() {
   if (!user) return null;
 
   return (
-    <section className="section" style={{ minHeight: '60vh', padding: '40px 20px', background: '#f9faf9' }}>
-      <div className="wrap" style={{ maxWidth: 900 }}>
-        <h2 style={{ marginBottom: 20 }}>Giỏ hàng của bạn</h2>
+    <>
+      <AccountHeader title="Giỏ hàng của bạn" desc="Kiểm tra lại sản phẩm trước khi thanh toán" />
         {cart.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 50, background: '#fff', borderRadius: 12 }}>
             <p style={{ marginBottom: 20, color: 'var(--muted)' }}>Giỏ hàng trống</p>
@@ -106,7 +106,6 @@ export function Cart() {
             </div>
           </div>
         )}
-      </div>
-    </section>
+    </>
   );
 }

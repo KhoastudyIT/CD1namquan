@@ -1482,6 +1482,139 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
   gap: 40px;
   align-items: start;
 }
+/* ---------- KHU VỰC TÀI KHOẢN ---------- */
+.acc-section { background: var(--paper-2); min-height: 80vh; padding: 40px 0 70px; }
+.acc-layout { display: flex; gap: 28px; align-items: flex-start; }
+
+.acc-sidebar {
+  width: 240px; flex-shrink: 0; background: #fff; border: 1px solid var(--line);
+  border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden;
+  position: sticky; top: 94px; display: flex; flex-direction: column;
+}
+.acc-content { flex: 1; min-width: 0; }
+
+.acc-side-head { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); }
+.acc-side-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--green); color: #fff;
+  font-weight: 800; font-size: 16px; display: grid; place-items: center; flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(31,157,77,.3);
+}
+.acc-side-id { min-width: 0; display: flex; flex-direction: column; }
+.acc-side-id b { font-size: 14.5px; color: var(--green-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-side-id span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.acc-nav { display: flex; flex-direction: column; gap: 2px; padding: 10px; flex: 1; }
+.acc-nav-item {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 10px;
+  font-size: 14px; font-weight: 500; color: var(--ink-2); transition: .16s;
+}
+.acc-nav-item:hover { background: var(--paper-2); color: var(--green-ink); }
+.acc-nav-item.active { background: var(--mint); color: var(--green-ink); font-weight: 700; }
+.acc-nav-count {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--green); color: #fff; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.acc-nav-item.active .acc-nav-count { background: var(--green-ink); }
+
+.acc-side-foot { padding: 10px; border-top: 1px solid var(--line); }
+.acc-logout {
+  display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px;
+  border-radius: 10px; font-size: 14px; font-weight: 600; color: #ff4d4f;
+  text-align: left; transition: .16s;
+}
+.acc-logout:hover { background: #fff1f0; }
+
+.acc-menu-btn { display: none; }
+
+/* Tiêu đề chung của mọi trang con */
+.acc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.acc-head h1 { font-size: 28px; font-weight: 800; color: var(--green-ink); margin: 0; }
+.acc-head p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+.acc-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: var(--shadow-sm); margin-bottom: 20px; }
+.acc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.acc-card-head h2 { font-size: 17px; font-weight: 700; color: var(--ink); margin: 0; }
+.acc-card-head a { font-size: 13.5px; color: var(--green); font-weight: 600; }
+.acc-muted { color: var(--muted); font-size: 14px; margin: 0; }
+
+.acc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.acc-stat {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+  box-shadow: var(--shadow-sm); transition: .18s;
+}
+.acc-stat:hover { border-color: var(--green); transform: translateY(-2px); }
+.acc-stat-top { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: var(--green); }
+.acc-stat-top span { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.acc-stat b { font-size: 21px; font-weight: 800; color: var(--green-ink); }
+
+.acc-empty { text-align: center; padding: 34px 10px; color: var(--muted); }
+.acc-empty svg { color: var(--line-2); margin-bottom: 10px; }
+.acc-empty p { margin: 0 0 16px; font-size: 14.5px; }
+
+.acc-order-list { list-style: none; margin: 0; padding: 0; }
+.acc-order-list li + li { border-top: 1px solid var(--line); }
+.acc-order-list a { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; }
+.acc-order-id { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.acc-order-id b { font-size: 14px; color: var(--ink); transition: .16s; }
+.acc-order-list a:hover .acc-order-id b { color: var(--green); }
+.acc-order-id span { font-size: 12.5px; color: var(--muted); }
+.acc-order-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.acc-order-right b { font-size: 14.5px; color: var(--green-ink); }
+
+.acc-status { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 7px; border: 1px solid; white-space: nowrap; }
+.acc-status-pending   { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.acc-status-confirmed { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.acc-status-shipped   { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+.acc-status-completed { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.acc-status-cancelled { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+.acc-form { display: flex; flex-direction: column; gap: 15px; max-width: 420px; }
+.acc-form label { display: flex; flex-direction: column; gap: 6px; }
+.acc-form label span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.acc-form input {
+  padding: 10px 13px; border: 1px solid var(--line-2); border-radius: 10px;
+  font-size: 14.5px; color: var(--ink); background: #fff; outline: none; transition: .16s;
+}
+.acc-form input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,157,77,.12); }
+.acc-form input:disabled { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
+.acc-form .btn-pill { align-self: flex-start; }
+.acc-form-err { margin: 0; font-size: 13.5px; color: #d4380d; }
+
+.acc-profile-top { display: flex; align-items: center; gap: 16px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.acc-profile-avatar {
+  width: 64px; height: 64px; border-radius: 50%; background: var(--mint); color: var(--green-ink);
+  display: grid; place-items: center; font-size: 26px; font-weight: 800; flex-shrink: 0;
+}
+.acc-profile-top b { display: block; font-size: 17px; color: var(--ink); }
+.acc-profile-top span { font-size: 13px; color: var(--muted); }
+.acc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0; }
+.acc-fields dt { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+.acc-fields dd { margin: 0; padding: 10px 13px; background: var(--paper-2); border-radius: 9px; font-size: 14.5px; }
+
+.acc-note { display: flex; align-items: flex-start; gap: 12px; color: var(--muted); }
+.acc-note svg { color: var(--green); flex-shrink: 0; margin-top: 2px; }
+.acc-note p { margin: 0; font-size: 13.5px; line-height: 1.6; }
+.acc-note code { background: var(--paper-2); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+
+.acc-chat { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.acc-chat-body { flex: 1; min-height: 380px; max-height: 55vh; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.acc-chat-input { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); }
+.acc-chat-input input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--line-2); border-radius: 999px;
+  font-size: 14.5px; outline: none; transition: .16s;
+}
+.acc-chat-input input:focus { border-color: var(--green); }
+
+/* Panel trượt cho màn hẹp — cùng cách dựng với Drawer của header */
+.acc-drawer { position: fixed; inset: 0; z-index: 120; display: flex; justify-content: flex-end; }
+.acc-drawer-bg { position: absolute; inset: 0; background: rgba(18,30,22,.5); backdrop-filter: blur(3px); }
+.acc-drawer-panel {
+  position: relative; width: 280px; max-width: 84vw; height: 100%; background: #fff;
+  display: flex; flex-direction: column; box-shadow: var(--shadow-lg); overflow-y: auto;
+}
+.acc-drawer-close { position: absolute; top: 12px; right: 12px; color: var(--muted); z-index: 1; }
+
 .profile-layout {
   display: flex;
   gap: 30px;
@@ -2023,6 +2156,17 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
   .hdr-avatar { width: 24px; height: 24px; font-size: 11px; }
   .user-menu .btn-pill.ghost { padding: 0 8px !important; font-size: 12px; }
   
+  /* Khu vực tài khoản: giấu sidebar, đổi sang panel trượt */
+  .acc-sidebar { display: none; }
+  .acc-menu-btn {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+    padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font-size: 14px; font-weight: 600; color: var(--ink-2);
+  }
+  .acc-stats { grid-template-columns: 1fr 1fr; }
+  .acc-head h1 { font-size: 23px; }
+  .acc-fields { grid-template-columns: 1fr; }
+
   /* Product Detail */
   .pd-title { font-size: 24px; }
   .pd-price { font-size: 24px; }

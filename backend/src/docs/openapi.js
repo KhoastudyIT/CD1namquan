@@ -552,6 +552,72 @@ Token nhận được từ \`POST /api/v1/auth/login\` hoặc \`POST /api/v1/aut
           '401': { $ref: '#/components/responses/Unauthorized' },
         },
       },
+      put: {
+        tags: ['Auth'],
+        summary: 'Cập nhật thông tin cá nhân',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name:  { type: 'string', minLength: 2, maxLength: 100, example: 'Nguyễn Văn A' },
+                  phone: { type: 'string', maxLength: 20, example: '0901234567' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Thông tin sau khi cập nhật',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessResponse' },
+                    { properties: { data: { $ref: '#/components/schemas/User' } } },
+                  ],
+                },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/api/v1/auth/password': {
+      put: {
+        tags: ['Auth'],
+        summary: 'Đổi mật khẩu',
+        description: 'Cần mật khẩu hiện tại. Mật khẩu mới phải khác mật khẩu đang dùng.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['currentPassword', 'newPassword'],
+                properties: {
+                  currentPassword: { type: 'string', example: 'matkhaucu' },
+                  newPassword:     { type: 'string', minLength: 6, maxLength: 100, example: 'matkhaumoi123' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Đổi mật khẩu thành công', content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } } },
+          '400': { description: 'Mật khẩu hiện tại sai, hoặc mật khẩu mới trùng mật khẩu cũ', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
     },
     '/api/v1/auth/logout': {
       post: {

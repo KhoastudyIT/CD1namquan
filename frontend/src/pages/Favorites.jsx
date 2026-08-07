@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { ProductCard } from "../components/cards.jsx";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
 export function Favorites() {
   const { favs, toggleFav, addToCart } = useAppContext();
@@ -28,9 +29,8 @@ export function Favorites() {
   }, [favs.size]); // only refetch if size changes drastically, or rely on local toggle
 
   return (
-    <section className="section" style={{ minHeight: '80vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
-      <div className="wrap" style={{ maxWidth: 1000 }}>
-        <h2 style={{ marginBottom: 24, fontSize: 24, color: "var(--green-ink)" }}>Sản phẩm yêu thích ({favs.size})</h2>
+    <>
+      <AccountHeader title={`Sản phẩm yêu thích (${favs.size})`} desc="Những món bạn đã lưu lại để xem sau" />
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 50, color: 'var(--muted)' }}>Đang tải...</div>
@@ -53,7 +53,6 @@ export function Favorites() {
             ))}
           </div>
         )}
-      </div>
-    </section>
+    </>
   );
 }

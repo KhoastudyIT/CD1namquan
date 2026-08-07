@@ -45,7 +45,7 @@ export function Drawer({ open, onClose }) {
               {user.role === 'admin' ? (
                 <span className="drawer-user-role">⚙ Quản trị viên</span>
               ) : (
-                <Link to="/profile" onClick={onClose} className="drawer-user-link">Xem tài khoản ›</Link>
+                <Link to="/account" onClick={onClose} className="drawer-user-link">Xem tài khoản ›</Link>
               )}
             </div>
           </div>

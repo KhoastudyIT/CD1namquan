@@ -143,6 +143,8 @@ export const api = {
   login: (data) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   register: (data) => fetchAPI('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => fetchAPI('/auth/me'),
+  updateProfile: (data) => fetchAPI('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
+  changePassword: (data) => fetchAPI('/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
   logout: () => fetchAPI('/auth/logout', { method: 'POST' }),
 
   // Cart

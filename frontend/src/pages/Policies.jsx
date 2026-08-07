@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Icon } from "../components/ui.jsx";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
 const POLICIES = [
   {
@@ -135,7 +136,11 @@ const POLICIES = [
   }
 ];
 
-export function Policies() {
+/**
+ * Phần ruột dùng chung cho cả trang công khai /policies lẫn mục Chính sách
+ * trong khu vực tài khoản — hai nơi chỉ khác lớp bọc bên ngoài.
+ */
+function PoliciesBody() {
   const location = useLocation();
   const [activeId, setActiveId] = useState("warranty");
 
@@ -150,23 +155,8 @@ export function Policies() {
   const activePolicy = POLICIES.find(p => p.id === activeId) || POLICIES[0];
 
   return (
-    <section className="section" style={{ background: "var(--paper-2)", minHeight: "80vh", padding: "40px 0 80px" }}>
-      <div className="wrap">
-        
-        {/* Breadcrumb */}
-        <div className="page-header" style={{ borderRadius: "var(--radius-lg)", marginBottom: 30 }}>
-          <div className="page-header-in">
-            <h1>Chính Sách Bán Hàng & Quy Định</h1>
-            <div className="breadcrumb">
-              <Link to="/">Trang chủ</Link>
-              <span>/</span>
-              <span className="current">Chính sách bán hàng</span>
-            </div>
-          </div>
-        </div>
-
         <div className="profile-layout">
-          
+
           {/* Sidebar policy tabs */}
           <div className="profile-sidebar" style={{ width: 280 }}>
             <h4 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", margin: "0 0 16px", color: "var(--ink)" }}>
@@ -234,8 +224,37 @@ export function Policies() {
           </div>
 
         </div>
+  );
+}
 
+/** Trang công khai, có breadcrumb và nền riêng. */
+export function Policies() {
+  return (
+    <section className="section" style={{ background: "var(--paper-2)", minHeight: "80vh", padding: "40px 0 80px" }}>
+      <div className="wrap">
+        <div className="page-header" style={{ borderRadius: "var(--radius-lg)", marginBottom: 30 }}>
+          <div className="page-header-in">
+            <h1>Chính Sách Bán Hàng & Quy Định</h1>
+            <div className="breadcrumb">
+              <Link to="/">Trang chủ</Link>
+              <span>/</span>
+              <span className="current">Chính sách bán hàng</span>
+            </div>
+          </div>
+        </div>
+
+        <PoliciesBody />
       </div>
     </section>
+  );
+}
+
+/** Bản nằm trong khu vực tài khoản — tiêu đề do shell cung cấp. */
+export function AccountPolicies() {
+  return (
+    <>
+      <AccountHeader title="Chính sách bán hàng" desc="Quy định về bảo hành, vận chuyển, đổi trả và thanh toán" />
+      <PoliciesBody />
+    </>
   );
 }

@@ -1,72 +1,52 @@
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAppContext } from "../context.js";
-import { Icon } from "../components/ui.jsx";
+import { AccountHeader } from "../components/AccountLayout.jsx";
 
+/**
+ * Chỉ hiển thị thông tin. Việc sửa tên/số điện thoại và đổi mật khẩu nằm ở
+ * trang Cài đặt để tránh có hai chỗ cùng sửa một dữ liệu.
+ */
 export function Profile() {
-  const { user, logout } = useAppContext();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!localStorage.getItem('token')) {
-      navigate('/login');
-    }
-  }, [navigate]);
+  const { user } = useAppContext();
 
   if (!user) return null;
 
+  const fields = [
+    { label: "Họ và tên", value: user.name },
+    { label: "Email", value: user.email },
+    { label: "Số điện thoại", value: user.phone || "Chưa cập nhật" },
+    {
+      label: "Ngày tham gia",
+      value: user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "—",
+    },
+  ];
+
   return (
-    <section className="section" style={{ minHeight: '70vh', padding: '40px 20px', background: 'var(--paper-2)' }}>
-      <div className="wrap" style={{ maxWidth: 800 }}>
-        
-        <div className="profile-layout">
-          
-          {/* Sidebar */}
-          <div className="profile-sidebar">
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 30, borderBottom: '1px solid var(--line-2)', paddingBottom: 20 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--mint)', color: 'var(--green-ink)', display: 'grid', placeItems: 'center', fontSize: 32, fontWeight: 700, marginBottom: 12 }}>
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <b style={{ fontSize: 16 }}>{user.name}</b>
-              <span style={{ fontSize: 13, color: 'var(--muted)' }}>Thành viên NAM QUAN</span>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Link to="/profile" style={{ padding: '10px 14px', background: 'var(--mint)', color: 'var(--green-ink)', borderRadius: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Icon name="user" size={18} /> Hồ sơ của tôi
-              </Link>
-              <Link to="/orders" style={{ padding: '10px 14px', color: 'var(--ink-2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, transition: '.2s' }} onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                <Icon name="truck" size={18} /> Đơn hàng mua
-              </Link>
-              <button onClick={logout} style={{ padding: '10px 14px', color: 'var(--red, #e6457a)', display: 'flex', alignItems: 'center', gap: 10, transition: '.2s', textAlign: 'left', marginTop: 10, borderTop: '1px solid var(--line-2)', borderRadius: 0 }}>
-                Đăng xuất
-              </button>
-            </div>
+    <>
+      <AccountHeader
+        title="Hồ sơ của tôi"
+        desc="Thông tin tài khoản của bạn tại NAM QUAN"
+        action={<Link to="/account/settings" className="btn-pill ghost">Chỉnh sửa</Link>}
+      />
+
+      <div className="acc-card">
+        <div className="acc-profile-top">
+          <div className="acc-profile-avatar">{user.name.charAt(0).toUpperCase()}</div>
+          <div>
+            <b>{user.name}</b>
+            <span>Thành viên NAM QUAN</span>
           </div>
-
-          {/* Main Info */}
-          <div className="profile-content">
-            <h2 style={{ fontSize: 20, margin: '0 0 24px', color: 'var(--ink)' }}>Hồ Sơ Của Tôi</h2>
-            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 30 }}>Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
-
-            <div style={{ display: 'grid', gap: 20, maxWidth: 400 }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Tên đăng nhập</label>
-                <div style={{ padding: '10px 14px', background: '#f5f5f5', borderRadius: 8, fontSize: 15 }}>{user.name}</div>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Email</label>
-                <div style={{ padding: '10px 14px', background: '#f5f5f5', borderRadius: 8, fontSize: 15 }}>{user.email}</div>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Ngày tham gia</label>
-                <div style={{ padding: '10px 14px', background: '#f5f5f5', borderRadius: 8, fontSize: 15 }}>{new Date(user.createdAt).toLocaleDateString('vi-VN')}</div>
-              </div>
-            </div>
-          </div>
-
         </div>
+
+        <dl className="acc-fields">
+          {fields.map((f) => (
+            <div key={f.label}>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
-    </section>
+    </>
   );
 }
