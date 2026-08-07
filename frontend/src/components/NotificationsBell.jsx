@@ -24,7 +24,7 @@ export function NotificationsBell() {
   const recent = notifs.slice(0, 5);
 
   const handleBell = () => {
-    if (!requireLogin("Vui lòng đăng nhập để xem thông báo của bạn.", "/notifications")) return;
+    if (!requireLogin("Vui lòng đăng nhập để xem thông báo của bạn.", "/account/notifications")) return;
     if (!open) fetchNotifs();
     setOpen((o) => !o);
   };
@@ -39,31 +39,18 @@ export function NotificationsBell() {
 
   const goAll = () => {
     setOpen(false);
-    navigate("/notifications");
+    navigate("/account/notifications");
   };
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className="notif-bell">
       <button className="icon-btn" aria-label="Thông báo" onClick={handleBell}>
         <Icon name="bell" size={19} />
         {user && unread > 0 && <span className="badge">{unread}</span>}
       </button>
 
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 10px)",
-            right: 0,
-            width: "min(360px, calc(100vw - 32px))",
-            background: "#fff",
-            border: "1px solid var(--line)",
-            borderRadius: 14,
-            boxShadow: "0 12px 32px rgba(0,0,0,.12)",
-            zIndex: 1000,
-            overflow: "hidden",
-          }}
-        >
+        <div className="notif-pop">
           <div
             style={{
               display: "flex",
