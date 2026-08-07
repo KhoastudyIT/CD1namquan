@@ -535,6 +535,9 @@
 @media (max-width:760px){
   .nav,.hdr .btn-pill{display:none;}
   .burger{display:grid;}
+  /* Tên người dùng đã có trong drawer (nút 3 gạch) — bỏ khỏi header cho đỡ chật */
+  .hdr-greeting{display:none;}
+  .user-menu{margin-left:0 !important;}
   .hero{min-height:460px;}
   .hero h1{font-size:34px;}
   .flash-grid,.grid4,.news-grid,.trust,.coll-grid{grid-template-columns:1fr 1fr;}

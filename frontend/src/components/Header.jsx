@@ -91,7 +91,7 @@ export function Header({ cartCount, favCount, onMenu }) {
                     ⚙ Quản trị viên
                   </span>
                 )}
-                {!isAdmin && <Link to="/profile" style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</Link>}
+                {!isAdmin && <Link className="hdr-greeting" to="/profile" style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</Link>}
                 {isAdmin && <span style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</span>}
                 <button className="btn-pill ghost" onClick={logout} style={{ padding: "0 10px" }}>Thoát</button>
               </div>
