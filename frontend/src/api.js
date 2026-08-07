@@ -3,6 +3,8 @@ import { products, categories, collections, news as sampleNews } from './data.js
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 async function fetchAPI(endpoint, options = {}, returnFull = false) {
+
+  let unreachable = false;
   try {
     const token = localStorage.getItem('token');
     const headers = {
@@ -13,7 +15,13 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    let res;
+    try {
+      res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    } catch (netErr) {
+      unreachable = true;
+      throw netErr;
+    }
 
     // Handle 204 No Content (e.g. DELETE endpoints) — no body to parse
     if (res.status === 204) {
@@ -27,6 +35,12 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
     }
     return returnFull ? json : (json.data || json);
   } catch (err) {
+    const method = (options.method || 'GET').toUpperCase();
+    if (!unreachable || method !== 'GET') {
+      console.error('API Error:', err);
+      throw err;
+    }
+
     console.warn('API fallback active for endpoint:', endpoint);
     // Graceful fallback for public deployments when localhost:3000 is unreachable
     if (endpoint.includes('/products/flash-sales')) {
