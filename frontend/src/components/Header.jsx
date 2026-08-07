@@ -15,6 +15,7 @@ export function Header({ cartCount, favCount, onMenu }) {
     if (requireLogin(message, path)) navigate(path);
   };
   const links = [
+    { label: "Trang chủ", path: "/" },
     { label: "Cửa hàng", path: "/shop" },
     { label: "Bộ sưu tập", hash: "collections" },
     { label: "Showroom", hash: "showroom" },
@@ -91,8 +92,18 @@ export function Header({ cartCount, favCount, onMenu }) {
                     ⚙ Quản trị viên
                   </span>
                 )}
-                {!isAdmin && <Link className="hdr-greeting" to="/profile" style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</Link>}
-                {isAdmin && <span style={{ fontSize: 14, fontWeight: 500 }}>Chào, {user.name}</span>}
+                {!isAdmin && (
+                  <Link className="hdr-greeting hdr-user" to="/profile" title={user.name}>
+                    <span className="hdr-avatar">{user.name?.charAt(0).toUpperCase() || "U"}</span>
+                    <span className="hdr-user-name">{user.name}</span>
+                  </Link>
+                )}
+                {isAdmin && (
+                  <span className="hdr-user" title={user.name}>
+                    <span className="hdr-avatar">{user.name?.charAt(0).toUpperCase() || "U"}</span>
+                    <span className="hdr-user-name">{user.name}</span>
+                  </span>
+                )}
                 <button className="btn-pill ghost" onClick={logout} style={{ padding: "0 10px" }}>Thoát</button>
               </div>
             ) : (
