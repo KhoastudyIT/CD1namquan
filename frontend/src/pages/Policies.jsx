@@ -155,9 +155,10 @@ function PoliciesBody() {
   const activePolicy = POLICIES.find(p => p.id === activeId) || POLICIES[0];
 
   return (
-        <div className="profile-layout">
+        <div className="profile-layout policy-layout">
 
-          {/* Sidebar policy tabs */}
+          {/* Danh mục — đặt trước trong DOM để khi xếp dọc trên mobile nó nằm
+              trên nội dung; trên desktop CSS đẩy sang phải bằng order. */}
           <div className="profile-sidebar" style={{ width: 280 }}>
             <h4 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", margin: "0 0 16px", color: "var(--ink)" }}>
               Danh Mục Chính Sách

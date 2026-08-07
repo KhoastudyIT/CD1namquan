@@ -24,7 +24,9 @@
     --shadow-sm:0 1px 2px rgba(20,40,28,.06), 0 2px 8px rgba(20,40,28,.05);
     --shadow-md:0 8px 28px rgba(20,40,28,.10);
     --shadow-lg:0 22px 60px rgba(20,40,28,.16);
-    --max:1180px;
+    /* Bề ngang tối đa của header và mọi .wrap. Nới từ 1180px để màn rộng đỡ
+       trống hai bên; Checkout và NewsDetail vẫn tự giới hạn hẹp hơn cho dễ đọc. */
+    --max:1400px;
     --font:'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
     --serif:'Playfair Display', Georgia, serif;
   }
@@ -1637,6 +1639,10 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--line);
 }
+/* Trang chính sách: danh mục nằm bên phải nội dung. Đảo bằng order chứ không
+   đổi thứ tự DOM, để khi xuống mobile (xếp dọc) danh mục vẫn ở trên. */
+.policy-layout .profile-sidebar { order: 2; }
+.policy-layout .profile-content { order: 1; }
 .order-detail-info {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1670,6 +1676,9 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
   .profile-sidebar {
     width: 100%;
   }
+  /* Xếp dọc thì trả về thứ tự DOM: danh mục lên trên, nội dung xuống dưới */
+  .policy-layout .profile-sidebar,
+  .policy-layout .profile-content { order: 0; }
   .order-detail-info {
     grid-template-columns: 1fr;
     gap: 20px;
