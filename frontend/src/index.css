@@ -1643,6 +1643,23 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
    đổi thứ tự DOM, để khi xuống mobile (xếp dọc) danh mục vẫn ở trên. */
 .policy-layout .profile-sidebar { order: 2; }
 .policy-layout .profile-content { order: 1; }
+
+.policy-cats { width: 280px; }
+.policy-cats-title {
+  font-size: 14px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; margin: 0 0 16px; color: var(--ink);
+}
+.policy-tabs { display: flex; flex-direction: column; gap: 6px; }
+.policy-tab {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border-radius: 12px; border: 1px solid transparent; background: transparent;
+  color: var(--ink-2); font-size: 14px; font-weight: 500; text-align: left; transition: .18s;
+}
+.policy-tab:hover { background: var(--paper-2); color: var(--green-ink); }
+.policy-tab.active { background: var(--mint); color: var(--green-ink); font-weight: 700; }
+.policy-tab svg { flex-shrink: 0; }
+/* Chừa chỗ cho header dính khi cuộn tới nội dung sau lúc đổi mục */
+.policy-layout .profile-content { scroll-margin-top: 94px; }
 .order-detail-info {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1679,6 +1696,25 @@ a.hdr-user:hover .hdr-user-name{color:var(--green-ink);}
   /* Xếp dọc thì trả về thứ tự DOM: danh mục lên trên, nội dung xuống dưới */
   .policy-layout .profile-sidebar,
   .policy-layout .profile-content { order: 0; }
+
+  /* Danh sách dọc 5 mục chiếm gần hết màn hình trước khi thấy nội dung, nên
+     mobile đổi sang dải chip cuộn ngang và dính lại dưới header khi cuộn. */
+  .policy-cats {
+    width: 100%; padding: 10px; position: sticky; top: 74px; z-index: 5;
+  }
+  .policy-cats-title { display: none; }
+  .policy-tabs {
+    flex-direction: row; gap: 8px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .policy-tabs::-webkit-scrollbar { display: none; }
+  .policy-tab {
+    flex-shrink: 0; gap: 8px; padding: 8px 14px; border-radius: 999px;
+    border-color: var(--line); font-size: 13px; white-space: nowrap;
+  }
+  .policy-tab.active { border-color: var(--green); }
+  /* Mobile còn thêm dải chip dính bên dưới header nên phải chừa nhiều hơn */
+  .policy-layout .profile-content { scroll-margin-top: 150px; }
   .order-detail-info {
     grid-template-columns: 1fr;
     gap: 20px;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Icon } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
@@ -143,6 +143,8 @@ const POLICIES = [
 function PoliciesBody() {
   const location = useLocation();
   const [activeId, setActiveId] = useState("warranty");
+  const contentRef = useRef(null);
+  const firstRun = useRef(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -152,6 +154,16 @@ function PoliciesBody() {
     }
   }, [location]);
 
+  // Đổi mục khi đang đọc giữa chừng sẽ rơi vào giữa bài mới — kéo về đầu nội
+  // dung. Bỏ qua lần chạy đầu để không tranh chấp với scrollTo(0,0) ở trên.
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [activeId]);
+
   const activePolicy = POLICIES.find(p => p.id === activeId) || POLICIES[0];
 
   return (
@@ -159,40 +171,25 @@ function PoliciesBody() {
 
           {/* Danh mục — đặt trước trong DOM để khi xếp dọc trên mobile nó nằm
               trên nội dung; trên desktop CSS đẩy sang phải bằng order. */}
-          <div className="profile-sidebar" style={{ width: 280 }}>
-            <h4 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", margin: "0 0 16px", color: "var(--ink)" }}>
-              Danh Mục Chính Sách
-            </h4>
-            <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="profile-sidebar policy-cats">
+            <h4 className="policy-cats-title">Danh Mục Chính Sách</h4>
+            <nav className="policy-tabs">
               {POLICIES.map(p => (
                 <button
                   key={p.id}
                   onClick={() => setActiveId(p.id)}
-                  className={"cat-item" + (activeId === p.id ? " active" : "")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: activeId === p.id ? "var(--mint)" : "transparent",
-                    color: activeId === p.id ? "var(--green-ink)" : "var(--ink-2)",
-                    fontWeight: activeId === p.id ? 700 : 500,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: ".18s"
-                  }}
+                  className={"policy-tab" + (activeId === p.id ? " active" : "")}
+                  aria-current={activeId === p.id ? "true" : undefined}
                 >
                   <Icon name={p.icon} size={18} />
-                  <span style={{ fontSize: 14 }}>{p.title}</span>
+                  <span>{p.title}</span>
                 </button>
               ))}
             </nav>
           </div>
 
           {/* Policy Detail Content */}
-          <div className="profile-content">
+          <div className="profile-content" ref={contentRef}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid var(--line)", paddingBottom: 20, marginBottom: 24 }}>
               <div style={{ width: 50, height: 50, borderRadius: "50%", background: "var(--mint)", color: "var(--green-ink)", display: "grid", placeItems: "center" }}>
                 <Icon name={activePolicy.icon} size={24} />
