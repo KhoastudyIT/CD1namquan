@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Icon, vnd, Img } from "./ui.jsx";
-import { useAppContext } from "../context.js";
+import { Icon, vnd, Img, telHref } from "./ui.jsx";
+import { useAppContext, useSettings } from "../context.js";
 import { api } from "../api.js";
-import { HOTLINE, HOTLINE_DISPLAY } from "../utils/notif.js";
 
 /** Khoảng poll khi khung chat đang mở. Đủ nhanh để cảm giác gần realtime. */
 const POLL_OPEN_MS = 4000;
@@ -80,6 +79,7 @@ const SENDER_META = {
 
 export function ChatWidget({ open, setOpen, product, clearProduct }) {
   const { user, requireLogin } = useAppContext();
+  const settings = useSettings();
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
@@ -202,12 +202,12 @@ export function ChatWidget({ open, setOpen, product, clearProduct }) {
     <>
       {/* Gọi hotline — đứng trên bong bóng chat, ẩn đi khi khung chat mở ra
           để không che nội dung. Trên điện thoại tel: bấm là gọi luôn. */}
-      {!open && (
+      {!open && settings.phone && (
         <a
           className="chat-fab hotline"
-          href={`tel:${HOTLINE}`}
-          aria-label={`Gọi hotline ${HOTLINE_DISPLAY}`}
-          title={`Gọi hotline ${HOTLINE_DISPLAY}`}
+          href={telHref(settings.phone)}
+          aria-label={`Gọi hotline ${settings.phone}`}
+          title={`Gọi hotline ${settings.phone}`}
         >
           <Icon name="phone" size={22} />
         </a>

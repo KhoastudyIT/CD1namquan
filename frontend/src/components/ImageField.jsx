@@ -74,7 +74,7 @@ function ImageLightbox({ src, alt, onClose }) {
  * @param {object} props
  * @param {string} props.value URL ảnh hiện tại
  * @param {(url: string) => void} props.onChange
- * @param {'news'|'products'|'categories'|'collections'} props.type Thư mục lưu trên MinIO
+ * @param {'news'|'products'|'categories'|'collections'|'settings'} props.type Thư mục lưu trên MinIO
  * @param {(uploading: boolean) => void} [props.onUploadingChange] Để form khoá nút lưu khi đang tải
  * @param {string} [props.hint] Ghi chú thay cho dòng mặc định về định dạng/dung lượng
  */

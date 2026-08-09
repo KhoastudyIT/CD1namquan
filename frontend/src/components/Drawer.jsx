@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Icon } from "./ui.jsx";
+import { Icon, telHref } from "./ui.jsx";
 import { Logo } from "./Logo.jsx";
-import { useAppContext } from "../context.js";
+import { useAppContext, useSettings } from "../context.js";
 
 export function Drawer({ open, onClose }) {
   const { user, logout } = useAppContext();
+  const settings = useSettings();
   const navigate = useNavigate();
   const links = [
     { label: "Cửa hàng", path: "/shop", icon: "cart" },
@@ -51,7 +52,7 @@ export function Drawer({ open, onClose }) {
           </div>
         ) : (
           <div className="drawer-welcome">
-            <span>Chào mừng bạn đến với <b>Nam Quan</b></span>
+            <span>Chào mừng bạn đến với <b>{settings.companyName}</b></span>
           </div>
         )}
 
@@ -79,11 +80,13 @@ export function Drawer({ open, onClose }) {
           )}
         </div>
 
-        <div className="drawer-footer">
-          <div className="drawer-contact">
-            <Icon name="phone" size={14} /> <span>Hotline: <b>1900 6789</b></span>
+        {settings.phone && (
+          <div className="drawer-footer">
+            <a className="drawer-contact" href={telHref(settings.phone)}>
+              <Icon name="phone" size={14} /> <span>Hotline: <b>{settings.phone}</b></span>
+            </a>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { uploadPaths } from './uploads.js';
 import { statsPaths } from './stats.js';
 import { notificationPaths } from './notifications.js';
 import { chatPaths } from './chat.js';
+import { settingsPaths } from './settings.js';
 
 export const paths = {
   ...authPaths,
@@ -26,4 +27,5 @@ export const paths = {
   ...statsPaths,
   ...notificationPaths,
   ...chatPaths,
+  ...settingsPaths,
 };

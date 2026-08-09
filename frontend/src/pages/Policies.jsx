@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Icon } from "../components/ui.jsx";
+import { Icon, telHref } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
+import { useSettings } from "../context.js";
 
 const POLICIES = [
   {
@@ -141,6 +142,7 @@ const POLICIES = [
  * trong khu vực tài khoản — hai nơi chỉ khác lớp bọc bên ngoài.
  */
 function PoliciesBody() {
+  const settings = useSettings();
   const location = useLocation();
   const [activeId, setActiveId] = useState("warranty");
   const contentRef = useRef(null);
@@ -212,11 +214,16 @@ function PoliciesBody() {
             <div style={{ marginTop: 40, padding: "20px 24px", background: "linear-gradient(105deg, var(--green-3) 0%, var(--green) 100%)", borderRadius: 14, color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
               <div>
                 <h4 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Bạn cần giải đáp thêm thắc mắc?</h4>
-                <p style={{ margin: 0, fontSize: 13.5, opacity: 0.9 }}>Đội ngũ tư vấn Nam Quan sẵn sàng hỗ trợ 24/7 qua Hotline 1900 6789.</p>
+                <p style={{ margin: 0, fontSize: 13.5, opacity: 0.9 }}>
+                  Đội ngũ tư vấn {settings.companyName} sẵn sàng hỗ trợ 24/7
+                  {settings.phone ? ` qua Hotline ${settings.phone}.` : "."}
+                </p>
               </div>
-              <a href="tel:19006789" className="btn-pill ghost" style={{ background: "#fff", color: "var(--green-ink)", border: "none" }}>
-                <Icon name="phone" size={16} /> Gọi 1900 6789
-              </a>
+              {settings.phone && (
+                <a href={telHref(settings.phone)} className="btn-pill ghost" style={{ background: "#fff", color: "var(--green-ink)", border: "none" }}>
+                  <Icon name="phone" size={16} /> Gọi {settings.phone}
+                </a>
+              )}
             </div>
 
           </div>

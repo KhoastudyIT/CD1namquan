@@ -5,7 +5,7 @@ import { Header } from "./components/Header.jsx";
 import { Drawer } from "./components/Drawer.jsx";
 import { Footer } from "./components/Footer.jsx";
 import { AppContext } from "./context.js";
-import { api } from "./api.js";
+import { api, DEFAULT_SETTINGS } from "./api.js";
 
 import { Home } from "./pages/Home.jsx";
 import { Cart } from "./pages/Cart.jsx";
@@ -53,6 +53,10 @@ export default function App() {
   // Sản phẩm được gắn kèm khi khách bấm "Hỏi tư vấn" từ trang chi tiết —
   // gửi kèm tin nhắn đầu tiên để bot biết chắc đang nói về mẫu nào.
   const [chatProduct, setChatProduct] = useState(null);
+  // Thông tin công ty dùng chung cho Header, Footer và Drawer. Tải một lần ở
+  // đây rồi phát qua context — mỗi component tự gọi API sẽ thành 3 request
+  // trùng nhau cho cùng một dòng dữ liệu.
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -84,6 +88,26 @@ export default function App() {
     setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     api.markNotificationRead(id).catch(() => {});
   }, []);
+
+  // Admin lưu xong gọi lại hàm này để Header/Footer đổi ngay, khỏi phải F5.
+  const refreshSettings = useCallback(async () => {
+    try {
+      const data = await api.getSettings();
+      if (data) setSettings(prev => ({ ...prev, ...data }));
+    } catch {
+      // Giữ nguyên giá trị đang có — thà hiện thông tin cũ còn hơn để trống.
+    }
+  }, []);
+
+  useEffect(() => { refreshSettings(); }, [refreshSettings]);
+
+  // Tên tab trình duyệt cũng là thông tin nhận diện, đổi theo cấu hình luôn.
+  useEffect(() => {
+    if (!settings.companyName) return;
+    document.title = settings.slogan
+      ? `${settings.companyName} — ${settings.slogan}`
+      : settings.companyName;
+  }, [settings.companyName, settings.slogan]);
 
   const markAllNotifsRead = useCallback(() => {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })));
@@ -158,7 +182,7 @@ export default function App() {
     }
   };
 
-  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat };
+  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat, settings, refreshSettings };
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const isAdmin = user?.role === 'admin';
 

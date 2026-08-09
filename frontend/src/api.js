@@ -70,9 +70,32 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
     if (endpoint.includes('/categories')) return categories;
     if (endpoint.includes('/collections')) return collections;
     if (endpoint.includes('/news')) return sampleNews;
+    if (endpoint.includes('/settings')) return DEFAULT_SETTINGS;
     throw err;
   }
 }
+
+/**
+ * Giá trị hiển thị khi chưa tải xong cấu hình (hoặc backend không với tới).
+ * Header/Footer render ngay từ lần vẽ đầu nên không thể để trống — trống sẽ gây
+ * nhấp nháy layout rồi mới có chữ.
+ */
+export const DEFAULT_SETTINGS = {
+  companyName: 'NAM QUAN',
+  slogan: 'NỘI THẤT CAO CẤP',
+  about: '',
+  mission: '',
+  vision: '',
+  phone: '',
+  email: '',
+  address: '',
+  mapUrl: '',
+  facebook: '',
+  instagram: '',
+  youtube: '',
+  tiktok: '',
+  logo: '',
+};
 
 // Chặn sớm ở client cho phản hồi tức thì — backend vẫn kiểm tra lại y hệt.
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -89,7 +112,7 @@ export const api = {
    * Tải ảnh lên theo 2 bước: xin URL có chữ ký từ backend, rồi PUT file thẳng
    * lên MinIO. File không đi qua API nên không vướng giới hạn body của Express.
    * @param {File} file
-   * @param {'news'|'products'|'categories'|'collections'} type Quyết định thư mục lưu
+   * @param {'news'|'products'|'categories'|'collections'|'settings'} type Quyết định thư mục lưu
    * @returns {Promise<string>} publicUrl để lưu vào trường `img`
    */
   uploadImage: async (file, type) => {
@@ -125,6 +148,8 @@ export const api = {
   getFlashSales: () => fetchAPI('/products/flash-sales'),
   getCategories: () => fetchAPI('/categories'),
   getCollections: () => fetchAPI('/collections'),
+  // Thông tin công ty — công khai, dùng cho Header/Footer/Drawer
+  getSettings: () => fetchAPI('/settings'),
   // News — công khai (chỉ bài đã đăng)
   getNews: (params = {}) => {
     const q = new URLSearchParams(params).toString();
@@ -224,6 +249,9 @@ export const api = {
   updateNews: (id, data) => fetchAPI(`/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   updateNewsStatus: (id, status) => fetchAPI(`/news/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   deleteNews: (id) => fetchAPI(`/news/${id}`, { method: 'DELETE' }),
+
+  // Admin — Thông tin công ty
+  updateSettings: (data) => fetchAPI('/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
   // Admin — Flash Sales
   getFlashSalesAdmin: () => fetchAPI('/products/flash-sales/admin'),

@@ -1,6 +1,3 @@
-export const HOTLINE = "0976237648";
-export const HOTLINE_DISPLAY = "0976 237 648";
-
 /**
  * Backend gắn link này cho thông báo phản hồi chat. Frontend nhận ra nó để mở
  * thẳng khung chat tại chỗ thay vì điều hướng — khách đang xem sản phẩm mà bị

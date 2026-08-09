@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Img, Icon, toast, confirm } from "../components/ui.jsx";
+import { vnd, Img, Icon, toast, confirm, normalizeMapEmbed, isMapEmbed } from "../components/ui.jsx";
 import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
 import { AdminChat } from "../components/AdminChat.jsx";
@@ -38,18 +38,18 @@ function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
 
 // ── Status color map ───────────────────────────────────────────────────
 const STATUS_COLORS = {
-  pending:   "#f59a1c",
+  pending: "#f59a1c",
   confirmed: "#3b82f6",
-  shipped:   "#8b5cf6",
+  shipped: "#8b5cf6",
   delivered: "var(--green)",
   cancelled: "#ef4444",
 };
 
 // ── Tin tức ────────────────────────────────────────────────────────────
 const NEWS_STATUS_META = {
-  published: { label: "Đã đăng",   bg: "#dcfce7", color: "var(--green-ink)" },
-  draft:     { label: "Bản nháp",  bg: "#fef3c7", color: "#92400e" },
-  hidden:    { label: "Đã ẩn",     bg: "#e5e7eb", color: "#4b5563" },
+  published: { label: "Đã đăng", bg: "#dcfce7", color: "var(--green-ink)" },
+  draft: { label: "Bản nháp", bg: "#fef3c7", color: "#92400e" },
+  hidden: { label: "Đã ẩn", bg: "#e5e7eb", color: "#4b5563" },
 };
 
 const EMPTY_NEWS_FORM = {
@@ -70,10 +70,10 @@ const slugify = (value) => value
 export function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAppContext();
+  const { user, logout, settings, refreshSettings } = useAppContext();
 
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "chat"];
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "chat", "settings"];
   const hashTab = location.hash.replace("#", "");
   const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
 
@@ -142,6 +142,12 @@ export function AdminDashboard() {
   const [flashFormData, setFlashFormData] = useState({
     productId: "", price: "", originalPrice: "", discountPct: "", stock: "", sold: "", startsAt: "", endsAt: "", active: true
   });
+
+  // ── Thông tin công ty (logo, hotline, địa chỉ, mạng xã hội) ───────
+  const [infoForm, setInfoForm] = useState(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoSaving, setInfoSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   // ── Products filter ───────────────────────────────────────────────
   const [productSearch, setProductSearch] = useState("");
@@ -253,10 +259,10 @@ export function AdminDashboard() {
     setNewsLoading(true);
     try {
       const params = {
-        page:     overrides.page     ?? newsPage,
-        limit:    newsMeta.limit,
-        search:   overrides.search   ?? newsSearch,
-        status:   overrides.status   ?? newsStatus,
+        page: overrides.page ?? newsPage,
+        limit: newsMeta.limit,
+        search: overrides.search ?? newsSearch,
+        status: overrides.status ?? newsStatus,
         category: overrides.category ?? newsCategory,
       };
       Object.keys(params).forEach(k => { if (params[k] === "" || params[k] == null) delete params[k]; });
@@ -277,18 +283,47 @@ export function AdminDashboard() {
     } catch { /* bộ lọc danh mục không có thì tab vẫn dùng được */ }
   };
 
+  const fetchCompanyInfo = async () => {
+    try {
+      setInfoLoading(true);
+      setInfoForm(await api.getSettings());
+    } catch (err) {
+      toast("Lỗi tải thông tin công ty: " + err.message);
+    } finally {
+      setInfoLoading(false);
+    }
+  };
+
+  const setInfoField = (key, value) => setInfoForm(prev => ({ ...prev, [key]: value }));
+
+  const handleSaveCompanyInfo = async (e) => {
+    e.preventDefault();
+    try {
+      setInfoSaving(true);
+      const { id, updatedAt, ...payload } = infoForm;
+      setInfoForm(await api.updateSettings(payload));
+      await refreshSettings();
+      toast("Đã lưu thông tin công ty!");
+    } catch (err) {
+      toast("Lỗi lưu thông tin: " + err.message);
+    } finally {
+      setInfoSaving(false);
+    }
+  };
+
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { if (activeTab === "users") fetchUsers(); }, [activeTab]);
   useEffect(() => { if (activeTab === "categories") fetchCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
   useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "settings") fetchCompanyInfo(); }, [activeTab]);
 
   // Badge chat chạy nền ở mọi tab để admin thấy khách nhắn dù đang ở trang khác.
   useEffect(() => {
     const poll = () => api.getChatUnreadCount()
       .then(data => setChatUnread(data?.total ?? 0))
-      .catch(() => {});
+      .catch(() => { });
     poll();
     const id = setInterval(poll, 15000);
     return () => clearInterval(id);
@@ -497,19 +532,19 @@ export function AdminDashboard() {
 
   // Chỉ gửi các trường backend hiểu; chuỗi rỗng để backend tự xử lý (→ null).
   const buildNewsPayload = () => ({
-    title:      newsFormData.title.trim(),
-    img:        newsFormData.img.trim(),
-    excerpt:    newsFormData.excerpt.trim(),
-    content:    newsFormData.content.trim(),
+    title: newsFormData.title.trim(),
+    img: newsFormData.img.trim(),
+    excerpt: newsFormData.excerpt.trim(),
+    content: newsFormData.content.trim(),
     categoryId: newsFormData.categoryId ? Number(newsFormData.categoryId) : null,
-    tags:       newsFormData.tags.split(",").map(t => t.trim()).filter(Boolean),
-    status:     newsFormData.status,
-    featured:   newsFormData.featured,
-    date:       newsFormData.date || undefined,
-    seoTitle:       newsFormData.seoTitle,
+    tags: newsFormData.tags.split(",").map(t => t.trim()).filter(Boolean),
+    status: newsFormData.status,
+    featured: newsFormData.featured,
+    date: newsFormData.date || undefined,
+    seoTitle: newsFormData.seoTitle,
     seoDescription: newsFormData.seoDescription,
-    seoKeywords:    newsFormData.seoKeywords,
-    ogImage:        newsFormData.ogImage,
+    seoKeywords: newsFormData.seoKeywords,
+    ogImage: newsFormData.ogImage,
     // Slug để trống khi tạo mới = backend tự sinh từ tiêu đề.
     ...(newsFormData.slug.trim() ? { slug: newsFormData.slug.trim() } : {}),
   });
@@ -701,15 +736,15 @@ export function AdminDashboard() {
   const getStatusLabel = (s) => ({ pending: "Chờ xử lý", confirmed: "Đã xác nhận", shipped: "Đang giao", delivered: "Đã giao hàng", cancelled: "Đã hủy" }[s] || s);
 
   // Derived stats (fallback khi chưa load)
-  const totalRevenue   = stats?.totalRevenue   ?? orders.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
-  const totalOrders    = stats?.totalOrders    ?? orders.length;
-  const totalProducts  = stats?.totalProducts  ?? products.length;
-  const lowStockCount  = stats?.lowStockCount  ?? products.filter(p => p.stock < 10).length;
-  const totalUsers     = stats?.totalUsers     ?? 0;
-  const avgOrderValue  = stats?.avgOrderValue  ?? 0;
+  const totalRevenue = stats?.totalRevenue ?? orders.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
+  const totalOrders = stats?.totalOrders ?? orders.length;
+  const totalProducts = stats?.totalProducts ?? products.length;
+  const lowStockCount = stats?.lowStockCount ?? products.filter(p => p.stock < 10).length;
+  const totalUsers = stats?.totalUsers ?? 0;
+  const avgOrderValue = stats?.avgOrderValue ?? 0;
   const ordersByStatus = Array.isArray(stats?.ordersByStatus) ? stats.ordersByStatus : [];
-  const revenueByDay   = Array.isArray(stats?.revenueByDay)   ? stats.revenueByDay   : [];
-  const topProducts    = stats?.topProducts    ?? [];
+  const revenueByDay = Array.isArray(stats?.revenueByDay) ? stats.revenueByDay : [];
+  const topProducts = stats?.topProducts ?? [];
 
   const displayCategories = allCategories;
 
@@ -743,18 +778,18 @@ export function AdminDashboard() {
       const matchesCategory = productCategory === "all" || getProductCategoryId(p) === Number(productCategory);
       const matchesStock =
         productStock === "all" ||
-        (productStock === "in"  && Number(p.stock) >= 10) ||
+        (productStock === "in" && Number(p.stock) >= 10) ||
         (productStock === "low" && Number(p.stock) > 0 && Number(p.stock) < 10) ||
         (productStock === "out" && Number(p.stock) === 0);
       return matchesSearch && matchesCategory && matchesStock;
     })
     .sort((a, b) => {
       switch (productSort) {
-        case "price-asc":  return a.price - b.price;
+        case "price-asc": return a.price - b.price;
         case "price-desc": return b.price - a.price;
-        case "stock-asc":  return Number(a.stock) - Number(b.stock);
-        case "sold-desc":  return (Number(b.sold) || 0) - (Number(a.sold) || 0);
-        default:           return 0;
+        case "stock-asc": return Number(a.stock) - Number(b.stock);
+        case "sold-desc": return (Number(b.sold) || 0) - (Number(a.sold) || 0);
+        default: return 0;
       }
     });
 
@@ -771,15 +806,16 @@ export function AdminDashboard() {
   }
 
   const NAV_ITEMS = [
-    { key: "overview",    icon: "leaf",  label: "Tổng quan" },
-    { key: "products",    icon: "cart",  label: `Sản phẩm (${totalProducts})` },
-    { key: "categories",  icon: "menu",  label: "Danh mục" },
-    { key: "collections", icon: "pin",   label: "Bộ sưu tập" },
-    { key: "news",        icon: "bell",  label: "Tin tức" },
-    { key: "flash_sales", icon: "fire",  label: `Flash Sale (${flashSales.length})` },
-    { key: "orders",      icon: "truck", label: `Đơn hàng (${totalOrders})` },
-    { key: "users",       icon: "user",  label: "Người dùng" },
-    { key: "chat",        icon: "chat",  label: chatUnread > 0 ? `Chat (${chatUnread})` : "Chat" },
+    { key: "overview", icon: "leaf", label: "Tổng quan" },
+    { key: "products", icon: "cart", label: `Sản phẩm (${totalProducts})` },
+    { key: "categories", icon: "menu", label: "Danh mục" },
+    { key: "collections", icon: "pin", label: "Bộ sưu tập" },
+    { key: "news", icon: "bell", label: "Tin tức" },
+    { key: "flash_sales", icon: "fire", label: `Flash Sale (${flashSales.length})` },
+    { key: "orders", icon: "truck", label: `Đơn hàng (${totalOrders})` },
+    { key: "users", icon: "user", label: "Người dùng" },
+    { key: "chat", icon: "chat", label: chatUnread > 0 ? `Chat (${chatUnread})` : "Chat" },
+    { key: "settings", icon: "gear", label: "Thông tin công ty" },
   ];
   const currentNavLabel = NAV_ITEMS.find(t => t.key === activeTab)?.label || "Quản trị";
 
@@ -797,7 +833,7 @@ export function AdminDashboard() {
       <aside className={`admin-sidebar ${mobileNav ? "open" : ""}`}>
         <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--line)", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--green-ink)" }}>HỆ THỐNG QUẢN TRỊ</h3>
-          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>Nam Quan Premium Shop</span>
+          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>{settings.companyName}</span>
         </div>
 
         {NAV_ITEMS.map(({ key, icon, label }) => (
@@ -839,12 +875,12 @@ export function AdminDashboard() {
             {/* 6 Stat Cards */}
             <div className="admin-ov-stats">
               {[
-                { icon: "💰", label: "Doanh thu",              val: `${vnd(totalRevenue)} đ`,        accent: "var(--green)" },
-                { icon: "📦", label: "Tổng đơn hàng",          val: totalOrders,                     accent: "var(--gold)" },
-                { icon: "🛋️",  label: "Số sản phẩm",           val: totalProducts,                   accent: "var(--green-ink)" },
-                { icon: "⚠️",  label: "Sắp hết hàng",          val: lowStockCount,                   accent: "#ff4d4f", valColor: lowStockCount > 0 ? "#ff4d4f" : undefined },
-                { icon: "👥", label: "Khách hàng",             val: totalUsers,                      accent: "#3b82f6" },
-                { icon: "📈", label: "Giá trị ĐH trung bình",  val: `${vnd(avgOrderValue)} đ`,       accent: "#8b5cf6" },
+                { icon: "💰", label: "Doanh thu", val: `${vnd(totalRevenue)} đ`, accent: "var(--green)" },
+                { icon: "📦", label: "Tổng đơn hàng", val: totalOrders, accent: "var(--gold)" },
+                { icon: "🛋️", label: "Số sản phẩm", val: totalProducts, accent: "var(--green-ink)" },
+                { icon: "⚠️", label: "Sắp hết hàng", val: lowStockCount, accent: "#ff4d4f", valColor: lowStockCount > 0 ? "#ff4d4f" : undefined },
+                { icon: "👥", label: "Khách hàng", val: totalUsers, accent: "#3b82f6" },
+                { icon: "📈", label: "Giá trị ĐH trung bình", val: `${vnd(avgOrderValue)} đ`, accent: "#8b5cf6" },
               ].map(({ icon, label, val, accent, valColor }) => (
                 <div key={label} className="admin-stat-card" style={{ "--accent": accent }}>
                   <div className="admin-stat-icon">{icon}</div>
@@ -1142,10 +1178,10 @@ export function AdminDashboard() {
             {/* Lọc nhanh theo trạng thái */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
               {[
-                { value: "",          label: "Tất cả" },
+                { value: "", label: "Tất cả" },
                 { value: "published", label: "Đã đăng" },
-                { value: "draft",     label: "Bản nháp" },
-                { value: "hidden",    label: "Đã ẩn" },
+                { value: "draft", label: "Bản nháp" },
+                { value: "hidden", label: "Đã ẩn" },
               ].map(t => (
                 <button
                   key={t.value || "all"}
@@ -1602,6 +1638,204 @@ export function AdminDashboard() {
 
         {/* ===== TAB 9: CHAT ===== */}
         {activeTab === "chat" && <AdminChat />}
+
+        {/* ===== TAB 10: THÔNG TIN CÔNG TY ===== */}
+        {activeTab === "settings" && (
+          <div>
+            <div className="admin-sec-header">
+              <h2>Thông tin công ty</h2>
+            </div>
+
+            {infoLoading || !infoForm ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
+            ) : (
+              <form className="admin-settings-form" onSubmit={handleSaveCompanyInfo}>
+                {/* ── Nhận diện thương hiệu ── */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Nhận diện thương hiệu</h3>
+
+                  <ImageField
+                    value={infoForm.logo}
+                    onChange={url => setInfoField("logo", url)}
+                    type="settings"
+                    label="Logo"
+                    onUploadingChange={setLogoUploading}
+                    hint="Ảnh vuông, nền trong suốt (PNG/WEBP) · tối đa 5MB"
+                  />
+
+                  <div className="admin-form-group">
+                    <label>Tên công ty *</label>
+                    <input
+                      className="admin-input"
+                      required
+                      maxLength={255}
+                      value={infoForm.companyName}
+                      onChange={e => setInfoField("companyName", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label>Slogan</label>
+                    <input
+                      className="admin-input"
+                      maxLength={500}
+                      placeholder="NỘI THẤT CAO CẤP"
+                      value={infoForm.slogan}
+                      onChange={e => setInfoField("slogan", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* ── Liên hệ ── */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Thông tin liên hệ</h3>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div className="admin-form-group">
+                      <label>Hotline</label>
+                      <input
+                        className="admin-input"
+                        maxLength={50}
+                        placeholder="1900 6789"
+                        value={infoForm.phone}
+                        onChange={e => setInfoField("phone", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label>Email</label>
+                      <input
+                        className="admin-input"
+                        type="email"
+                        maxLength={255}
+                        placeholder="contact@namquan.vn"
+                        value={infoForm.email}
+                        onChange={e => setInfoField("email", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label>Địa chỉ</label>
+                    <textarea
+                      className="admin-textarea"
+                      rows={2}
+                      maxLength={1000}
+                      placeholder="Số 90 Hương Lộ 2, Xã Tân Phú Trung, Huyện Củ Chi, TP. HCM"
+                      value={infoForm.address}
+                      onChange={e => setInfoField("address", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label>Bản đồ Google (mã nhúng)</label>
+                    <textarea
+                      className="admin-textarea"
+                      rows={3}
+                      placeholder="https://www.google.com/maps/embed?pb=..."
+                      value={infoForm.mapUrl}
+                      onChange={e => setInfoField("mapUrl", normalizeMapEmbed(e.target.value))}
+                    />
+                    <small style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                      Google Maps → <b>Chia sẻ</b> → <b>Nhúng bản đồ</b> → <b>SAO CHÉP HTML</b>
+                    </small>
+                    {infoForm.mapUrl && (
+                      isMapEmbed(infoForm.mapUrl) ? (
+                        <div style={{ marginTop: 8, borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)", height: 360, maxWidth: 520 }}>
+                          <iframe
+                            src={infoForm.mapUrl}
+                            title="Xem trước bản đồ"
+                            loading="lazy"
+                            style={{ display: "block", width: "100%", height: "100%", border: 0 }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 8, padding: "10px 14px", borderRadius: 8, background: "#fff1f0", border: "1px solid #ffccc7", color: "#cf1322", fontSize: 12.5 }}>
+                          Chưa đúng mã nhúng — phải bắt đầu bằng <b>https://www.google.com/maps/embed</b>. Lưu sẽ bị từ chối.
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Giới thiệu ── */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Giới thiệu</h3>
+
+                  <div className="admin-form-group">
+                    <label>Về chúng tôi</label>
+                    <textarea
+                      className="admin-textarea"
+                      rows={3}
+                      maxLength={5000}
+                      value={infoForm.about}
+                      onChange={e => setInfoField("about", e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div className="admin-form-group">
+                      <label>Sứ mệnh</label>
+                      <textarea
+                        className="admin-textarea"
+                        rows={3}
+                        maxLength={5000}
+                        value={infoForm.mission}
+                        onChange={e => setInfoField("mission", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label>Tầm nhìn</label>
+                      <textarea
+                        className="admin-textarea"
+                        rows={3}
+                        maxLength={5000}
+                        value={infoForm.vision}
+                        onChange={e => setInfoField("vision", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Mạng xã hội ── */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Mạng xã hội</h3>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    {[
+                      { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/namquan" },
+                      { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/namquan" },
+                      { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@namquan" },
+                      { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@namquan" },
+                    ].map(({ key, label, placeholder }) => (
+                      <div className="admin-form-group" key={key}>
+                        <label>{label}</label>
+                        <input
+                          className="admin-input"
+                          type="url"
+                          maxLength={500}
+                          placeholder={placeholder}
+                          value={infoForm[key]}
+                          onChange={e => setInfoField(key, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 24 }}>
+                  <button type="button" className="admin-btn-sm edit" onClick={fetchCompanyInfo} disabled={infoSaving}>
+                    Hoàn tác
+                  </button>
+                  <button type="submit" className="btn-pill" disabled={infoSaving || logoUploading}>
+                    {logoUploading ? "Đang tải ảnh..." : infoSaving ? "Đang lưu..." : "Lưu thông tin"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
       </main>
 
       {/* ===== MODAL: ADD PRODUCT ===== */}
