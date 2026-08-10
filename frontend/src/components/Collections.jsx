@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Img, Icon } from "./ui.jsx";
 import { api } from "../api.js";
 
@@ -34,13 +35,19 @@ export function Collections() {
       <div className="wrap">
         <div className="coll-grid">
           {collections.map((c, i) => (
-            <a key={c.id || c.name} className="coll reveal" href="#showroom" style={{ animationDelay: (i * 0.08) + "s" }}>
+            <Link
+              key={c.id || c.name}
+              className="coll reveal"
+              to={`/shop?search=${encodeURIComponent(c.name.replace(/^BST\s+/i, ''))}`}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              style={{ animationDelay: (i * 0.08) + "s" }}
+            >
               <Img src={c.img} alt={c.name} label="ảnh bộ sưu tập" />
               <div className="coll-label">
                 <b>{c.name}</b>
                 <span className="go">Khám phá <Icon name="arrow" size={14} /></span>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
