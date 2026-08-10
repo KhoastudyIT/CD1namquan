@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
-import { toast } from "../components/ui.jsx";
+import { toast, Icon } from "../components/ui.jsx";
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { setUser, fetchCart, fetchNotifs } = useAppContext();
@@ -35,7 +36,18 @@ export function Login() {
         <h2 style={{ textAlign: 'center', marginBottom: 20 }}>Đăng nhập</h2>
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={{ padding: 12, borderRadius: 8, border: '1px solid #ddd' }} />
-          <input type="password" placeholder="Mật khẩu" value={password} onChange={e => setPassword(e.target.value)} required style={{ padding: 12, borderRadius: 8, border: '1px solid #ddd' }} />
+          <div className="pwd-input-wrap">
+            <input type={showPassword ? "text" : "password"} placeholder="Mật khẩu" value={password} onChange={e => setPassword(e.target.value)} required style={{ padding: 12, borderRadius: 8, border: '1px solid #ddd' }} />
+            <button
+              type="button"
+              className="pwd-toggle-btn"
+              onClick={() => setShowPassword(v => !v)}
+              tabIndex={-1}
+              title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            >
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={18} />
+            </button>
+          </div>
           <button type="submit" className="btn-pill" style={{ width: '100%', justifyContent: 'center', background: 'var(--green)', color: '#fff', padding: 14 }}>Đăng nhập</button>
         </form>
         <p style={{ textAlign: 'center', marginTop: 15, fontSize: 14 }}>Chưa có tài khoản? <Link to="/register" style={{ color: 'var(--green)' }}>Đăng ký</Link></p>

@@ -61,10 +61,31 @@ export async function listAllOrders() {
     items: itemsMap[row.id] ?? []
   }));
 }
+const STATUS_RANKS = {
+  pending: 1,
+  confirmed: 2,
+  shipped: 3,
+  delivered: 4,
+  cancelled: 99
+};
+
 export async function updateOrderStatus(orderId, status) {
   const res = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
   if (res.rows.length === 0) throw new AppError('Không tìm thấy đơn hàng', 404);
   const order = res.rows[0];
+
+  const currentRank = STATUS_RANKS[order.status] || 1;
+  const nextRank = STATUS_RANKS[status] || 1;
+
+  if (order.status === 'delivered') {
+    throw new AppError('Đơn hàng đã giao thành công, không thể thay đổi trạng thái nữa.', 400);
+  }
+  if (order.status === 'cancelled') {
+    throw new AppError('Đơn hàng đã bị hủy, không thể thay đổi trạng thái nữa.', 400);
+  }
+  if (status !== 'cancelled' && nextRank <= currentRank) {
+    throw new AppError('Quy trình xử lý đơn hàng chỉ được tiến tới, không được lùi trạng thái cũ.', 400);
+  }
 
   if (status === 'cancelled' && order.status !== 'cancelled') {
     const itemsRes = await db.query('SELECT product_id, quantity FROM order_items WHERE order_id = $1', [orderId]);

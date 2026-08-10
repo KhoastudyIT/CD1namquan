@@ -722,18 +722,40 @@ export function AdminDashboard() {
   };
 
   const handleDeleteFlash = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa chương trình Flash Sale này không?")) return;
-    try {
-      await api.deleteFlashSale(id);
-      toast("Đã xóa chương trình Flash Sale");
-      fetchFlashSales();
-    } catch (err) {
-      toast("Lỗi xóa Flash Sale: " + err.message);
+    if (await confirm("Bạn có chắc chắn muốn xóa chương trình Flash Sale này không?")) {
+      try {
+        await api.deleteFlashSale(id);
+        toast("Đã xóa chương trình Flash Sale");
+        fetchFlashSales();
+      } catch (err) {
+        toast("Lỗi xóa Flash Sale: " + err.message);
+      }
     }
   };
 
   // ─────────────── HELPERS ─────────────────────────────────────────
   const getStatusLabel = (s) => ({ pending: "Chờ xử lý", confirmed: "Đã xác nhận", shipped: "Đang giao", delivered: "Đã giao hàng", cancelled: "Đã hủy" }[s] || s);
+
+  const STATUS_RANKS = { pending: 1, confirmed: 2, shipped: 3, delivered: 4, cancelled: 99 };
+  const ALL_STATUS_OPTIONS = [
+    { value: "pending", label: "Chờ xử lý", rank: 1 },
+    { value: "confirmed", label: "Xác nhận đơn", rank: 2 },
+    { value: "shipped", label: "Đang giao hàng", rank: 3 },
+    { value: "delivered", label: "Đã giao (Hoàn thành)", rank: 4 },
+    { value: "cancelled", label: "Hủy đơn hàng", rank: 99 }
+  ];
+
+  const getAvailableNextStatuses = (currentStatus) => {
+    const currentRank = STATUS_RANKS[currentStatus] || 1;
+    if (currentStatus === "delivered" || currentStatus === "cancelled") {
+      return ALL_STATUS_OPTIONS.filter(opt => opt.value === currentStatus);
+    }
+    return ALL_STATUS_OPTIONS.filter(opt =>
+      opt.value === currentStatus ||
+      opt.value === "cancelled" ||
+      (opt.rank > currentRank && opt.rank !== 99)
+    );
+  };
 
   // Derived stats (fallback khi chưa load)
   const totalRevenue = stats?.totalRevenue ?? orders.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
@@ -950,7 +972,7 @@ export function AdminDashboard() {
                     <tbody>
                       {orders.slice(0, 5).map(o => (
                         <tr key={o.id}>
-                          <td style={{ fontWeight: 600, fontSize: 12, color: "var(--green-ink)" }}>#{o.id.substring(0, 6)}…</td>
+                          <td style={{ fontWeight: 600, fontSize: 12, color: "var(--green-ink)" }}>#{o.id.split('-')[0].toUpperCase()}</td>
                           <td style={{ fontSize: 12 }}>{o.customerName || "Khách lẻ"}</td>
                           <td style={{ fontWeight: 700, fontSize: 12 }}>{vnd(o.total)} đ</td>
                           <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
@@ -1364,19 +1386,25 @@ export function AdminDashboard() {
                 <tbody>
                   {orders.map(o => (
                     <tr key={o.id}>
-                      <td style={{ fontWeight: 600, color: "var(--green-ink)", fontSize: 13 }}>#{o.id.substring(0, 8)}...</td>
+                      <td style={{ fontWeight: 600, color: "var(--green-ink)", fontSize: 13 }}>#{o.id.split('-')[0].toUpperCase()}</td>
                       <td style={{ color: "var(--muted)" }}>{new Date(o.createdAt).toLocaleDateString("vi-VN", { hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ fontSize: 13, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.shippingAddress}</td>
                       <td style={{ fontWeight: 700 }}>{vnd(o.total)} đ</td>
                       <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
                       <td>
-                        <select className="admin-select" style={{ padding: "6px 10px", fontSize: 13 }} value={o.status} onChange={e => handleUpdateOrderStatus(o.id, e.target.value)}>
-                          <option value="pending">Chờ xử lý</option>
-                          <option value="confirmed">Xác nhận đơn</option>
-                          <option value="shipped">Đang giao</option>
-                          <option value="delivered">Đã giao hàng</option>
-                          <option value="cancelled">Hủy đơn hàng</option>
-                        </select>
+                        {o.status === "delivered" || o.status === "cancelled" ? (
+                          <span style={{ fontSize: 12.5, fontWeight: 600, color: o.status === "delivered" ? "var(--green-ink)" : "#ff4d4f" }}>
+                            {o.status === "delivered" ? "✓ Hoàn thành" : "✕ Đã hủy"}
+                          </span>
+                        ) : (
+                          <select className="admin-select" style={{ padding: "6px 10px", fontSize: 13 }} value={o.status} onChange={e => handleUpdateOrderStatus(o.id, e.target.value)}>
+                            {getAvailableNextStatuses(o.status).map(opt => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td>
                         <button className="admin-btn-sm edit" style={{ background: "var(--mint-2)" }} onClick={() => { setSelectedOrder(o); setShowOrderModal(true); }}>Chi tiết</button>
@@ -1951,7 +1979,7 @@ export function AdminDashboard() {
         <div className="admin-modal-backdrop" onClick={() => setShowOrderModal(false)}>
           <div className="admin-modal-panel" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
             <button className="admin-modal-close" onClick={() => setShowOrderModal(false)}><Icon name="close" size={14} /></button>
-            <h3 className="admin-modal-title">Chi tiết đơn hàng #{selectedOrder.id.substring(0, 8)}...</h3>
+            <h3 className="admin-modal-title">Chi tiết đơn hàng #{selectedOrder.id.split('-')[0].toUpperCase()}</h3>
 
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 20, marginBottom: 20, fontSize: 13.5, background: "var(--paper-2)", padding: 14, borderRadius: 10 }}>
               <div>

@@ -65,7 +65,12 @@ async function fetchAPI(endpoint, options = {}, returnFull = false) {
       if (search) {
         filtered = filtered.filter(p => p.name && p.name.toLowerCase().includes(search.toLowerCase()));
       }
-      return returnFull ? { success: true, data: filtered, meta: { total: filtered.length, page: 1, limit: 12, totalPages: 1 } } : filtered;
+      const pageNum = parseInt(searchParams.get('page') || '1', 10);
+      const limitNum = parseInt(searchParams.get('limit') || '15', 10);
+      const totalPages = Math.ceil(filtered.length / limitNum) || 1;
+      const startIndex = (pageNum - 1) * limitNum;
+      const pageData = filtered.slice(startIndex, startIndex + limitNum);
+      return returnFull ? { success: true, data: pageData, meta: { total: filtered.length, page: pageNum, limit: limitNum, totalPages } } : pageData;
     }
     if (endpoint.includes('/categories')) return categories;
     if (endpoint.includes('/collections')) return collections;

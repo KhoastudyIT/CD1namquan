@@ -12,6 +12,9 @@ export function AccountSettings() {
   const [profileErr, setProfileErr] = useState("");
 
   const [pwd, setPwd] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdErr, setPwdErr] = useState("");
 
@@ -102,30 +105,66 @@ export function AccountSettings() {
         <form className="acc-form" onSubmit={savePassword}>
           <label>
             <span>Mật khẩu hiện tại</span>
-            <input
-              type="password"
-              value={pwd.currentPassword}
-              onChange={(e) => setPwd({ ...pwd, currentPassword: e.target.value })}
-              autoComplete="current-password"
-            />
+            <div className="pwd-input-wrap">
+              <input
+                type={showCurrent ? "text" : "password"}
+                value={pwd.currentPassword}
+                onChange={(e) => setPwd({ ...pwd, currentPassword: e.target.value })}
+                autoComplete="current-password"
+                placeholder="Nhập mật khẩu hiện tại"
+              />
+              <button
+                type="button"
+                className="pwd-toggle-btn"
+                onClick={() => setShowCurrent(v => !v)}
+                tabIndex={-1}
+                title={showCurrent ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                <Icon name={showCurrent ? "eyeOff" : "eye"} size={18} />
+              </button>
+            </div>
           </label>
           <label>
             <span>Mật khẩu mới</span>
-            <input
-              type="password"
-              value={pwd.newPassword}
-              onChange={(e) => setPwd({ ...pwd, newPassword: e.target.value })}
-              autoComplete="new-password"
-            />
+            <div className="pwd-input-wrap">
+              <input
+                type={showNew ? "text" : "password"}
+                value={pwd.newPassword}
+                onChange={(e) => setPwd({ ...pwd, newPassword: e.target.value })}
+                autoComplete="new-password"
+                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+              />
+              <button
+                type="button"
+                className="pwd-toggle-btn"
+                onClick={() => setShowNew(v => !v)}
+                tabIndex={-1}
+                title={showNew ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                <Icon name={showNew ? "eyeOff" : "eye"} size={18} />
+              </button>
+            </div>
           </label>
           <label>
             <span>Xác nhận mật khẩu mới</span>
-            <input
-              type="password"
-              value={pwd.confirm}
-              onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })}
-              autoComplete="new-password"
-            />
+            <div className="pwd-input-wrap">
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={pwd.confirm}
+                onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })}
+                autoComplete="new-password"
+                placeholder="Nhập lại mật khẩu mới"
+              />
+              <button
+                type="button"
+                className="pwd-toggle-btn"
+                onClick={() => setShowConfirm(v => !v)}
+                tabIndex={-1}
+                title={showConfirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                <Icon name={showConfirm ? "eyeOff" : "eye"} size={18} />
+              </button>
+            </div>
           </label>
 
           {pwdErr && <p className="acc-form-err">{pwdErr}</p>}

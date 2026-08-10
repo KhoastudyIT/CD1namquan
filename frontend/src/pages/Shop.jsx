@@ -91,7 +91,7 @@ export function Shop() {
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
-  const LIMIT = 12;
+  const LIMIT = 15;
 
   // ── Bộ lọc giá ──
   const [pricePreset, setPricePreset] = useState(0); // index into PRICE_PRESETS

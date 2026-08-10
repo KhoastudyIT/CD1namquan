@@ -3292,6 +3292,11 @@ a.hdr-user:hover .hdr-user-name {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: sticky;
+  top: 80px;
+  height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
 }
 
 .admin-sidebar-btn {
@@ -3316,12 +3321,16 @@ a.hdr-user:hover .hdr-user-name {
 /* margin-top:auto đẩy khối này xuống đáy sidebar (flex column) trên desktop;
    trên mobile menu sổ xuống thì nó nằm sau mục cuối cùng. */
 .admin-sidebar-foot {
-  margin-top: auto;
+  margin-top: auto !important;
   padding-top: 14px;
   border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 5;
 }
 
 .admin-sidebar-user {
@@ -4041,7 +4050,7 @@ a.hdr-user:hover .hdr-user-name {
 .acc-layout {
   display: flex;
   gap: 28px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .acc-sidebar {
@@ -4056,6 +4065,8 @@ a.hdr-user:hover .hdr-user-name {
   top: 94px;
   display: flex;
   flex-direction: column;
+  min-height: 520px;
+  align-self: flex-start;
 }
 
 .acc-content {
@@ -4157,6 +4168,7 @@ a.hdr-user:hover .hdr-user-name {
 }
 
 .acc-side-foot {
+  margin-top: auto;
   padding: 10px;
   border-top: 1px solid var(--line);
 }
@@ -6461,4 +6473,39 @@ a.hdr-user:hover .hdr-user-name {
     margin: 0 -10px;
     padding: 0 10px;
   }
+}
+
+/* ---------- PASSWORD INPUT EYE TOGGLE BUTTON ---------- */
+.pwd-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.pwd-input-wrap input {
+  width: 100%;
+  padding-right: 42px !important;
+}
+
+.pwd-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  transition: color 0.16s, background 0.16s;
+  z-index: 2;
+}
+
+.pwd-toggle-btn:hover {
+  color: var(--green-ink);
+  background: var(--paper-2);
 }
