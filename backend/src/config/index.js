@@ -9,7 +9,7 @@ const config = {
   corsOrigin:     process.env.NODE_ENV === 'production'
                     ? (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
                     : devOrigins,
-  databaseUrl:    process.env.DATABASE_URL            ?? 'postgresql://postgres:123456@localhost:5432/nam_quan',
+  databaseUrl:    process.env.DATABASE_URL            ?? 'postgresql://postgres:postgres@localhost:5432/nam_quan',
 };
 
 export default config;
