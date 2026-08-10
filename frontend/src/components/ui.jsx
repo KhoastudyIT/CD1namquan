@@ -3,6 +3,105 @@ import { useState, useEffect } from "react";
 
 export const vnd = (n) => (n != null ? Number(n).toLocaleString("vi-VN") : "0");
 
+/**
+ * Tách tổng tiền một đơn hàng thành: tiền theo giá gốc, số đã giảm, số phải trả.
+ *
+ * Dựa trên `listPrice` mà order_items chụp lại lúc đặt — KHÔNG đọc giá sản phẩm
+ * hiện tại, vì giá đổi về sau sẽ làm sai lệch đơn cũ. Đơn đặt trước khi có cột
+ * này không có listPrice; khi đó coi như không giảm để khỏi bịa số liệu.
+ *
+ * Nhận được cả hai dạng dữ liệu: dòng đơn hàng ({ price, listPrice }) và dòng
+ * giỏ hàng ({ product: { price, listPrice } }), để giỏ hàng, trang thanh toán
+ * và chi tiết đơn dùng chung một cách tính.
+ */
+export function orderTotals(items = []) {
+  let subtotal = 0;   // theo giá gốc
+  let payable = 0;    // theo giá thực trả
+
+  for (const it of items) {
+    const src = it.product ?? it;
+    const qty = Number(it.quantity ?? 0);
+    const paid = Number(src.price ?? 0);
+    const list = Number(src.listPrice ?? src.list_price ?? 0);
+    payable += paid * qty;
+    subtotal += (list > paid ? list : paid) * qty;
+  }
+
+  const discount = subtotal - payable;
+  return { subtotal, discount, payable, hasDiscount: discount > 0 };
+}
+
+/**
+ * Trạng thái thật của một chương trình flash sale.
+ *
+ * Phải khớp thứ tự điều kiện với activeFlashWhere() ở backend
+ * (backend/src/utils/price.js): active -> mốc thời gian -> còn suất. Chỉ đọc mỗi
+ * cột `active` là chưa đủ — chương trình hết hạn hoặc hết suất vẫn có active=true
+ * trong DB, nên dashboard sẽ báo "đang chạy" trong khi public đã ngừng áp giá.
+ *
+ * Trả về { label, tone, running }; `running` đúng bằng điều kiện backend dùng
+ * để quyết định có áp giá flash hay không.
+ */
+export function flashStatus(fs = {}, now = Date.now()) {
+  const starts = fs.starts_at ? new Date(fs.starts_at).getTime() : null;
+  const ends = fs.ends_at ? new Date(fs.ends_at).getTime() : null;
+  const remaining = Math.max(0, Number(fs.stock ?? 0) - Number(fs.sold ?? 0));
+
+  if (!fs.active) return { label: "Tạm ngưng", tone: "off", running: false };
+  if (starts && starts > now) return { label: "Chưa bắt đầu", tone: "pending", running: false };
+  if (ends && ends < now) return { label: "Đã kết thúc", tone: "expired", running: false };
+  if (remaining === 0) return { label: "Hết suất", tone: "soldout", running: false };
+  return { label: "Đang chạy", tone: "live", running: true };
+}
+
+/** Màu badge theo tone của flashStatus. */
+export const FLASH_STATUS_STYLE = {
+  live:    { background: "#dcfce7", color: "#166534" },
+  pending: { background: "#dbeafe", color: "#1e40af" },
+  expired: { background: "#e5e7eb", color: "#4b5563" },
+  soldout: { background: "#ffedd5", color: "#c2410c" },
+  off:     { background: "#fee2e2", color: "#b91c1c" },
+};
+
+/**
+ * Phần trăm giảm giá — luôn tính trên giá niêm yết HIỆN TẠI của sản phẩm.
+ *
+ * Không tính theo flash_sales.original_price: cột đó là ảnh chụp lúc tạo chương
+ * trình, admin sửa giá sản phẩm sau đó là lệch ngay, dẫn tới dashboard và trang
+ * public hiện hai con số khác nhau. Đối xứng với discountPercent() ở backend.
+ */
+export function discountPct(listPrice, salePrice) {
+  const list = Number(listPrice ?? 0);
+  const sale = Number(salePrice ?? 0);
+  if (!(list > 0) || !(sale > 0) || sale >= list) return 0;
+  return Math.round((1 - sale / list) * 100);
+}
+
+/**
+ * Giá thực trả và giá niêm yết của một sản phẩm.
+ *
+ * Backend đã tính sẵn `effective_price` (flash sale đang chạy > sale_price > price)
+ * ở utils/price.js — đây chỉ là lớp đọc, có fallback cho dữ liệu mẫu offline và
+ * cho các endpoint chưa kèm trường này.
+ *
+ * Trả về { price, listPrice, hasDiscount, discountPct }; listPrice chỉ khác price
+ * khi đang thực sự giảm giá, để component biết lúc nào cần gạch ngang giá cũ.
+ */
+export function priceOf(p = {}) {
+  const list = Number(p.price ?? 0);
+  const raw = p.effective_price ?? p.effectivePrice ?? p.sale_price ?? p.salePrice;
+  const eff = raw != null && Number(raw) > 0 ? Number(raw) : list;
+  const price = eff > 0 && eff < list ? eff : list;
+  const hasDiscount = price < list;
+
+  return {
+    price,
+    listPrice: list,
+    hasDiscount,
+    discountPct: discountPct(list, price),
+  };
+}
+
 export const telHref = (phone) => `tel:${String(phone || "").replace(/[\s.]/g, "")}`;
 
 const MAP_EMBED_PREFIX = "https://www.google.com/maps/embed";

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
-import { Icon, Img, vnd, toast } from "../components/ui.jsx";
+import { Icon, Img, vnd, toast, orderTotals } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
 
 export function Cart() {
@@ -45,7 +45,8 @@ export function Cart() {
     }
   };
 
-  const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const totals = orderTotals(cart);
+  const total = totals.payable;
 
   if (!user) return null;
 
@@ -74,7 +75,14 @@ export function Cart() {
                       <b style={{ fontSize: 15 }}>{item.product.name}</b>
                       <button onClick={() => removeItem(item.productId)} style={{ color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="close" size={16}/></button>
                     </div>
-                    <div style={{ color: 'var(--green)', fontWeight: 600 }}>{vnd(item.product.price)}đ</div>
+                    <div style={{ color: 'var(--green)', fontWeight: 600 }}>
+                      {vnd(item.product.price)}đ
+                      {item.product.listPrice > item.product.price && (
+                        <s style={{ color: 'var(--muted)', fontWeight: 500, marginLeft: 8, fontSize: 13 }}>
+                          {vnd(item.product.listPrice)}đ
+                        </s>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
                       <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>-</button>
                       <span style={{ minWidth: 20, textAlign: 'center' }}>{item.quantity}</span>
@@ -88,9 +96,15 @@ export function Cart() {
             <div className="cart-summary">
               <h3 style={{ marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>Tổng đơn hàng</h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15 }}>
-                <span>Tạm tính</span>
-                <b>{vnd(total)}đ</b>
+                <span>Tạm tính{totals.hasDiscount ? " (giá gốc)" : ""}</span>
+                <b>{vnd(totals.subtotal)}đ</b>
               </div>
+              {totals.hasDiscount && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15 }}>
+                  <span>Giảm giá</span>
+                  <b style={{ color: '#e6457a' }}>−{vnd(totals.discount)}đ</b>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, color: 'var(--muted)' }}>
                 <span>Phí vận chuyển</span>
                 <span>Miễn phí</span>

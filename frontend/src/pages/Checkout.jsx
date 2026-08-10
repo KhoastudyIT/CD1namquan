@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
-import { vnd, toast, Img } from "../components/ui.jsx";
+import { vnd, toast, Img, orderTotals } from "../components/ui.jsx";
 
 export function Checkout() {
   const { cart, fetchCart, user } = useAppContext();
@@ -19,7 +19,9 @@ export function Checkout() {
     }
   }, [cart.length, navigate]);
 
-  const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  // totals.payable là số thực trả, đúng bằng cách backend chốt đơn.
+  const totals = orderTotals(cart);
+  const total = totals.payable;
 
   const handleCheckout = async (e) => {
     e.preventDefault();
@@ -117,6 +119,9 @@ export function Checkout() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{item.product.name}</div>
                     <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
                       {item.quantity} x {vnd(item.product.price)}đ
+                      {item.product.listPrice > item.product.price && (
+                        <s style={{ marginLeft: 6 }}>{vnd(item.product.listPrice)}đ</s>
+                      )}
                     </div>
                   </div>
                   <div style={{ fontWeight: 700, color: 'var(--green)', alignSelf: 'center' }}>
@@ -127,9 +132,15 @@ export function Checkout() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15, fontSize: 14 }}>
-              <span style={{ color: "var(--muted)" }}>Tạm tính</span>
-              <b>{vnd(total)}đ</b>
+              <span style={{ color: "var(--muted)" }}>Tạm tính{totals.hasDiscount ? " (giá gốc)" : ""}</span>
+              <b>{vnd(totals.subtotal)}đ</b>
             </div>
+            {totals.hasDiscount && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15, fontSize: 14 }}>
+                <span style={{ color: "var(--muted)" }}>Giảm giá</span>
+                <b style={{ color: "#e6457a" }}>−{vnd(totals.discount)}đ</b>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, fontSize: 14 }}>
               <span style={{ color: "var(--muted)" }}>Phí vận chuyển</span>
               <span>Miễn phí</span>

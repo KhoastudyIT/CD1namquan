@@ -1,5 +1,5 @@
 /* ============ NAM QUAN — cards ============ */
-import { Img, Icon, Stars, ColorDots, vnd } from "./ui.jsx";
+import { Img, Icon, Stars, ColorDots, vnd, priceOf, discountPct } from "./ui.jsx";
 import { Link } from "react-router-dom";
 
 export function FavBtn({ active, onClick }) {
@@ -16,9 +16,11 @@ export function FavBtn({ active, onClick }) {
 }
 
 export function ProductCard({ p, fav, onFav, onAdd }) {
+  const { price, listPrice, hasDiscount, discountPct } = priceOf(p);
   return (
     <div className="pcard">
       <div className="pcard-media">
+        {hasDiscount && <span className="flash-tag">-{discountPct}%</span>}
         <Link to={`/product/${p.id}`} style={{ display: 'block', height: '100%' }}>
           <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
         </Link>
@@ -37,7 +39,10 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
             <Stars value={p.rating} />
             <ColorDots />
           </div>
-          <div className="pcard-price">{vnd(p.price)} <span>đ</span></div>
+          <div className="pcard-price">
+            {hasDiscount && <s className="pcard-price-old">{vnd(listPrice)}đ</s>}
+            {vnd(price)} <span>đ</span>
+          </div>
         </div>
       </div>
     </div>
@@ -46,14 +51,17 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
 
 export function FlashCard({ p, fav, onFav, onAdd }) {
   const price = Number(p.price || 0);
-const oldPrice = Number(p.old || p.originalPrice || p.original_price || price || 0);
-const sold = Number(p.sold || 0);
-const stock = Number(p.stock || 1);
-const pct = Math.min(100, Math.round((sold / stock) * 100));
+  // product_price là giá niêm yết hiện tại; original_price chỉ là ảnh chụp lúc
+  // tạo chương trình nên dùng làm dự phòng, nếu không % ở đây sẽ lệch với Shop.
+  const oldPrice = Number(p.product_price || p.old || p.originalPrice || p.original_price || price || 0);
+  const sold = Number(p.sold || 0);
+  const stock = Number(p.stock || 1);
+  const pct = Math.min(100, Math.round((sold / stock) * 100));
+  const remaining = Math.max(0, stock - sold);
   return (
     <div className="pcard flash">
       <div className="pcard-media">
-        <span className="flash-tag">-{oldPrice > 0 ? Math.round((1 - price / oldPrice) * 100) : 0}%</span>
+        <span className="flash-tag">-{discountPct(oldPrice, price)}%</span>
         <Link to={`/product/${p.product_id || p.productId || p.id}`} style={{ display: 'block', height: '100%' }}>
           <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
         </Link>
@@ -78,7 +86,9 @@ const pct = Math.min(100, Math.round((sold / stock) * 100));
           <div className="flash-bar-fill" style={{ width: pct + "%" }}>
             <Icon name="leaf" size={11} stroke={0} fill="#fff" style={{ color: "#fff" }} />
           </div>
-          <span className="flash-bar-label">Đã bán {p.sold}</span>
+          <span className="flash-bar-label">
+            Đã bán {sold}{remaining > 0 ? ` · còn ${remaining}` : " · hết suất"}
+          </span>
         </div>
       </div>
     </div>

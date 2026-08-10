@@ -7,25 +7,32 @@ import 'express-async-errors';
 import config from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupDocs } from './docs/openapi.js';
-import { seedAdmin } from './db/seed.js';
+import { seedAdmin, seedAll } from './db/seed.js';
 
-import { authRouter }       from './modules/auth/auth.routes.js';
-import { productRouter }    from './modules/products/product.routes.js';
-import { categoryRouter }   from './modules/categories/category.routes.js';
+import { authRouter } from './modules/auth/auth.routes.js';
+import { productRouter } from './modules/products/product.routes.js';
+import { categoryRouter } from './modules/categories/category.routes.js';
 import { collectionRouter } from './modules/collections/collection.routes.js';
-import { newsRouter }       from './modules/news/news.routes.js';
-import { cartRouter }       from './modules/cart/cart.routes.js';
-import { orderRouter }      from './modules/orders/order.routes.js';
+import { newsRouter } from './modules/news/news.routes.js';
+import { cartRouter } from './modules/cart/cart.routes.js';
+import { orderRouter } from './modules/orders/order.routes.js';
 import { notificationRouter } from './modules/notifications/notification.routes.js';
-import { chatRouter }         from './modules/chat/chat.routes.js';
-import { userRouter }       from './modules/user/user.routes.js';
-import { statsRouter }      from './modules/stats/stats.routes.js';
-import { uploadRouter }     from './modules/uploads/upload.routes.js';
-import { settingsRouter }   from './modules/settings/settings.routes.js';
+import { chatRouter } from './modules/chat/chat.routes.js';
+import { userRouter } from './modules/user/user.routes.js';
+import { statsRouter } from './modules/stats/stats.routes.js';
+import { uploadRouter } from './modules/uploads/upload.routes.js';
+import { settingsRouter } from './modules/settings/settings.routes.js';
 
 export function createApp() {
   // Seed tài khoản admin mặc định vào in-memory store
   seedAdmin();
+
+
+  seedAll()
+    .then(({ seeded }) => {
+      if (seeded.length) console.log(`  Seed     : đã nạp ${seeded.length} bảng dữ liệu mẫu`);
+    })
+    .catch((err) => console.error('  Seed     : bỏ qua —', err.message));
 
   const app = express();
 
@@ -39,19 +46,19 @@ export function createApp() {
   );
 
   const v1 = '/api/v1';
-  app.use(`${v1}/auth`,        authRouter);
-  app.use(`${v1}/products`,    productRouter);
-  app.use(`${v1}/categories`,  categoryRouter);
+  app.use(`${v1}/auth`, authRouter);
+  app.use(`${v1}/products`, productRouter);
+  app.use(`${v1}/categories`, categoryRouter);
   app.use(`${v1}/collections`, collectionRouter);
-  app.use(`${v1}/news`,        newsRouter);
-  app.use(`${v1}/cart`,        cartRouter);
-  app.use(`${v1}/orders`,      orderRouter);
+  app.use(`${v1}/news`, newsRouter);
+  app.use(`${v1}/cart`, cartRouter);
+  app.use(`${v1}/orders`, orderRouter);
   app.use(`${v1}/notifications`, notificationRouter);
-  app.use(`${v1}/chat`,        chatRouter);
-  app.use(`${v1}/users`,       userRouter);
-  app.use(`${v1}/stats`,       statsRouter);
-  app.use(`${v1}/uploads`,     uploadRouter);
-  app.use(`${v1}/settings`,    settingsRouter);
+  app.use(`${v1}/chat`, chatRouter);
+  app.use(`${v1}/users`, userRouter);
+  app.use(`${v1}/stats`, statsRouter);
+  app.use(`${v1}/uploads`, uploadRouter);
+  app.use(`${v1}/settings`, settingsRouter);
 
   if (config.openapiEnabled) setupDocs(app);
 

@@ -1,5 +1,6 @@
 import db from '../../db/index.js';
 import { AppError } from '../../middleware/errorHandler.js';
+import { activeFlashJoin, effectivePriceSQL } from '../../utils/price.js';
 
 async function getOrCreateCart(userId) {
   const res = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
@@ -13,10 +14,12 @@ export async function getCart(userId) {
   const cartId = await getOrCreateCart(userId);
   
   const res = await db.query(`
-    SELECT ci.id, ci.product_id, ci.quantity, 
-           p.name as product_name, p.price as product_price, p.img as product_img
+    SELECT ci.id, ci.product_id, ci.quantity,
+           p.name as product_name, p.img as product_img,
+           p.price as product_list_price,
+           ${effectivePriceSQL('p')} as product_price
     FROM cart_items ci
-    JOIN products p ON ci.product_id = p.id
+    JOIN products p ON ci.product_id = p.id${activeFlashJoin('p')}
     WHERE ci.cart_id = $1
     ORDER BY ci.created_at ASC
   `, [cartId]);
@@ -28,7 +31,9 @@ export async function getCart(userId) {
     product: {
       id: r.product_id,
       name: r.product_name,
-      price: r.product_price,
+      // price là giá thực trả; listPrice để hiển thị gạch ngang khi đang giảm.
+      price: Number(r.product_price),
+      listPrice: Number(r.product_list_price),
       img: r.product_img
     }
   }));

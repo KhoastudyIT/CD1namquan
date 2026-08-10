@@ -47,11 +47,28 @@ const connectionUrl = process.env.DATABASE_URL;
     
     console.log('Running SQL script... This might take a moment.');
     await targetClient.query(sql);
-    console.log('Data imported successfully!');
+    console.log('Schema created successfully!');
   } catch (err) {
     console.error('Error importing SQL file:', err.message);
-  } finally {
     await targetClient.end();
+    process.exit(1);
+  }
+  await targetClient.end();
+
+  // File .sql chỉ dựng schema; dữ liệu mẫu nạp từ src/db/data/*.js.
+  console.log('Seeding sample data...');
+  const { seedAll } = await import('./seed.js');
+  const pool = (await import('./index.js')).default;
+  try {
+    const { seeded, skipped } = await seedAll();
+    seeded.forEach((s) => console.log('  +', s));
+    if (skipped.length) console.log(`  bỏ qua (đã có dữ liệu): ${skipped.join(', ')}`);
+    console.log('Done.');
+  } catch (err) {
+    console.error('Seed failed:', err.message);
+    process.exitCode = 1;
+  } finally {
+    await pool.end();
   }
 }
 

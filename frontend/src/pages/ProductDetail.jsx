@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
-import { Img, Icon, Stars, ColorDots, vnd, toast } from "../components/ui.jsx";
+import { Img, Icon, Stars, ColorDots, vnd, toast, priceOf } from "../components/ui.jsx";
 
 export function ProductDetail() {
   const { id } = useParams();
@@ -37,6 +37,7 @@ export function ProductDetail() {
   if (!product) return null;
 
   const isFav = favs.has(product.id);
+  const pd = priceOf(product);
 
   const handleAddToCart = () => {
     addToCart(product, quantity);
@@ -83,7 +84,20 @@ export function ProductDetail() {
             </div>
 
             <div className="pd-price" style={{ fontWeight: 800, color: "var(--green)", marginBottom: 30 }}>
-              {vnd(product.price)} <span style={{ fontSize: 18, textDecoration: "underline" }}>đ</span>
+              {vnd(pd.price)} <span style={{ fontSize: 18, textDecoration: "underline" }}>đ</span>
+              {pd.hasDiscount && (
+                <>
+                  <s style={{ fontSize: 18, fontWeight: 600, color: "var(--muted)", marginLeft: 12 }}>
+                    {vnd(pd.listPrice)}đ
+                  </s>
+                  <span style={{
+                    fontSize: 14, fontWeight: 700, color: "#fff", background: "#e6457a",
+                    padding: "3px 10px", borderRadius: 999, marginLeft: 10, verticalAlign: "middle",
+                  }}>
+                    -{pd.discountPct}%
+                  </span>
+                </>
+              )}
             </div>
 
             <p style={{ fontSize: 16, color: "var(--ink-2)", lineHeight: 1.7, marginBottom: 30, paddingBottom: 30, borderBottom: "1px solid var(--line)" }}>

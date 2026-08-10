@@ -1096,6 +1096,15 @@ a.hdr-user:hover .hdr-user-name {
   text-decoration: underline;
 }
 
+/* Giá niêm yết gạch ngang, chỉ hiện khi sản phẩm đang giảm giá. */
+.pcard-price-old {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
 /* flash variant */
 .flash-tag {
   position: absolute;
@@ -3378,6 +3387,17 @@ a.hdr-user:hover .hdr-user-name {
 .admin-content {
   padding: 32px;
   overflow-y: auto;
+  /* Không có rule này thì grid item mặc định min-width:auto, bảng rộng sẽ đẩy
+     phình cả cột 1fr thay vì cuộn ngang bên trong .admin-table-wrap. */
+  min-width: 0;
+}
+
+/* Laptop 1366px: 1366 - 240 (sidebar) - 64 (padding) = 1062px, hụt so với bảng
+   flash sale 1080px. Bớt padding để bảng vừa khít, khỏi phải cuộn ngang. */
+@media (max-width: 1440px) {
+  .admin-content {
+    padding: 24px 18px;
+  }
 }
 
 .admin-sec-header {
@@ -3518,6 +3538,40 @@ a.hdr-user:hover .hdr-user-name {
 
 .admin-table tr:hover td {
   background: #fafcfa;
+}
+
+/* Bảng nhiều cột (flash sale có 11 cột): siết padding và cấm xuống dòng để mỗi
+   cột chỉ chiếm đúng bề rộng nội dung. min-width buộc cuộn ngang khi màn hình
+   hẹp, thay vì bóp cột lại tới mức không đọc được. */
+.admin-table.compact {
+  min-width: 1080px;
+}
+
+.admin-table.compact th,
+.admin-table.compact td {
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+/* Cột duy nhất được phép xuống dòng. Chặn trần bề rộng, nếu không nó nuốt hết
+   phần trống của bảng; chỗ thừa để trình duyệt chia đều cho các cột còn lại. */
+.admin-table.compact .col-grow {
+  white-space: normal;
+  min-width: 150px;
+  max-width: 220px;
+}
+
+/* Khối thời gian: mỗi dòng là "Bắt đầu: <mốc>", nhãn liền kề, cách một khoảng nhỏ. */
+.flash-period {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.flash-period-label {
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 2px;
 }
 
 /* Chỉ hiện trên mobile — desktop đã có cột riêng cho từng thông tin này. */

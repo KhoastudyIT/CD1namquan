@@ -4,8 +4,9 @@
 # Xoá cả dữ liệu DB:  docker compose down -v
 #
 # 3 service:
-#   postgres  : PostgreSQL 16, TỰ nạp backend/database/nam_quan_database.sql lần đầu
-#   backend   : Express API (kết nối postgres qua DATABASE_URL)
+#   postgres  : PostgreSQL 16, TỰ dựng schema từ backend/database/nam_quan_database.sql lần đầu
+#   backend   : Express API (kết nối postgres qua DATABASE_URL); tự nạp dữ liệu mẫu
+#               từ src/db/data/*.js khi phát hiện bảng còn trống
 #   frontend  : React build tĩnh, phục vụ bằng nginx
 #
 # Giá trị nhạy cảm có thể override qua file .env cùng cấp (xem .env.example).
@@ -30,7 +31,7 @@ services:
       - "${BIND_IP:-0.0.0.0}:5433:5432"
     volumes:
       - namquan_pgdata:/var/lib/postgresql/data
-      # File .sql duy nhất — Postgres tự chạy khi khởi tạo DB lần đầu
+      # Schema — Postgres tự chạy khi khởi tạo DB lần đầu. Dữ liệu do backend seed.
       - ./backend/database/nam_quan_database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d nam_quan"]

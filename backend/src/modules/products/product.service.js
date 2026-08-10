@@ -1,6 +1,7 @@
 import db from '../../db/index.js';
 import { dbCache } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
+import { activeFlashJoin, activeFlashWhere, effectivePriceSQL } from '../../utils/price.js';
 
 const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
 
@@ -33,13 +34,15 @@ export async function listProducts({
     params.push(q);
     whereClauses.push(`(LOWER(p.name) LIKE $${params.length} OR LOWER(p.type) LIKE $${params.length})`);
   }
+  // Lọc theo giá hiệu lực chứ không phải giá niêm yết: khách lọc "dưới 5 triệu"
+  // thì sản phẩm 6 triệu đang sale còn 4 triệu phải nằm trong kết quả.
   if (priceMin != null) {
     params.push(priceMin);
-    whereClauses.push(`p.price >= $${params.length}`);
+    whereClauses.push(`${effectivePriceSQL('p')} >= $${params.length}`);
   }
   if (priceMax != null) {
     params.push(priceMax);
-    whereClauses.push(`p.price <= $${params.length}`);
+    whereClauses.push(`${effectivePriceSQL('p')} <= $${params.length}`);
   }
 
   // Join with specs to filter by colors, styles, materials, sizes
@@ -74,7 +77,10 @@ export async function listProducts({
     whereClauses.push(`b.name = ANY($${params.length})`);
   }
 
-  let queryStr = `SELECT p.*, c.name AS category, c.slug AS category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id`;
+  let queryStr = `SELECT p.*, c.name AS category, c.slug AS category_slug,
+      active_flash.price AS flash_price,
+      ${effectivePriceSQL('p')} AS effective_price
+    FROM products p LEFT JOIN categories c ON p.category_id = c.id${activeFlashJoin('p')}`;
   if (joinSpecs) queryStr += ` LEFT JOIN product_specs ps ON p.id = ps.product_id`;
   if (joinBrands) queryStr += ` LEFT JOIN brands b ON p.brand_id = b.id`;
   
@@ -84,8 +90,8 @@ export async function listProducts({
 
   // Sorting
   const sortMap = {
-    price_asc:  'p.price ASC',
-    price_desc: 'p.price DESC',
+    price_asc:  'effective_price ASC',
+    price_desc: 'effective_price DESC',
     rating:     'p.rating DESC',
     sold:       'p.sold DESC',
     newest:     'p.id DESC',
@@ -118,10 +124,12 @@ export async function getProductById(id) {
 
   const res = await db.query(`
     SELECT p.*, c.name AS category, c.slug AS category_slug,
-      ps.material, ps.color, ps.dimensions, ps.warranty, ps.origin, ps.style, ps.room, ps.note
-    FROM products p 
+      ps.material, ps.color, ps.dimensions, ps.warranty, ps.origin, ps.style, ps.room, ps.note,
+      active_flash.price AS flash_price,
+      ${effectivePriceSQL('p')} AS effective_price
+    FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN product_specs ps ON p.id = ps.product_id 
+    LEFT JOIN product_specs ps ON p.id = ps.product_id ${activeFlashJoin('p')}
     WHERE p.id = $1
   `, [id]);
   
@@ -136,11 +144,14 @@ export async function listFlashSales() {
   const cached = dbCache.get(cacheKey);
   if (cached) return cached;
 
+  // Cùng điều kiện hiệu lực với effectivePriceSQL, nếu không trang chủ sẽ quảng cáo
+  // một chương trình mà lúc thanh toán hệ thống không áp dụng.
+  // product_price là giá niêm yết hiện tại — cơ sở duy nhất để tính % giảm.
   const res = await db.query(`
-    SELECT fs.*, p.name, p.img, p.rating, p.type 
-    FROM flash_sales fs 
-    JOIN products p ON fs.product_id = p.id 
-    WHERE fs.active = true
+    SELECT fs.*, p.name, p.img, p.rating, p.type, p.price AS product_price
+    FROM flash_sales fs
+    JOIN products p ON fs.product_id = p.id
+    WHERE ${activeFlashWhere('fs')}
   `);
   
   const result = res.rows;
@@ -226,8 +237,12 @@ export async function deleteProduct(id) {
 }
 
 export async function listFlashSalesAdmin() {
+  // order_item_count để dashboard biết trước chương trình nào đã bị khoá phần
+  // giá (xem assertPricingNotLocked) mà vô hiệu hoá ô nhập, thay vì để admin
+  // gõ xong bấm lưu rồi mới nhận lỗi.
   const res = await db.query(`
-    SELECT fs.*, p.name AS product_name, p.price AS product_price, p.img AS product_img
+    SELECT fs.*, p.name AS product_name, p.price AS product_price, p.img AS product_img,
+           (SELECT COUNT(*)::INT FROM order_items oi WHERE oi.flash_sale_id = fs.id) AS order_item_count
     FROM flash_sales fs
     JOIN products p ON fs.product_id = p.id
     ORDER BY fs.id DESC
@@ -237,12 +252,94 @@ export async function listFlashSalesAdmin() {
 
 export async function createFlashSale(data) {
   const { productId, price, originalPrice, stock, sold, startsAt, endsAt, active } = data;
+  const from = startsAt || new Date();
+  const to = endsAt || null;
+  const isActive = active !== false;
+
+  if (isActive) await assertNoOverlappingFlashSale({ productId, startsAt: from, endsAt: to });
+
   const res = await db.query(`
     INSERT INTO flash_sales (product_id, price, original_price, stock, sold, starts_at, ends_at, active)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
-  `, [productId, price, originalPrice, stock || 0, sold || 0, startsAt || new Date(), endsAt || null, active !== false]);
-  dbCache.deletePattern('products:flash_sales');
+  `, [productId, price, originalPrice, stock || 0, sold || 0, from, to, isActive]);
+  // Phải xoá cả cache danh sách/chi tiết sản phẩm, không chỉ khoá flash_sales:
+  // từ khi có giá hiệu lực, flash sale quyết định luôn effective_price của
+  // /products và /products/:id.
+  dbCache.deletePattern('products:');
   return res.rows[0];
+}
+
+/**
+ * Chặn hai chương trình flash sale cùng sản phẩm chạy chồng khung thời gian.
+ *
+ * Không chặn thì engine giá âm thầm chọn chương trình rẻ hơn
+ * (activeFlashJoin dùng ORDER BY price ASC), chương trình vừa tạo bị vô hiệu mà
+ * dashboard vẫn báo "Đang chạy" — admin không có cách nào biết.
+ *
+ * Chỉ xét các chương trình đang bật (active = TRUE); đã tắt hoặc đã hết hạn thì
+ * không cản. Chương trình hết suất VẪN cản, vì chỉ cần sửa lại `stock` là nó
+ * sống dậy và lập tức chồng lên chương trình mới.
+ */
+async function assertNoOverlappingFlashSale({ productId, startsAt, endsAt, excludeId = null }) {
+  const res = await db.query(`
+    SELECT id, price, starts_at, ends_at
+    FROM flash_sales
+    WHERE product_id = $1
+      AND active = TRUE
+      AND ($4::INT IS NULL OR id <> $4)
+      -- Hai khoảng [s,e) giao nhau khi mỗi khoảng bắt đầu trước khi khoảng kia kết thúc.
+      -- ends_at NULL nghĩa là không giới hạn -> coi như vô cực.
+      AND starts_at < COALESCE($3::TIMESTAMPTZ, 'infinity')
+      AND $2::TIMESTAMPTZ < COALESCE(ends_at, 'infinity')
+    ORDER BY starts_at
+    LIMIT 1
+  `, [productId, startsAt, endsAt, excludeId]);
+
+  if (res.rows.length === 0) return;
+
+  const c = res.rows[0];
+  const until = c.ends_at
+    ? new Date(c.ends_at).toLocaleString('vi-VN')
+    : 'không giới hạn';
+  throw new AppError(
+    `Sản phẩm này đã có chương trình flash sale #${c.id} đang bật ` +
+    `(từ ${new Date(c.starts_at).toLocaleString('vi-VN')} đến ${until}) trùng khung thời gian. ` +
+    `Hãy dừng hoặc tạm ngưng chương trình #${c.id} trước khi tạo chương trình mới.`,
+    409
+  );
+}
+
+/**
+ * Các trường định nghĩa "đơn hàng này đã mua gì, với giá nào". Khi chương trình
+ * đã phát sinh đơn thì khoá lại: sửa giá sale của chương trình sẽ khiến bản ghi
+ * mâu thuẫn với order_items.price đã chốt, không tra ngược được nữa.
+ *
+ * Các trường vận hành (ends_at, stock, active) vẫn cho sửa — vẫn phải dừng,
+ * gia hạn hay nâng số suất được.
+ */
+const PRICING_FIELDS = [
+  ['price', 'price', 'giá sale'],
+  ['originalPrice', 'original_price', 'giá gốc'],
+  ['productId', 'product_id', 'sản phẩm áp dụng'],
+];
+
+async function assertPricingNotLocked(id, data, current) {
+  // Form sửa gửi lên toàn bộ trường mỗi lần lưu, nên phải so GIÁ TRỊ chứ không
+  // chặn theo việc trường có mặt — nếu không mọi lần lưu đều bị từ chối.
+  const changed = PRICING_FIELDS.filter(
+    ([key, column]) => data[key] !== undefined && Number(data[key]) !== Number(current[column])
+  );
+  if (changed.length === 0) return;
+
+  const used = await db.query('SELECT COUNT(*)::INT AS n FROM order_items WHERE flash_sale_id = $1', [id]);
+  if (used.rows[0].n === 0) return;
+
+  throw new AppError(
+    `Không thể đổi ${changed.map(([, , label]) => label).join(', ')}: ` +
+    `đã có ${used.rows[0].n} dòng đơn hàng mua theo chương trình này. ` +
+    `Muốn áp mức giá khác thì dừng chương trình và tạo chương trình mới.`,
+    409
+  );
 }
 
 export async function updateFlashSale(id, data) {
@@ -259,6 +356,24 @@ export async function updateFlashSale(id, data) {
 
   if (fields.length === 0) return { id };
 
+  // Kiểm tra chồng lấn trên trạng thái SAU khi ghép thay đổi: sửa ngày hoặc bật
+  // lại một chương trình cũ cũng có thể đè lên chương trình đang chạy.
+  const currentRes = await db.query('SELECT * FROM flash_sales WHERE id = $1', [id]);
+  if (currentRes.rows.length === 0) throw new AppError('Không tìm thấy flash sale', 404);
+  const current = currentRes.rows[0];
+
+  const merged = {
+    productId: data.productId ?? current.product_id,
+    startsAt: data.startsAt ?? current.starts_at,
+    endsAt: data.endsAt !== undefined ? data.endsAt : current.ends_at,
+    active: data.active !== undefined ? data.active : current.active,
+  };
+  if (merged.active) {
+    await assertNoOverlappingFlashSale({ ...merged, excludeId: id });
+  }
+
+  await assertPricingNotLocked(id, data, current);
+
   const values = fields.map(([key]) => data[key]);
   const assignments = fields.map(([, column], index) => `${column} = $${index + 1}`);
   const result = await db.query(
@@ -266,13 +381,32 @@ export async function updateFlashSale(id, data) {
     [...values, id]
   );
   if (result.rows.length === 0) throw new AppError('Không tìm thấy flash sale', 404);
-  dbCache.deletePattern('products:flash_sales');
+  // Phải xoá cả cache danh sách/chi tiết sản phẩm, không chỉ khoá flash_sales:
+  // từ khi có giá hiệu lực, flash sale quyết định luôn effective_price của
+  // /products và /products/:id.
+  dbCache.deletePattern('products:');
   return result.rows[0];
 }
 
 export async function deleteFlashSale(id) {
+  // Dashboard đã bỏ nút xoá, nhưng endpoint vẫn gọi được. Chặn ở đây để không ai
+  // xoá mất dấu vết khuyến mãi của đơn hàng cũ: order_items.flash_sale_id khai
+  // ON DELETE SET NULL, xoá xong là không tra được vì sao đơn giá thấp hơn giá
+  // niêm yết. Muốn kết thúc chương trình thì đặt ends_at, đừng xoá.
+  const used = await db.query('SELECT COUNT(*)::INT AS n FROM order_items WHERE flash_sale_id = $1', [id]);
+  if (used.rows[0].n > 0) {
+    throw new AppError(
+      `Không thể xoá: đã có ${used.rows[0].n} dòng đơn hàng mua theo chương trình này. ` +
+      `Hãy dừng chương trình (đặt thời gian kết thúc) thay vì xoá.`,
+      409
+    );
+  }
+
   const result = await db.query('DELETE FROM flash_sales WHERE id = $1 RETURNING id', [id]);
   if (result.rows.length === 0) throw new AppError('Không tìm thấy flash sale', 404);
-  dbCache.deletePattern('products:flash_sales');
+  // Phải xoá cả cache danh sách/chi tiết sản phẩm, không chỉ khoá flash_sales:
+  // từ khi có giá hiệu lực, flash sale quyết định luôn effective_price của
+  // /products và /products/:id.
+  dbCache.deletePattern('products:');
   return result.rows[0];
 }

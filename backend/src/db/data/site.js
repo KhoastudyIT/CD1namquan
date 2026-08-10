@@ -1,0 +1,158 @@
+// Nội dung tĩnh của site: menu, banner, thông tin công ty, FAQ, dự án.
+
+
+export const menus = [
+  { id: 1, title: 'Trang chủ', url: '/', sort_order: 1, active: true },
+  { id: 2, title: 'Mua ngay', url: '/products', sort_order: 2, active: true },
+  { id: 3, title: 'Bộ sưu tập', url: '/collections', sort_order: 3, active: true },
+  { id: 4, title: 'Showroom', url: '/showroom', sort_order: 4, active: true },
+  { id: 5, title: 'Tin tức', url: '/news', sort_order: 5, active: true },
+  { id: 6, title: 'Liên hệ', url: '/contact', sort_order: 6, active: true },
+];
+
+export const banners = [
+  {
+    id: 1,
+    title: 'Mỗi không gian một câu chuyện riêng',
+    subtitle: 'Kiến tạo không gian sống tinh tế với những giải pháp nội thất hiện đại, hài hòa giữa thẩm mỹ, công năng và cảm hứng sống.',
+    description: 'Banner chính trang chủ NAM QUAN',
+    img: '/images/banner-home-1.jpg',
+    mobile_img: '/images/banner-home-mobile-1.jpg',
+    link: '/products',
+    button_text: 'Khám phá ngay',
+    button_link: '/products',
+    position: 'home',
+    sort_order: 1,
+    active: true,
+  },
+  {
+    id: 2,
+    title: 'Flash Sale nội thất cao cấp',
+    subtitle: 'Ưu đãi giới hạn cho sofa, bàn trà, giường ngủ và decor.',
+    description: 'Banner flash sale',
+    img: '/images/banner-sale.jpg',
+    mobile_img: '/images/banner-sale-mobile.jpg',
+    link: '/flash-sale',
+    button_text: 'Xem Flash Sale',
+    button_link: '/flash-sale',
+    position: 'sale',
+    sort_order: 1,
+    active: true,
+  },
+  {
+    id: 3,
+    title: 'BST Modern Living',
+    subtitle: 'Tối giản, tinh tế và tiện nghi cho gia đình hiện đại.',
+    description: 'Banner bộ sưu tập',
+    img: '/images/banner-modern.jpg',
+    mobile_img: '/images/banner-modern-mobile.jpg',
+    link: '/collections/modern-living',
+    button_text: 'Xem bộ sưu tập',
+    button_link: '/collections/modern-living',
+    position: 'collection',
+    sort_order: 1,
+    active: true,
+  },
+];
+
+export const companyInfo = [
+  {
+    id: 1,
+    company_name: 'NAM QUAN',
+    slogan: 'Nội thất cao cấp',
+    about: 'NAM QUAN là thương hiệu nội thất cung cấp sản phẩm, giải pháp thiết kế và thi công cho nhà ở, văn phòng và không gian thương mại.',
+    mission: 'Mang đến sản phẩm nội thất chất lượng, thẩm mỹ và phù hợp nhu cầu sử dụng thực tế.',
+    vision: 'Trở thành đơn vị nội thất uy tín, đồng hành cùng khách hàng trong việc kiến tạo không gian sống bền vững.',
+    phone: '0900 000 000',
+    email: 'contact@namquan.vn',
+    address: 'TP. Hồ Chí Minh, Việt Nam',
+    map_url: '',
+    facebook: 'https://facebook.com/namquan',
+    instagram: 'https://instagram.com/namquan',
+    youtube: 'https://youtube.com/@namquan',
+    tiktok: 'https://tiktok.com/@namquan',
+    logo: '/images/logo.png',
+  },
+];
+
+export const faqs = [
+  {
+    id: 1,
+    question: 'NAM QUAN có giao hàng toàn quốc không?',
+    answer: 'Có, NAM QUAN hỗ trợ giao hàng toàn quốc tùy theo sản phẩm và khu vực.',
+    sort_order: 1,
+    active: true,
+  },
+  {
+    id: 2,
+    question: 'Sản phẩm có bảo hành không?',
+    answer: 'Có, thời gian bảo hành tùy từng dòng sản phẩm, thường từ 12 đến 36 tháng.',
+    sort_order: 2,
+    active: true,
+  },
+  {
+    id: 3,
+    question: 'Có nhận thiết kế nội thất trọn gói không?',
+    answer: 'Có, NAM QUAN nhận tư vấn, thiết kế và thi công nội thất trọn gói.',
+    sort_order: 3,
+    active: true,
+  },
+];
+
+export const projects = [
+  {
+    id: 1,
+    title: 'Căn hộ Modern Living Quận 2',
+    slug: 'can-ho-modern-living-quan-2',
+    client_name: 'Khách hàng cá nhân',
+    project_type: 'Căn hộ',
+    location: 'Quận 2, TP.HCM',
+    area: '85m2',
+    year: 2026,
+    img: '/images/project-1.jpg',
+    excerpt: 'Thiết kế nội thất căn hộ theo phong cách hiện đại.',
+    description: 'Dự án sử dụng tone màu trung tính, sofa module, bàn trà mặt đá và hệ tủ lưu trữ âm tường.',
+    status: 'published',
+    featured: true,
+    seo_title: 'Căn hộ Modern Living Quận 2',
+  },
+  {
+    id: 2,
+    title: 'Văn phòng tối giản Quận 7',
+    slug: 'van-phong-toi-gian-quan-7',
+    client_name: 'Doanh nghiệp',
+    project_type: 'Văn phòng',
+    location: 'Quận 7, TP.HCM',
+    area: '180m2',
+    year: 2026,
+    img: '/images/project-2.jpg',
+    excerpt: 'Không gian văn phòng hiện đại, linh hoạt.',
+    description: 'Dự án tập trung vào công năng sử dụng, bàn làm việc gỗ tự nhiên, ghế ergonomic và hệ tủ lưu trữ đồng bộ.',
+    status: 'published',
+    featured: true,
+    seo_title: 'Văn phòng tối giản Quận 7',
+  },
+  {
+    id: 3,
+    title: 'Nhà phố Luxury Bình Thạnh',
+    slug: 'nha-pho-luxury-binh-thanh',
+    client_name: 'Khách hàng cá nhân',
+    project_type: 'Nhà phố',
+    location: 'Bình Thạnh, TP.HCM',
+    area: '240m2',
+    year: 2025,
+    img: '/images/project-3.jpg',
+    excerpt: 'Thiết kế nhà phố sang trọng.',
+    description: 'Không gian phòng khách, phòng ngủ và khu vực sinh hoạt chung được thiết kế đồng bộ theo phong cách luxury.',
+    status: 'published',
+    featured: false,
+    seo_title: 'Nhà phố Luxury Bình Thạnh',
+  },
+];
+
+export const projectImages = [
+  { project_id: 1, img: '/images/project-1-1.jpg', alt_text: 'Phòng khách căn hộ Modern Living', sort_order: 1 },
+  { project_id: 1, img: '/images/project-1-2.jpg', alt_text: 'Khu vực bàn ăn căn hộ Modern Living', sort_order: 2 },
+  { project_id: 2, img: '/images/project-2-1.jpg', alt_text: 'Không gian làm việc văn phòng Quận 7', sort_order: 1 },
+  { project_id: 3, img: '/images/project-3-1.jpg', alt_text: 'Phòng khách nhà phố Luxury', sort_order: 1 },
+];

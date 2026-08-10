@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:3000/api/v1';
+// Trỏ sang instance khác khi cần: API_BASE_URL=http://localhost:3999/api/v1 npm test
+const BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000/api/v1';
 
 async function testEndpoint(name, path, method = 'GET', options = {}) {
   const start = Date.now();

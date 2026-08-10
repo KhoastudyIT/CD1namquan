@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Icon, vnd, Img, telHref } from "./ui.jsx";
+import { Icon, vnd, Img, telHref, priceOf } from "./ui.jsx";
 import { useAppContext, useSettings } from "../context.js";
 import { api } from "../api.js";
 
@@ -46,27 +46,24 @@ function ProductCards({ items, onPick }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="chat-cards">
-      {items.map((p) => (
-        <button key={p.id} className="chat-card" onClick={() => onPick(p)}>
-          <div className="chat-card-img">
-            <Img src={p.img} alt={p.name} label="ảnh" />
-          </div>
-          <div className="chat-card-info">
-            <span className="chat-card-name">{p.name}</span>
-            <span className="chat-card-price">
-              {p.salePrice != null && p.salePrice < p.price ? (
-                <>
-                  <b>{vnd(p.salePrice)} đ</b>
-                  <s>{vnd(p.price)} đ</s>
-                </>
-              ) : (
-                <b>{vnd(p.price)} đ</b>
-              )}
-            </span>
-          </div>
-          <Icon name="arrowR" size={15} />
-        </button>
-      ))}
+      {items.map((p) => {
+        const { price, listPrice, hasDiscount } = priceOf(p);
+        return (
+          <button key={p.id} className="chat-card" onClick={() => onPick(p)}>
+            <div className="chat-card-img">
+              <Img src={p.img} alt={p.name} label="ảnh" />
+            </div>
+            <div className="chat-card-info">
+              <span className="chat-card-name">{p.name}</span>
+              <span className="chat-card-price">
+                <b>{vnd(price)} đ</b>
+                {hasDiscount && <s>{vnd(listPrice)} đ</s>}
+              </span>
+            </div>
+            <Icon name="arrowR" size={15} />
+          </button>
+        );
+      })}
     </div>
   );
 }

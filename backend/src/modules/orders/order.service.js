@@ -1,6 +1,8 @@
 import db from '../../db/index.js';
+import { dbCache } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { createNotification } from '../notifications/notification.service.js';
+import { activeFlashJoin, effectivePriceSQL } from '../../utils/price.js';
 
 const STATUS_TEXT = {
   pending:   'đang chờ xử lý',
@@ -21,6 +23,7 @@ async function itemsByOrder(orderIds) {
       quantity: item.quantity,
       name: item.name,
       price: item.price,
+      listPrice: item.list_price,
       img: item.img,
     });
   }
@@ -88,12 +91,18 @@ export async function updateOrderStatus(orderId, status) {
   }
 
   if (status === 'cancelled' && order.status !== 'cancelled') {
-    const itemsRes = await db.query('SELECT product_id, quantity FROM order_items WHERE order_id = $1', [orderId]);
+    const itemsRes = await db.query('SELECT product_id, quantity, flash_sale_id FROM order_items WHERE order_id = $1', [orderId]);
     for (const item of itemsRes.rows) {
       if (item.product_id) {
         await db.query('UPDATE products SET stock = stock + $1, sold = GREATEST(0, sold - $1) WHERE id = $2', [item.quantity, item.product_id]);
       }
+      // Trả lại suất flash sale, nếu không đơn huỷ vẫn ăn mất suất của chương trình.
+      if (item.flash_sale_id) {
+        await db.query('UPDATE flash_sales SET sold = GREATEST(0, sold - $1) WHERE id = $2', [item.quantity, item.flash_sale_id]);
+      }
     }
+    // Huỷ đơn hoàn kho và hoàn suất flash sale -> số liệu đang cache đã cũ.
+    dbCache.deletePattern('products:');
   }
 
   const updateRes = await db.query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [status, orderId]);
@@ -134,6 +143,7 @@ export async function getOrderById(userId, orderId) {
       quantity: item.quantity,
       name: item.name,
       price: item.price,
+      listPrice: item.list_price,
       img: item.img
     }))
   };
@@ -146,22 +156,53 @@ export async function createOrder(userId, { shippingAddress, note, items }) {
     const enrichedItems = [];
 
     for (const item of items) {
-      const pRes = await db.query('SELECT id, name, price, img, stock FROM products WHERE id = $1', [item.productId]);
+      // Chốt giá hiệu lực tại thời điểm đặt hàng — phải khớp với giá khách vừa
+      // nhìn thấy ở giỏ hàng, không phải giá niêm yết.
+      // FOR UPDATE khoá dòng sản phẩm tới hết transaction: hai khách bấm đặt cùng
+      // lúc sẽ xếp hàng, không cùng đọc được số suất flash còn lại rồi cùng mua.
+      const pRes = await db.query(`
+        SELECT p.id, p.name, p.img, p.stock,
+               p.price AS list_price,
+               ${effectivePriceSQL('p')} AS price,
+               active_flash.id AS flash_id,
+               active_flash.remaining AS flash_remaining
+        FROM products p${activeFlashJoin('p')}
+        WHERE p.id = $1
+        FOR UPDATE OF p
+      `, [item.productId]);
       if (pRes.rows.length === 0) throw new AppError(`Không tìm thấy sản phẩm #${item.productId}`, 404);
       const product = pRes.rows[0];
-      
+
       if (product.stock < item.quantity) throw new AppError(`Sản phẩm "${product.name}" không đủ hàng`, 400);
-      
-      total += product.price * item.quantity;
+
+      // Mỗi dòng đơn hàng chỉ mang được một đơn giá, nên không thể vừa bán giá
+      // flash cho phần trong suất vừa bán giá thường cho phần vượt. Chặn sớm và
+      // nói rõ còn bao nhiêu suất, thay vì âm thầm tính giá khác giá đã hiển thị.
+      if (product.flash_id && item.quantity > product.flash_remaining) {
+        throw new AppError(
+          `Sản phẩm "${product.name}" chỉ còn ${product.flash_remaining} suất giá flash sale, bạn đang đặt ${item.quantity}.`,
+          400
+        );
+      }
+
+      const unitPrice = Number(product.price);
+      total += unitPrice * item.quantity;
       enrichedItems.push({
         productId: product.id,
         quantity: item.quantity,
         name: product.name,
-        price: product.price,
-        img: product.img
+        price: unitPrice,
+        listPrice: Number(product.list_price),
+        img: product.img,
+        flashId: product.flash_id ?? null
       });
 
       await db.query('UPDATE products SET stock = stock - $1, sold = sold + $1 WHERE id = $2', [item.quantity, product.id]);
+
+      // Trừ suất flash sale đã dùng, nếu không chương trình sẽ chạy vô thời hạn.
+      if (product.flash_id) {
+        await db.query('UPDATE flash_sales SET sold = sold + $1 WHERE id = $2', [item.quantity, product.flash_id]);
+      }
     }
 
     const orderRes = await db.query(
@@ -173,8 +214,8 @@ export async function createOrder(userId, { shippingAddress, note, items }) {
 
     for (const item of enrichedItems) {
       await db.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, name, price, img) VALUES ($1, $2, $3, $4, $5, $6)',
-        [orderId, item.productId, item.quantity, item.name, item.price, item.img]
+        'INSERT INTO order_items (order_id, product_id, quantity, name, price, list_price, img, flash_sale_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [orderId, item.productId, item.quantity, item.name, item.price, item.listPrice, item.img, item.flashId]
       );
     }
 
@@ -182,6 +223,11 @@ export async function createOrder(userId, { shippingAddress, note, items }) {
     await db.query('DELETE FROM cart_items WHERE cart_id = (SELECT id FROM carts WHERE user_id = $1 LIMIT 1)', [userId]);
 
     await db.query('COMMIT');
+
+    // Đơn hàng vừa đổi stock, sold và số suất flash sale. Không xoá cache thì
+    // danh sách sản phẩm và flash sale còn phục vụ số liệu cũ tới 5 phút — kể cả
+    // giá hiệu lực, tức là lại quảng cáo giá flash cho chương trình đã hết suất.
+    dbCache.deletePattern('products:');
 
     await createNotification(userId, {
       type: 'order',

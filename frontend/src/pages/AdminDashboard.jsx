@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Img, Icon, toast, confirm, normalizeMapEmbed, isMapEmbed } from "../components/ui.jsx";
+import { vnd, Img, Icon, toast, confirm, discountPct, flashStatus, FLASH_STATUS_STYLE, orderTotals, normalizeMapEmbed, isMapEmbed } from "../components/ui.jsx";
 import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
 import { AdminChat } from "../components/AdminChat.jsx";
@@ -44,6 +44,19 @@ const STATUS_COLORS = {
   delivered: "var(--green)",
   cancelled: "#ef4444",
 };
+
+// ── Flash sale ─────────────────────────────────────────────────────────
+// `tone` khớp với flashStatus() trong ui.jsx; "all" là mục xem tất cả.
+// Thứ tự ở đây cũng là thứ tự ưu tiên sắp xếp trong bảng.
+const FLASH_FILTERS = [
+  { tone: "live", label: "Đang chạy" },
+  { tone: "pending", label: "Chưa bắt đầu" },
+  { tone: "soldout", label: "Hết suất" },
+  { tone: "off", label: "Tạm ngưng" },
+  { tone: "expired", label: "Đã kết thúc" },
+  { tone: "all", label: "Tất cả" },
+];
+const FLASH_TONE_ORDER = FLASH_FILTERS.map(f => f.tone);
 
 // ── Tin tức ────────────────────────────────────────────────────────────
 const NEWS_STATUS_META = {
@@ -136,6 +149,10 @@ export function AdminDashboard() {
   // ── Flash Sales tab ────────────────────────────────────────────────
   const [flashSales, setFlashSales] = useState([]);
   const [flashSalesLoading, setFlashSalesLoading] = useState(false);
+  // Chương trình đã kết thúc được giữ lại vĩnh viễn để đơn hàng cũ còn tra được
+  // (order_items.flash_sale_id), nên bảng sẽ dài dần — lọc theo trạng thái thay
+  // vì xoá dữ liệu. Mặc định xem "Đang chạy" cho gọn.
+  const [flashFilter, setFlashFilter] = useState("live");
   const [showAddFlashModal, setShowAddFlashModal] = useState(false);
   const [showEditFlashModal, setShowEditFlashModal] = useState(false);
   const [selectedFlash, setSelectedFlash] = useState(null);
@@ -624,11 +641,14 @@ export function AdminDashboard() {
 
   const handleOpenEditFlash = (fs) => {
     setSelectedFlash(fs);
-    const discount = fs.original_price > 0 ? Math.round((1 - Number(fs.price) / Number(fs.original_price)) * 100) : 0;
+    // Neo vào giá niêm yết hiện tại: nếu admin đã sửa giá sản phẩm sau khi tạo
+    // chương trình thì form phải hiện mức giảm thật, không phải mức giảm cũ.
+    const listPrice = fs.product_price ?? fs.original_price;
+    const discount = discountPct(listPrice, fs.price);
     setFlashFormData({
       productId: String(fs.product_id),
       price: String(fs.price),
-      originalPrice: String(fs.original_price),
+      originalPrice: String(listPrice),
       discountPct: String(discount),
       stock: String(fs.stock),
       sold: String(fs.sold),
@@ -693,6 +713,9 @@ export function AdminDashboard() {
       });
       toast("Đã thêm chương trình Flash Sale");
       setShowAddFlashModal(false);
+      // Bộ lọc mặc định chỉ hiện "Đang chạy"; chương trình hẹn giờ cho tương lai
+      // sẽ nằm ngoài đó, nên chuyển về "Tất cả" để admin thấy cái vừa tạo.
+      setFlashFilter("all");
       fetchFlashSales();
     } catch (err) {
       toast("Lỗi tạo Flash Sale: " + err.message);
@@ -721,15 +744,16 @@ export function AdminDashboard() {
     }
   };
 
-  const handleDeleteFlash = async (id) => {
-    if (await confirm("Bạn có chắc chắn muốn xóa chương trình Flash Sale này không?")) {
-      try {
-        await api.deleteFlashSale(id);
-        toast("Đã xóa chương trình Flash Sale");
-        fetchFlashSales();
-      } catch (err) {
-        toast("Lỗi xóa Flash Sale: " + err.message);
-      }
+  // Đóng chương trình bằng cách chốt ends_at = bây giờ, KHÔNG xoá dòng:
+  // order_items.flash_sale_id của các đơn cũ vẫn phải trỏ được về chương trình này.
+  const handleStopFlash = async (fs) => {
+    if (!(await confirm(`Dừng chương trình Flash Sale #${fs.id} cho "${fs.product_name}" ngay bây giờ?`))) return;
+    try {
+      await api.updateFlashSale(fs.id, { endsAt: new Date().toISOString() });
+      toast(`Đã dừng chương trình #${fs.id}`);
+      fetchFlashSales();
+    } catch (err) {
+      toast("Lỗi dừng Flash Sale: " + err.message);
     }
   };
 
@@ -744,6 +768,18 @@ export function AdminDashboard() {
     { value: "delivered", label: "Đã giao (Hoàn thành)", rank: 4 },
     { value: "cancelled", label: "Hủy đơn hàng", rank: 99 }
   ];
+
+  // Lọc theo trạng thái, rồi xếp chương trình đang chạy lên đầu và đã kết thúc
+  // xuống cuối; trong cùng nhóm thì mới nhất trước.
+  const visibleFlashSales = flashSales
+    .filter(fs => flashFilter === "all" || flashStatus(fs).tone === flashFilter)
+    .sort((a, b) => {
+      const d = FLASH_TONE_ORDER.indexOf(flashStatus(a).tone) - FLASH_TONE_ORDER.indexOf(flashStatus(b).tone);
+      return d !== 0 ? d : b.id - a.id;
+    });
+
+  // Đã có đơn mua theo chương trình -> khoá các trường định giá.
+  const pricingLocked = Number(selectedFlash?.order_item_count ?? 0) > 0;
 
   const getAvailableNextStatuses = (currentStatus) => {
     const currentRank = STATUS_RANKS[currentStatus] || 1;
@@ -1592,37 +1628,75 @@ export function AdminDashboard() {
               <button className="btn-pill" onClick={handleOpenAddFlash}>🔥 Thêm Flash Sale</button>
             </div>
 
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                {FLASH_FILTERS.map(f => {
+                  const count = f.tone === "all"
+                    ? flashSales.length
+                    : flashSales.filter(fs => flashStatus(fs).tone === f.tone).length;
+                  const on = flashFilter === f.tone;
+                  return (
+                    <button
+                      key={f.tone}
+                      className="admin-btn-sm"
+                      onClick={() => setFlashFilter(f.tone)}
+                      style={{
+                        fontWeight: 700,
+                        border: on ? "1px solid var(--green)" : "1px solid var(--line)",
+                        background: on ? "var(--mint)" : "#fff",
+                        color: on ? "var(--green-ink)" : "var(--muted)",
+                      }}
+                    >
+                      {f.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {flashSalesLoading ? (
               <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
             ) : (
               <div className="admin-table-wrap">
-                <table className="admin-table">
+                <table className="admin-table compact">
                   <thead>
                     <tr>
+                      <th>Mã</th>
                       <th>Ảnh</th>
-                      <th>Sản phẩm</th>
+                      <th className="col-grow">Sản phẩm</th>
                       <th>Giá gốc</th>
                       <th>Giá sale</th>
-                      <th>Giảm giá</th>
-                      <th>Kho sale</th>
+                      <th>Giảm</th>
+                      <th>Kho</th>
                       <th>Đã bán</th>
-                      <th>Thời gian sale</th>
+                      <th>Thời gian</th>
                       <th>Trạng thái</th>
-                      <th style={{ width: 140 }}>Hành động</th>
+                      <th>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {flashSales.map(fs => {
-                      const discount = fs.original_price > 0 ? Math.round((1 - fs.price / fs.original_price) * 100) : 0;
-                      const startStr = fs.starts_at ? new Date(fs.starts_at).toLocaleString("vi-VN", { dateStyle: 'short', timeStyle: 'short' }) : "N/A";
-                      const endStr = fs.ends_at ? new Date(fs.ends_at).toLocaleString("vi-VN", { dateStyle: 'short', timeStyle: 'short' }) : "Không giới hạn";
+                    {visibleFlashSales.map(fs => {
+                      // Tính trên giá niêm yết hiện tại, cùng cơ sở với trang public.
+                      const listPrice = fs.product_price ?? fs.original_price;
+                      const discount = discountPct(listPrice, fs.price);
+                      const remaining = Math.max(0, Number(fs.stock) - Number(fs.sold));
+                      const status = flashStatus(fs);
+                      // Dạng ngắn "10/08/26 22:05" thay cho "22:05 10/8/2026" —
+                      // cột thời gian là cột rộng nhất bảng nếu để mặc định.
+                      const fmt = (v) => new Date(v).toLocaleString("vi-VN", {
+                        day: "2-digit", month: "2-digit", year: "2-digit",
+                        hour: "2-digit", minute: "2-digit",
+                      }).replace(",", "");
+                      const startStr = fs.starts_at ? fmt(fs.starts_at) : "—";
+                      const endStr = fs.ends_at ? fmt(fs.ends_at) : "Không giới hạn";
                       return (
                         <tr key={fs.id}>
+                          <td style={{ fontWeight: 700, fontSize: 12, color: "var(--green-ink)" }}>#{fs.id}</td>
                           <td>
                             <img src={fs.product_img || "/images/placeholder.jpg"} alt={fs.product_name} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line)' }} />
                           </td>
-                          <td style={{ fontWeight: 600 }}>{fs.product_name}</td>
-                          <td style={{ color: "var(--muted)", textDecoration: "line-through" }}>{vnd(fs.original_price)} đ</td>
+                          <td className="col-grow" style={{ fontWeight: 600 }}>{fs.product_name}</td>
+                          <td style={{ color: "var(--muted)", textDecoration: "line-through" }}>{vnd(listPrice)} đ</td>
                           <td style={{ color: "var(--red)", fontWeight: 700 }}>{vnd(fs.price)} đ</td>
                           <td>
                             <span style={{ background: "#fee2e2", color: "#ef4444", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
@@ -1630,32 +1704,59 @@ export function AdminDashboard() {
                             </span>
                           </td>
                           <td>{fs.stock}</td>
-                          <td>{fs.sold}</td>
-                          <td style={{ fontSize: 12, color: "var(--muted)" }}>
-                            <div>Bắt đầu: {startStr}</div>
-                            <div>Kết thúc: {endStr}</div>
+                          <td>
+                            {fs.sold}
+                            <span style={{ color: remaining === 0 ? "#c2410c" : "var(--muted)", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
+                              (còn {remaining})
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flash-period">
+                              {/* "Bắt đầu" ngắn hơn "Kết thúc" 1 ký tự — chèn
+                                  1 khoảng trắng cứng trước dấu ":" để hai dấu
+                                  ":" thẳng hàng mà lề trái vẫn phẳng. */}
+                              <div><span className="flash-period-label">Bắt đầu&nbsp;:</span> {startStr}</div>
+                              <div><span className="flash-period-label">Kết thúc:</span> {endStr}</div>
+                            </div>
                           </td>
                           <td>
                             <span style={{
                               display: "inline-block", padding: "3px 10px", borderRadius: 999,
-                              fontSize: 12, fontWeight: 700,
-                              background: fs.active ? "#dcfce7" : "#fee2e2",
-                              color: fs.active ? "var(--green-ink)" : "#ef4444",
+                              fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
+                              ...FLASH_STATUS_STYLE[status.tone],
                             }}>
-                              {fs.active ? "✅ Hoạt động" : "❌ Tạm ngưng"}
+                              {status.label}
                             </span>
                           </td>
                           <td>
-                            <div className="admin-actions">
-                              <button className="admin-btn-sm edit" onClick={() => handleOpenEditFlash(fs)}>Sửa</button>
-                              <button className="admin-btn-sm delete" onClick={() => handleDeleteFlash(fs.id)}>Xóa</button>
-                            </div>
+                            {/* Không có nút xoá: xoá chương trình sẽ set NULL
+                                order_items.flash_sale_id, làm các đơn đã mua theo
+                                chương trình này mất dấu vết. Dừng, không xoá.
+
+                                Chương trình đã kết thúc thì cũng không cho sửa:
+                                sửa giá của nó làm sai lệch các đơn đã bán theo
+                                chương trình, còn dời ends_at là hồi sinh nó. Muốn
+                                chạy lại thì tạo chương trình mới. */}
+                            {status.tone !== "expired" && (
+                              <div className="admin-actions">
+                                <button className="admin-btn-sm edit" onClick={() => handleOpenEditFlash(fs)}>Sửa</button>
+                                {status.running && (
+                                  <button className="admin-btn-sm" style={{ background: "#ffedd5", color: "#c2410c" }} onClick={() => handleStopFlash(fs)}>
+                                    Dừng ngay
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
                     })}
-                    {flashSales.length === 0 && (
-                      <tr><td colSpan="10" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Chưa cấu hình chương trình Flash Sale nào</td></tr>
+                    {visibleFlashSales.length === 0 && (
+                      <tr><td colSpan="11" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
+                        {flashSales.length === 0
+                          ? "Chưa cấu hình chương trình Flash Sale nào"
+                          : "Không có chương trình nào ở trạng thái này"}
+                      </td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1977,7 +2078,7 @@ export function AdminDashboard() {
       {/* ===== MODAL: ORDER DETAILS ===== */}
       {showOrderModal && selectedOrder && (
         <div className="admin-modal-backdrop" onClick={() => setShowOrderModal(false)}>
-          <div className="admin-modal-panel" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
+          <div className="admin-modal-panel" style={{ maxWidth: 920, width: "94%" }} onClick={e => e.stopPropagation()}>
             <button className="admin-modal-close" onClick={() => setShowOrderModal(false)}><Icon name="close" size={14} /></button>
             <h3 className="admin-modal-title">Chi tiết đơn hàng #{selectedOrder.id.split('-')[0].toUpperCase()}</h3>
 
@@ -2002,15 +2103,44 @@ export function AdminDashboard() {
                   {selectedOrder.items.map((item, idx) => (
                     <tr key={idx}>
                       <td><Img src={item.img} alt={item.name} className="admin-img-thumb" style={{ width: 36, height: 36 }} /></td>
-                      <td style={{ fontWeight: 600 }}>{item.name}</td>
-                      <td>{vnd(item.price)} đ</td>
+                      <td style={{ fontWeight: 600, width: "100%" }}>{item.name}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {vnd(item.price)} đ
+                        {item.listPrice > item.price && (
+                          <s style={{ color: "var(--muted)", marginLeft: 6, fontWeight: 500 }}>{vnd(item.listPrice)} đ</s>
+                        )}
+                      </td>
                       <td style={{ textAlign: "center", fontWeight: 700 }}>{item.quantity}</td>
-                      <td style={{ textAlign: "right", fontWeight: 700, color: "var(--green-ink)" }}>{vnd(item.price * item.quantity)} đ</td>
+                      <td style={{ textAlign: "right", fontWeight: 700, color: "var(--green-ink)", whiteSpace: "nowrap" }}>{vnd(item.price * item.quantity)} đ</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {/* Bảng bóc tách: giá gốc -> số đã giảm -> số phải trả. Dòng giảm
+                chỉ hiện khi đơn thực sự có khuyến mãi. */}
+            {(() => {
+              const t = orderTotals(selectedOrder.items);
+              return (
+                <div style={{ marginTop: 16, marginLeft: "auto", maxWidth: 320, fontSize: 13.5 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ color: "var(--muted)" }}>Tạm tính{t.hasDiscount ? " (giá gốc)" : ""}</span>
+                    <span>{vnd(t.subtotal)} đ</span>
+                  </div>
+                  {t.hasDiscount && (
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ color: "var(--muted)" }}>Giảm giá</span>
+                      <span style={{ color: "#e6457a", fontWeight: 600 }}>−{vnd(t.discount)} đ</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed var(--line)", paddingTop: 8 }}>
+                    <b>Tổng thanh toán</b>
+                    <b style={{ color: "var(--green-ink)", fontSize: 15 }}>{vnd(t.payable)} đ</b>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="admin-form-actions">
               <button className="btn-pill" onClick={() => setShowOrderModal(false)}>Đóng chi tiết</button>
@@ -2350,7 +2480,7 @@ export function AdminDashboard() {
       {/* ===== MODAL: ADD FLASH SALE ===== */}
       {showAddFlashModal && (
         <div className="admin-modal-backdrop" onClick={() => setShowAddFlashModal(false)}>
-          <div className="admin-modal-panel" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+          <div className="admin-modal-panel" style={{ maxWidth: 720, width: "94%" }} onClick={e => e.stopPropagation()}>
             <button className="admin-modal-close" onClick={() => setShowAddFlashModal(false)}><Icon name="close" size={14} /></button>
             <h3 className="admin-modal-title">Thêm sản phẩm Flash Sale</h3>
             <form onSubmit={handleCreateFlash}>
@@ -2407,9 +2537,11 @@ export function AdminDashboard() {
       )}
 
       {/* ===== MODAL: EDIT FLASH SALE ===== */}
+      {/* Chương trình đã phát sinh đơn thì khoá phần giá — backend cũng chặn
+          (assertPricingNotLocked), đây chỉ là lớp báo trước cho admin. */}
       {showEditFlashModal && (
         <div className="admin-modal-backdrop" onClick={() => setShowEditFlashModal(false)}>
-          <div className="admin-modal-panel" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+          <div className="admin-modal-panel" style={{ maxWidth: 720, width: "94%" }} onClick={e => e.stopPropagation()}>
             <button className="admin-modal-close" onClick={() => setShowEditFlashModal(false)}><Icon name="close" size={14} /></button>
             <h3 className="admin-modal-title">Cấu hình Flash Sale</h3>
             <form onSubmit={handleUpdateFlash}>
@@ -2428,19 +2560,29 @@ export function AdminDashboard() {
                 </div>
                 <div className="admin-form-group">
                   <label>Giảm giá (%) *</label>
-                  <input type="number" min="0" max="100" className="admin-input" required value={flashFormData.discountPct} onChange={e => handleFlashDiscountChange(e.target.value)} />
+                  <input type="number" min="0" max="100" className="admin-input" required disabled={pricingLocked} value={flashFormData.discountPct} onChange={e => handleFlashDiscountChange(e.target.value)} />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div className="admin-form-group">
                   <label>Giá bán Flash Sale *</label>
-                  <input type="number" min="1" className="admin-input" required value={flashFormData.price} onChange={e => handleFlashPriceChange(e.target.value)} />
+                  <input type="number" min="1" className="admin-input" required disabled={pricingLocked} value={flashFormData.price} onChange={e => handleFlashPriceChange(e.target.value)} />
                 </div>
                 <div className="admin-form-group">
                   <label>Số lượng kho sale *</label>
                   <input type="number" min="1" className="admin-input" required value={flashFormData.stock} onChange={e => setFlashFormData({ ...flashFormData, stock: e.target.value })} />
                 </div>
               </div>
+              {pricingLocked && (
+                <p style={{
+                  margin: "0 0 16px", padding: "10px 12px", borderRadius: 8,
+                  background: "#fff7ed", color: "#9a3412", fontSize: 12.5, lineHeight: 1.55,
+                }}>
+                  Đã có {selectedFlash.order_item_count} dòng đơn hàng mua theo chương trình này nên phần giá bị khoá —
+                  sửa giá sẽ khiến các đơn đã bán không còn khớp với chương trình.
+                  Vẫn đổi được thời gian, số suất và trạng thái. Muốn áp mức giá khác, hãy dừng chương trình này rồi tạo chương trình mới.
+                </p>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div className="admin-form-group">
                   <label>Thời gian bắt đầu *</label>
