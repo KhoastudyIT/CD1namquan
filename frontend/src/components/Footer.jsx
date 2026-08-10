@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
-import { telHref, isMapEmbed, mapSearchHref } from "./ui.jsx";
+import { telHref, isMapEmbed, mapSearchHref, SocialIcon } from "./ui.jsx";
 import { Logo } from "./Logo.jsx";
 import { useSettings } from "../context.js";
 
 const SOCIALS = [
-  { key: "facebook", label: "f", title: "Facebook", color: "#1877f2" },
-  { key: "instagram", label: "IG", title: "Instagram", color: "#e1306c" },
-  { key: "youtube", label: "YT", title: "YouTube", color: "#ff0000" },
-  { key: "tiktok", label: "TT", title: "TikTok", color: "#111" },
+  { key: "facebook", title: "Facebook", color: "#1877f2" },
+  { key: "instagram", title: "Instagram", color: "radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285AEB 90%)" },
+  { key: "youtube", title: "YouTube", color: "#ff0000" },
+  { key: "tiktok", title: "TikTok", color: "#111" },
 ];
 
 export function Footer() {
@@ -102,7 +102,7 @@ export function Footer() {
                   aria-label={s.title}
                   style={{ background: s.color }}
                 >
-                  {s.label}
+                  <SocialIcon name={s.key} />
                 </a>
               ))}
             </div>

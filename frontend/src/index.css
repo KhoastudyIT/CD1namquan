@@ -1787,14 +1787,13 @@ a.hdr-user:hover .hdr-user-name {
   border-radius: 9px;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 14px;
   color: #fff;
-  transition: .2s;
+  transition: transform .2s, box-shadow .2s;
 }
 
 .soc:hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .18);
 }
 
 /* ---------- RESPONSIVE ---------- */
