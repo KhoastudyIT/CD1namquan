@@ -1576,106 +1576,334 @@ a.hdr-user:hover .hdr-user-name {
   object-fit: contain;
 }
 
-/* ---------- CTA FORM ---------- */
+/* ---------- CTA — ĐĂNG KÝ TƯ VẤN ---------- */
 .cta {
-  background: linear-gradient(105deg, var(--mint-2) 0%, var(--mint) 60%);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  position: relative;
   display: grid;
-  grid-template-columns: .85fr 1.15fr;
-  align-items: center;
-  gap: 20px;
+  grid-template-columns: 1fr 1.15fr;
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--line);
 }
 
-.cta-img {
-  height: 340px;
+/* ----- Cột trái: ảnh + nội dung mời gọi ----- */
+.cta-aside {
   position: relative;
-}
-
-.cta-img .blob {
-  position: absolute;
-  left: 6%;
-  top: 8%;
-  width: 74%;
-  height: 78%;
-  background: #2a8fd6;
-  border-radius: 50% 50% 48% 52%/52% 50% 50% 48%;
-  z-index: 0;
-}
-
-.cta-img .ci {
-  position: absolute;
-  left: 2%;
-  bottom: 0;
-  width: 92%;
-  height: 88%;
-  z-index: 2;
-}
-
-.cta-img .ci .ph-fallback,
-.cta-img .ci img {
-  height: 100%;
-  border-radius: 14px;
-}
-
-.cta-body {
-  padding: 40px 44px 40px 8px;
-}
-
-.cta-body h2 {
-  font-size: 27px;
-  font-weight: 800;
-  color: var(--green-ink);
-  margin: 0 0 10px;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.cta-body p {
-  font-size: 15px;
-  color: var(--ink-2);
-  margin: 0 0 22px;
-  max-width: 440px;
-  line-height: 1.6;
-}
-
-.cta-form {
+  min-height: 560px;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: flex-end;
+  background: var(--green-ink);
 }
 
-.cta-form input {
-  flex: 1;
-  min-width: 150px;
-  height: 48px;
-  border-radius: 11px;
-  border: 1px solid var(--line-2);
-  padding: 0 16px;
+.cta-aside .ph-fallback,
+.cta-aside>img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Lớp phủ tối dần từ dưới lên để chữ trắng luôn đọc được, kể cả khi ảnh sáng. */
+.cta-aside::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11, 40, 24, .12) 0%, rgba(11, 40, 24, .62) 42%, rgba(9, 33, 20, .93) 100%);
+}
+
+.cta-aside-in {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 44px 40px 40px;
+  color: #fff;
+}
+
+.cta-eyebrow {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+  border: 1px solid rgba(255, 255, 255, .28);
+  backdrop-filter: blur(4px);
+  margin-bottom: 16px;
+}
+
+.cta-aside-in h2 {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.22;
+  margin: 0 0 12px;
+}
+
+.cta-aside-in>p {
   font-size: 14.5px;
-  background: #fff;
-  outline: none;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, .82);
+  margin: 0 0 22px;
+  max-width: 420px;
+}
+
+.cta-perks {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: grid;
+  gap: 11px;
+}
+
+.cta-perks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, .92);
+}
+
+.cta-perks svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+}
+
+.cta-hotline {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, .88);
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .26);
+  background: rgba(255, 255, 255, .08);
   transition: .18s;
 }
 
-.cta-form input:focus {
+.cta-hotline:hover {
+  background: rgba(255, 255, 255, .16);
+  border-color: rgba(255, 255, 255, .45);
+}
+
+.cta-hotline b {
+  color: #fff;
+  letter-spacing: .02em;
+}
+
+/* ----- Cột phải: form ----- */
+.cta-panel {
+  padding: 40px 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--mint) 0%, transparent 58%),
+    var(--paper);
+}
+
+.cta-form h3,
+.cta-done h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.cta-form-note {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 22px;
+}
+
+.cta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.cta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cta-field.full {
+  grid-column: 1 / -1;
+}
+
+.cta-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.cta-label i {
+  color: #e6457a;
+  font-style: normal;
+  margin-left: 3px;
+}
+
+.cta-field input,
+.cta-field select,
+.cta-field textarea {
+  width: 100%;
+  border-radius: 11px;
+  border: 1px solid var(--line-2);
+  padding: 0 14px;
+  height: 46px;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s;
+}
+
+.cta-field textarea {
+  height: auto;
+  padding: 12px 14px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 84px;
+}
+
+.cta-field input::placeholder,
+.cta-field textarea::placeholder {
+  color: var(--muted-2);
+}
+
+/* Mũi tên riêng để ô chọn trông giống ô nhập, thay vì widget mặc định của OS. */
+.cta-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236d7b73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  cursor: pointer;
+}
+
+/* Chưa chọn gì thì chữ mờ như placeholder của ô nhập; danh sách xổ ra vẫn đậm. */
+.cta-field select.empty {
+  color: var(--muted-2);
+}
+
+.cta-field select option {
+  color: var(--ink);
+}
+
+.cta-field input:focus,
+.cta-field select:focus,
+.cta-field textarea:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 3px rgba(31, 157, 77, .14);
 }
 
-.cta-form input.err {
+.cta-field.err input,
+.cta-field.err select {
   border-color: #e6457a;
   box-shadow: 0 0 0 3px rgba(230, 69, 122, .12);
 }
 
-.cta-form .btn-pill {
-  height: 48px;
-  background: var(--green-3);
+.cta-err {
+  font-size: 12px;
+  font-style: normal;
+  color: #d43466;
 }
 
-.cta-form .btn-pill:hover {
+.cta-submit {
+  margin-top: 22px;
+  height: 52px;
+  width: 100%;
+  border-radius: 12px;
+  background: var(--green-3);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-shadow: 0 8px 22px rgba(15, 115, 53, .26);
+  transition: .18s;
+}
+
+.cta-submit:hover:not(:disabled) {
   background: var(--green-2);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(15, 115, 53, .3);
+}
+
+.cta-submit:disabled {
+  background: var(--muted-2);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.cta-privacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 14px 0 0;
+}
+
+.cta-privacy svg {
+  flex: none;
+  color: var(--green);
+}
+
+/* ----- Trạng thái đã gửi ----- */
+.cta-done {
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.cta-done-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: var(--mint);
+  color: var(--green-2);
+  margin-bottom: 18px;
+}
+
+.cta-done p {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin: 0 auto 24px;
+  max-width: 380px;
+}
+
+.cta-again {
+  height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: .18s;
+}
+
+.cta-again:hover {
+  border-color: var(--green);
+  color: var(--green-2);
 }
 
 /* ---------- FOOTER ---------- */
@@ -1817,12 +2045,20 @@ a.hdr-user:hover .hdr-user-name {
     grid-template-columns: 1fr;
   }
 
-  .cta-img {
-    height: 240px;
+  .cta-aside {
+    min-height: 340px;
   }
 
-  .cta-body {
-    padding: 8px 28px 36px;
+  .cta-aside-in {
+    padding: 36px 28px 30px;
+  }
+
+  .cta-aside-in h2 {
+    font-size: 27px;
+  }
+
+  .cta-panel {
+    padding: 32px 28px 36px;
   }
 
   .foot-grid,
@@ -1911,6 +2147,14 @@ a.hdr-user:hover .hdr-user-name {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .cta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-aside-in h2 {
+    font-size: 24px;
+  }
 }
 
 @media (max-width:480px) {
@@ -1927,6 +2171,12 @@ a.hdr-user:hover .hdr-user-name {
 
   .pcard-name {
     font-size: 13px;
+  }
+
+  .cta-aside-in,
+  .cta-panel {
+    padding-left: 20px;
+    padding-right: 20px;
   }
 }
 
@@ -3590,6 +3840,98 @@ a.hdr-user:hover .hdr-user-name {
   background: var(--paper-2);
 }
 
+/* ---------- ADMIN — YÊU CẦU TƯ VẤN ---------- */
+.admin-consult-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green-ink);
+}
+
+.admin-consult-phone:hover {
+  text-decoration: underline;
+}
+
+.admin-consult-mail {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.admin-consult-mail:hover {
+  color: var(--green-ink);
+}
+
+/* Chỉ hiện trên mobile — desktop đã có cột riêng cho từng thông tin này. */
+.admin-consult-mobile-meta {
+  display: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.admin-consult-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+.admin-consult-contact-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-consult-contact-btns .btn-pill {
+  padding: 9px 18px;
+  font-size: 13.5px;
+}
+
+.admin-consult-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+}
+
+.admin-consult-k {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-consult-v {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+  margin-top: 3px;
+}
+
+.admin-consult-note {
+  margin: 6px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
 .admin-badge {
   display: inline-flex;
   align-items: center;
@@ -4005,6 +4347,87 @@ a.hdr-user:hover .hdr-user-name {
   .admin-news-table .admin-actions button {
     flex: 1;
     min-width: 84px;
+  }
+
+  /* Bảng tư vấn: cùng cách xử lý như bảng tin tức — mỗi hàng thành một thẻ,
+     cột "Nhu cầu" và "Thời gian" gộp vào .admin-consult-mobile-meta. */
+  .admin-consult-table {
+    min-width: 0;
+  }
+
+  .admin-consult-table thead {
+    display: none;
+  }
+
+  .admin-consult-table,
+  .admin-consult-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-consult-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    align-items: start;
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .admin-consult-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .admin-consult-table tr:hover td {
+    background: none;
+  }
+
+  .admin-consult-table td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+
+  /* khách hàng */
+  .admin-consult-table td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* trạng thái */
+  .admin-consult-table td:nth-child(4) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* hành động */
+  .admin-consult-table td:nth-child(5) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* Nhu cầu và thời gian — đã gộp vào .admin-consult-mobile-meta */
+  .admin-consult-table td:nth-child(2),
+  .admin-consult-table td:nth-child(3) {
+    display: none;
+  }
+
+  .admin-consult-table td[colspan] {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .admin-consult-mobile-meta {
+    display: block;
+  }
+
+  .admin-consult-table .admin-actions button {
+    flex: 1;
+    min-width: 84px;
+  }
+
+  .admin-consult-grid {
+    grid-template-columns: 1fr;
   }
 }
 

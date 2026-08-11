@@ -13,6 +13,7 @@ import { statsPaths } from './stats.js';
 import { notificationPaths } from './notifications.js';
 import { chatPaths } from './chat.js';
 import { settingsPaths } from './settings.js';
+import { consultationPaths } from './consultations.js';
 
 export const paths = {
   ...authPaths,
@@ -28,4 +29,5 @@ export const paths = {
   ...notificationPaths,
   ...chatPaths,
   ...settingsPaths,
+  ...consultationPaths,
 };

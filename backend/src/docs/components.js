@@ -617,6 +617,64 @@ export const components = {
         message: { type: 'string', minLength: 1, maxLength: 2000, example: 'Dạ em chào anh/chị, em là tư vấn viên của NAM QUAN ạ.' },
       },
     },
+    ConsultationRequest: {
+      type: 'object',
+      description: 'Một yêu cầu tư vấn khách để lại ở form "Để lại thông tin" trang chủ.',
+      properties: {
+        id:           { type: 'integer', example: 1 },
+        name:         { type: 'string', example: 'Trần Thị B' },
+        phone:        { type: 'string', description: 'Đã bỏ dấu cách/chấm/gạch khi lưu', example: '0912345678' },
+        email:        { type: 'string', description: 'Có thể là chuỗi rỗng nếu khách không nhập', example: 'b@example.com' },
+        serviceType:  { type: 'string', example: 'Thiết kế nội thất' },
+        propertyType: { type: 'string', example: 'Căn hộ' },
+        area:         { type: 'string', example: '85m2' },
+        budget:       { type: 'string', example: '200 - 300 triệu' },
+        address:      { type: 'string', example: 'Quận 2, TP. Hồ Chí Minh' },
+        message:      { type: 'string', example: 'Cần tư vấn thiết kế căn hộ.' },
+        status:       { type: 'string', enum: ['new', 'contacted', 'quoted', 'closed', 'cancelled'], example: 'new' },
+        createdAt:    { type: 'string', format: 'date-time' },
+        updatedAt:    { type: 'string', format: 'date-time' },
+      },
+    },
+    ConsultationInput: {
+      type: 'object',
+      required: ['name', 'phone'],
+      description: 'Chỉ họ tên và số điện thoại là bắt buộc; các trường còn lại bỏ trống sẽ lưu chuỗi rỗng.',
+      properties: {
+        name:         { type: 'string', minLength: 2, maxLength: 100, example: 'Trần Thị B' },
+        phone:        { type: 'string', description: 'Chấp nhận dấu cách/chấm/gạch, server tự chuẩn hoá. 9-15 chữ số.', example: '0912 345 678' },
+        email:        { type: 'string', maxLength: 255, example: 'b@example.com' },
+        serviceType:  { type: 'string', maxLength: 100, example: 'Thiết kế nội thất' },
+        propertyType: { type: 'string', maxLength: 100, example: 'Căn hộ' },
+        area:         { type: 'string', maxLength: 100, example: '85m2' },
+        budget:       { type: 'string', maxLength: 100, example: '200 - 300 triệu' },
+        address:      { type: 'string', maxLength: 500, example: 'Quận 2, TP. Hồ Chí Minh' },
+        message:      { type: 'string', maxLength: 2000, example: 'Cần tư vấn thiết kế căn hộ.' },
+      },
+    },
+    ConsultationStatusBody: {
+      type: 'object',
+      required: ['status'],
+      properties: {
+        status: { type: 'string', enum: ['new', 'contacted', 'quoted', 'closed', 'cancelled'], example: 'contacted' },
+      },
+    },
+    ConsultationListResponse: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data:    { type: 'array', items: { $ref: '#/components/schemas/ConsultationRequest' } },
+        meta: {
+          type: 'object',
+          properties: {
+            total:      { type: 'integer', example: 1 },
+            page:       { type: 'integer', example: 1 },
+            limit:      { type: 'integer', example: 20 },
+            totalPages: { type: 'integer', example: 1 },
+          },
+        },
+      },
+    },
   },
   responses: {
     Unauthorized: {

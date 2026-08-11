@@ -22,6 +22,7 @@ import { userRouter } from './modules/user/user.routes.js';
 import { statsRouter } from './modules/stats/stats.routes.js';
 import { uploadRouter } from './modules/uploads/upload.routes.js';
 import { settingsRouter } from './modules/settings/settings.routes.js';
+import { consultationRouter } from './modules/consultations/consultation.routes.js';
 
 export function createApp() {
   // Seed tài khoản admin mặc định vào in-memory store
@@ -59,6 +60,7 @@ export function createApp() {
   app.use(`${v1}/stats`, statsRouter);
   app.use(`${v1}/uploads`, uploadRouter);
   app.use(`${v1}/settings`, settingsRouter);
+  app.use(`${v1}/consultations`, consultationRouter);
 
   if (config.openapiEnabled) setupDocs(app);
 

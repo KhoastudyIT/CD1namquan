@@ -168,6 +168,8 @@ export const api = {
   // Nhận cả id lẫn slug
   getNewsById: (idOrSlug) => fetchAPI(`/news/${idOrSlug}`),
   getRelatedNews: (idOrSlug, limit = 3) => fetchAPI(`/news/${idOrSlug}/related?limit=${limit}`),
+  // Yêu cầu tư vấn
+  createConsultation: (data) => fetchAPI('/consultations', { method: 'POST', body: JSON.stringify(data) }),
 
   // Auth
   login: (data) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -257,6 +259,16 @@ export const api = {
 
   // Admin — Thông tin công ty
   updateSettings: (data) => fetchAPI('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Admin — Yêu cầu tư vấn
+  getConsultations: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/consultations${q ? `?${q}` : ''}`, {}, true);
+  },
+  getConsultationStats: () => fetchAPI('/consultations/stats'),
+  updateConsultationStatus: (id, status) =>
+    fetchAPI(`/consultations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  deleteConsultation: (id) => fetchAPI(`/consultations/${id}`, { method: 'DELETE' }),
 
   // Admin — Flash Sales
   getFlashSalesAdmin: () => fetchAPI('/products/flash-sales/admin'),

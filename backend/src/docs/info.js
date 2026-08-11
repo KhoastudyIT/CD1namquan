@@ -34,6 +34,7 @@ tags: [
   { name: 'Cửa hàng - Tin tức',             description: 'Trang Tin tức - danh sách, chi tiết theo id hoặc slug, bài liên quan. Không cần đăng nhập.' },
   { name: 'Cửa hàng - Danh mục & Bộ sưu tập', description: 'Dữ liệu cho bộ lọc danh mục ở trang chủ và trang Cửa hàng. Không cần đăng nhập.' },
   { name: 'Cửa hàng - Thông tin công ty',   description: 'Logo, tên, hotline, địa chỉ, mạng xã hội - dùng cho Header, Footer và menu mobile. Không cần đăng nhập.' },
+  { name: 'Cửa hàng - Yêu cầu tư vấn',      description: 'Form "Để lại thông tin" cuối trang chủ - khách gửi nhu cầu để được tư vấn miễn phí. Không cần đăng nhập.' },
 
   // ── Khu vực tài khoản (/account) ───────────────────────────────────────
   { name: 'Xác thực',                       description: 'Đăng ký · Đăng nhập · Đăng xuất - lấy Bearer token dùng cho mọi mục bên dưới' },
@@ -52,6 +53,7 @@ tags: [
   { name: 'Admin - Đơn hàng',               description: 'Tab Đơn hàng - xem toàn bộ đơn và cập nhật trạng thái' },
   { name: 'Admin - Người dùng',             description: 'Tab Người dùng - danh sách, phân quyền, khoá/mở tài khoản' },
   { name: 'Admin - Tin nhắn',               description: 'Tab Tin nhắn - xem hội thoại, nhân viên tiếp quản trả lời thay bot' },
+  { name: 'Admin - Yêu cầu tư vấn',         description: 'Danh sách khách để lại thông tin ở trang chủ - lọc, tìm, đổi trạng thái xử lý, xoá' },
   { name: 'Admin - Thông tin công ty',      description: 'Tab Thông tin công ty - đổi logo, tên, slogan, hotline, địa chỉ, mạng xã hội; lưu xong khách thấy ngay' },
   { name: 'Admin - Tải ảnh',                description: 'Dùng chung cho mọi form có ảnh - xin URL có chữ ký rồi PUT thẳng lên MinIO' },
 ],

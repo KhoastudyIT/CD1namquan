@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Img, Icon, toast, confirm, discountPct, flashStatus, FLASH_STATUS_STYLE, orderTotals, normalizeMapEmbed, isMapEmbed } from "../components/ui.jsx";
+import { vnd, Img, Icon, toast, confirm, discountPct, flashStatus, FLASH_STATUS_STYLE, orderTotals, normalizeMapEmbed, isMapEmbed, telHref } from "../components/ui.jsx";
 import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
 import { AdminChat } from "../components/AdminChat.jsx";
@@ -58,6 +58,19 @@ const FLASH_FILTERS = [
 ];
 const FLASH_TONE_ORDER = FLASH_FILTERS.map(f => f.tone);
 
+// ── Yêu cầu tư vấn ─────────────────────────────────────────────────────
+// Vòng đời một lead: khách gửi form ở trang chủ (new) → nhân viên gọi
+// (contacted) → gửi báo giá (quoted) → chốt hoặc khách từ chối (closed/cancelled).
+const CONSULT_STATUS_META = {
+  new: { label: "Chưa xử lý", bg: "#fef3c7", color: "#92400e" },
+  contacted: { label: "Đã liên hệ", bg: "#dbeafe", color: "#1e40af" },
+  quoted: { label: "Đã báo giá", bg: "#ede9fe", color: "#5b21b6" },
+  closed: { label: "Đã chốt", bg: "#dcfce7", color: "var(--green-ink)" },
+  cancelled: { label: "Đã hủy", bg: "#fee2e2", color: "#b91c1c" },
+};
+
+const CONSULT_STATUSES = Object.keys(CONSULT_STATUS_META);
+
 // ── Tin tức ────────────────────────────────────────────────────────────
 const NEWS_STATUS_META = {
   published: { label: "Đã đăng", bg: "#dcfce7", color: "var(--green-ink)" },
@@ -86,7 +99,7 @@ export function AdminDashboard() {
   const { user, logout, settings, refreshSettings } = useAppContext();
 
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "chat", "settings"];
+  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "consultations", "chat", "settings"];
   const hashTab = location.hash.replace("#", "");
   const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
 
@@ -145,6 +158,16 @@ export function AdminDashboard() {
 
   // Dùng chung cho mọi modal có ảnh — mỗi lúc chỉ mở được một modal.
   const [imageUploading, setImageUploading] = useState(false);
+
+  // ── Consultations tab (yêu cầu tư vấn từ form trang chủ) ───────────
+  const [consults, setConsults] = useState([]);
+  const [consultsMeta, setConsultsMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
+  const [consultCounts, setConsultCounts] = useState({});
+  const [consultsLoading, setConsultsLoading] = useState(false);
+  const [consultSearch, setConsultSearch] = useState("");
+  const [consultStatus, setConsultStatus] = useState(""); // "" = tất cả
+  const [consultPage, setConsultPage] = useState(1);
+  const [selectedConsult, setSelectedConsult] = useState(null);
 
   // ── Flash Sales tab ────────────────────────────────────────────────
   const [flashSales, setFlashSales] = useState([]);
@@ -300,6 +323,34 @@ export function AdminDashboard() {
     } catch { /* bộ lọc danh mục không có thì tab vẫn dùng được */ }
   };
 
+  const fetchConsults = async (overrides = {}) => {
+    setConsultsLoading(true);
+    try {
+      const params = {
+        page: overrides.page ?? consultPage,
+        limit: consultsMeta.limit,
+        search: overrides.search ?? consultSearch,
+        status: overrides.status ?? consultStatus,
+      };
+      Object.keys(params).forEach(k => { if (params[k] === "" || params[k] == null) delete params[k]; });
+
+      const res = await api.getConsultations(params);
+      setConsults(res.data || []);
+      if (res.meta) setConsultsMeta(res.meta);
+    } catch (err) {
+      toast("Lỗi tải yêu cầu tư vấn: " + err.message);
+    } finally {
+      setConsultsLoading(false);
+    }
+  };
+
+  // Số lượng theo trạng thái — dùng cho badge sidebar và số trên các chip lọc.
+  const fetchConsultCounts = async () => {
+    try {
+      setConsultCounts(await api.getConsultationStats() || {});
+    } catch { /* thiếu số đếm thì tab vẫn dùng được */ }
+  };
+
   const fetchCompanyInfo = async () => {
     try {
       setInfoLoading(true);
@@ -334,7 +385,12 @@ export function AdminDashboard() {
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
   useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "consultations") fetchConsults(); }, [activeTab]);
   useEffect(() => { if (activeTab === "settings") fetchCompanyInfo(); }, [activeTab]);
+
+  // Badge "yêu cầu chưa xử lý" nạp một lần khi mở dashboard để thấy ngay từ tab
+  // Tổng quan; sau đó tự cập nhật lại sau mỗi lần đổi trạng thái hoặc xoá.
+  useEffect(() => { fetchConsultCounts(); }, []);
 
   // Badge chat chạy nền ở mọi tab để admin thấy khách nhắn dù đang ở trang khác.
   useEffect(() => {
@@ -618,6 +674,36 @@ export function AdminDashboard() {
     }
   };
 
+  // ─────────────── CONSULTATION HANDLERS ────────────────────────────
+  // Đổi trạng thái ngay trên bảng: cập nhật tại chỗ để khỏi nạp lại cả danh
+  // sách, nhưng vẫn xin lại số đếm vì các chip lọc hiển thị theo trạng thái.
+  const handleConsultStatus = async (c, status) => {
+    if (c.status === status) return;
+    try {
+      const res = await api.updateConsultationStatus(c.id, status);
+      setConsults(list => list.map(item => (item.id === c.id ? res : item)));
+      setSelectedConsult(prev => (prev?.id === c.id ? res : prev));
+      toast(`Đã chuyển "${c.name}" sang: ${CONSULT_STATUS_META[status].label}`);
+      fetchConsultCounts();
+      // Đang lọc theo một trạng thái khác thì bản ghi không còn thuộc bộ lọc nữa.
+      if (consultStatus && consultStatus !== status) fetchConsults();
+    } catch (err) { toast("Lỗi đổi trạng thái: " + err.message); }
+  };
+
+  const handleDeleteConsult = async (c) => {
+    if (await confirm(`Xóa yêu cầu tư vấn của "${c.name}" (${c.phone})?`)) {
+      try {
+        await api.deleteConsultation(c.id);
+        toast("Đã xóa yêu cầu tư vấn!");
+        setSelectedConsult(prev => (prev?.id === c.id ? null : prev));
+        const page = consults.length === 1 && consultPage > 1 ? consultPage - 1 : consultPage;
+        setConsultPage(page);
+        fetchConsults({ page });
+        fetchConsultCounts();
+      } catch (err) { toast("Lỗi xóa yêu cầu: " + err.message); }
+    }
+  };
+
   // ─────────────── FLASH SALE HANDLERS ──────────────────────────────
   const handleOpenAddFlash = () => {
     if (products.length === 0) {
@@ -872,6 +958,7 @@ export function AdminDashboard() {
     { key: "flash_sales", icon: "fire", label: `Flash Sale (${flashSales.length})` },
     { key: "orders", icon: "truck", label: `Đơn hàng (${totalOrders})` },
     { key: "users", icon: "user", label: "Người dùng" },
+    { key: "consultations", icon: "phone", label: consultCounts.new > 0 ? `Tư vấn (${consultCounts.new})` : "Tư vấn" },
     { key: "chat", icon: "chat", label: chatUnread > 0 ? `Chat (${chatUnread})` : "Chat" },
     { key: "settings", icon: "gear", label: "Thông tin công ty" },
   ];
@@ -1765,10 +1852,172 @@ export function AdminDashboard() {
           </div>
         )}
 
-        {/* ===== TAB 9: CHAT ===== */}
+        {/* ===== TAB 9: YÊU CẦU TƯ VẤN ===== */}
+        {activeTab === "consultations" && (
+          <div>
+            <div className="admin-sec-header">
+              <h2>Yêu cầu tư vấn</h2>
+              <div className="admin-sec-actions">
+                <button
+                  className="btn-pill ghost"
+                  onClick={() => { fetchConsults(); fetchConsultCounts(); }}
+                  disabled={consultsLoading}
+                  title="Kiểm tra yêu cầu khách vừa gửi"
+                >
+                  <Icon name="refresh" size={15} />
+                  {consultsLoading ? "Đang tải…" : "Làm mới"}
+                </button>
+              </div>
+            </div>
+
+            <p style={{ margin: "-6px 0 16px", fontSize: 13.5, color: "var(--muted)" }}>
+              Khách để lại thông tin ở form “Đăng ký tư vấn” cuối trang chủ. Gọi cho khách,
+              rồi cập nhật trạng thái để cả nhóm biết yêu cầu nào đã được xử lý.
+            </p>
+
+            {/* Lọc nhanh theo trạng thái, kèm số lượng */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+              {[{ value: "", label: "Tất cả", count: consultCounts.total },
+              ...CONSULT_STATUSES.map(s => ({ value: s, label: CONSULT_STATUS_META[s].label, count: consultCounts[s] }))
+              ].map(t => (
+                <button
+                  key={t.value || "all"}
+                  onClick={() => { setConsultStatus(t.value); setConsultPage(1); fetchConsults({ status: t.value, page: 1 }); }}
+                  style={{
+                    padding: "7px 16px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    border: `1.5px solid ${consultStatus === t.value ? "var(--green)" : "var(--line)"}`,
+                    background: consultStatus === t.value ? "var(--green)" : "#fff",
+                    color: consultStatus === t.value ? "#fff" : "var(--ink-2)",
+                    transition: ".18s",
+                  }}
+                >
+                  {t.label}{t.count ? ` (${t.count})` : ""}
+                </button>
+              ))}
+            </div>
+
+            {/* Tìm kiếm */}
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên (không cần gõ dấu), số điện thoại hoặc email..."
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: 220 }}
+                  value={consultSearch}
+                  onChange={e => setConsultSearch(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") { setConsultPage(1); fetchConsults({ page: 1, search: e.target.value }); }
+                  }}
+                />
+                <button
+                  className="btn-pill"
+                  style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => { setConsultPage(1); fetchConsults({ page: 1 }); }}
+                >
+                  🔍 Tìm kiếm
+                </button>
+              </div>
+            </div>
+
+            {consultsLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
+            ) : (
+              <>
+                <div className="admin-table-wrap">
+                  <table className="admin-table admin-consult-table">
+                    <thead>
+                      <tr>
+                        <th>Khách hàng</th>
+                        <th style={{ width: 230 }}>Nhu cầu</th>
+                        <th style={{ width: 150 }}>Thời gian gửi</th>
+                        <th style={{ width: 130 }}>Trạng thái</th>
+                        <th style={{ width: 110 }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {consults.map(c => {
+                        const meta = CONSULT_STATUS_META[c.status] || CONSULT_STATUS_META.new;
+                        return (
+                          <tr key={c.id}>
+                            <td>
+                              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.name}</div>
+                              {/* Gọi được ngay từ bảng — thao tác chính của nhân viên tư vấn. */}
+                              <a href={telHref(c.phone)} className="admin-consult-phone">
+                                <Icon name="phone" size={12} />{c.phone}
+                              </a>
+                              {c.email && (
+                                <a href={`mailto:${c.email}`} className="admin-consult-mail">{c.email}</a>
+                              )}
+                              <div className="admin-consult-mobile-meta">
+                                {[c.serviceType, c.propertyType, c.budget].filter(Boolean).join(" · ") || "Chưa nêu nhu cầu"}
+                                {" · "}
+                                {new Date(c.createdAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.serviceType || "—"}</div>
+                              <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 3 }}>
+                                {[c.propertyType, c.area, c.budget].filter(Boolean).join(" · ") || "Chưa nêu chi tiết"}
+                              </div>
+                            </td>
+                            <td style={{ color: "var(--muted)", fontSize: 12.5 }}>
+                              {new Date(c.createdAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td>
+                              {/* Chỉ hiển thị — đổi trạng thái và xoá đều nằm trong modal
+                                  chi tiết, tránh bấm nhầm ngay trên bảng. */}
+                              <span style={{
+                                display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                                fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.color,
+                              }}>
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="admin-actions">
+                                <button className="admin-btn-sm edit" onClick={() => setSelectedConsult(c)}>Chi tiết</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {consults.length === 0 && (
+                        <tr><td colSpan="5" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
+                          {consultSearch || consultStatus
+                            ? "Không tìm thấy yêu cầu nào khớp bộ lọc"
+                            : "Chưa có khách nào để lại thông tin"}
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Phân trang */}
+                {consultsMeta.totalPages > 1 && (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
+                    <button className="page-btn" disabled={consultPage <= 1}
+                      onClick={() => { const p = consultPage - 1; setConsultPage(p); fetchConsults({ page: p }); }}>‹</button>
+                    {Array.from({ length: consultsMeta.totalPages }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={`page-btn ${p === consultPage ? "active" : ""}`}
+                        onClick={() => { setConsultPage(p); fetchConsults({ page: p }); }}>{p}</button>
+                    ))}
+                    <button className="page-btn" disabled={consultPage >= consultsMeta.totalPages}
+                      onClick={() => { const p = consultPage + 1; setConsultPage(p); fetchConsults({ page: p }); }}>›</button>
+                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                      Trang {consultPage} / {consultsMeta.totalPages} ({consultsMeta.total} yêu cầu)
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB 10: CHAT ===== */}
         {activeTab === "chat" && <AdminChat />}
 
-        {/* ===== TAB 10: THÔNG TIN CÔNG TY ===== */}
+        {/* ===== TAB 11: THÔNG TIN CÔNG TY ===== */}
         {activeTab === "settings" && (
           <div>
             <div className="admin-sec-header">
@@ -2608,6 +2857,93 @@ export function AdminDashboard() {
                 <button type="submit" className="btn-pill">Cập nhật</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL: CHI TIẾT YÊU CẦU TƯ VẤN ===== */}
+      {selectedConsult && (
+        <div className="admin-modal-backdrop" onClick={() => setSelectedConsult(null)}>
+          <div className="admin-modal-panel" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setSelectedConsult(null)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title">Yêu cầu tư vấn #{selectedConsult.id}</h3>
+
+            {/* Khối liên hệ đặt trên cùng: việc đầu tiên cần làm là gọi cho khách. */}
+            <div className="admin-consult-contact">
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: "var(--ink)" }}>{selectedConsult.name}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>
+                  Gửi lúc {new Date(selectedConsult.createdAt).toLocaleString("vi-VN")}
+                </div>
+              </div>
+              <div className="admin-consult-contact-btns">
+                <a className="btn-pill" href={telHref(selectedConsult.phone)}>
+                  <Icon name="phone" size={15} /> {selectedConsult.phone}
+                </a>
+                {selectedConsult.email && (
+                  <a className="btn-pill ghost" href={`mailto:${selectedConsult.email}`}>Gửi email</a>
+                )}
+              </div>
+            </div>
+
+            <div className="admin-consult-grid">
+              {[
+                ["Nhu cầu tư vấn", selectedConsult.serviceType],
+                ["Loại công trình", selectedConsult.propertyType],
+                ["Diện tích", selectedConsult.area],
+                ["Ngân sách dự kiến", selectedConsult.budget],
+                ["Khu vực", selectedConsult.address],
+                ["Email", selectedConsult.email],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <span className="admin-consult-k">{label}</span>
+                  <span className="admin-consult-v">{value || "—"}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <span className="admin-consult-k">Ghi chú của khách</span>
+              <p className="admin-consult-note">{selectedConsult.message || "Khách không để lại ghi chú."}</p>
+            </div>
+
+            {/* Đổi trạng thái ngay trong modal — khỏi đóng lại rồi tìm đúng dòng. */}
+            <div style={{ marginTop: 20 }}>
+              <span className="admin-consult-k">Trạng thái xử lý</span>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                {CONSULT_STATUSES.map(s => {
+                  const meta = CONSULT_STATUS_META[s];
+                  const on = selectedConsult.status === s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => handleConsultStatus(selectedConsult, s)}
+                      style={{
+                        padding: "7px 15px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                        border: `1.5px solid ${on ? meta.color : "var(--line)"}`,
+                        background: on ? meta.bg : "#fff",
+                        color: on ? meta.color : "var(--muted)",
+                        transition: ".18s",
+                      }}
+                    >
+                      {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="admin-form-actions" style={{ alignItems: "center" }}>
+              <button
+                type="button"
+                className="admin-btn-sm delete"
+                style={{ marginRight: "auto" }}
+                onClick={() => handleDeleteConsult(selectedConsult)}
+              >
+                Xóa yêu cầu
+              </button>
+              <button type="button" className="btn-pill ghost" onClick={() => setSelectedConsult(null)}>Đóng</button>
+            </div>
           </div>
         </div>
       )}
