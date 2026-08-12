@@ -1,13 +1,12 @@
 // Tài khoản mẫu và sổ địa chỉ.
 
-
 export const users = [
   {
     id: '11111111-1111-1111-1111-111111111111',
     name: 'Admin Nam Quan',
     email: 'admin@namquan.vn',
     phone: '0900000000',
-    password: '$2a$10$L1YPWvKFccX/CnrvNOw6FOIOYlhGvJrbS/GfV6U9Zn7IqrloOt59C',
+    password: '$2a$10$bfBx.cL06GIeXWXLInMCUO7y8pwyzI9lH1GZLzdvOLZmqQkq/kn0i',
     role: 'admin',
     email_verified: true,
   },
@@ -16,7 +15,7 @@ export const users = [
     name: 'Khách hàng Demo',
     email: 'customer@namquan.vn',
     phone: '0911111111',
-    password: '$2a$10$L1YPWvKFccX/CnrvNOw6FOIOYlhGvJrbS/GfV6U9Zn7IqrloOt59C',
+    password: '$2a$10$Dtgk9zfYZvMwo3Ao5yc51etbehlpuQ.kwTK9hIbNVM7h6gJUFrfw.',
     role: 'customer',
     email_verified: true,
   },

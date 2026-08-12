@@ -289,8 +289,8 @@ async function assertNoOverlappingFlashSale({ productId, startsAt, endsAt, exclu
       AND ($4::INT IS NULL OR id <> $4)
       -- Hai khoảng [s,e) giao nhau khi mỗi khoảng bắt đầu trước khi khoảng kia kết thúc.
       -- ends_at NULL nghĩa là không giới hạn -> coi như vô cực.
-      AND starts_at < COALESCE($3::TIMESTAMPTZ, 'infinity')
-      AND $2::TIMESTAMPTZ < COALESCE(ends_at, 'infinity')
+      AND starts_at < COALESCE($3::TIMESTAMPTZ, '2099-12-31T23:59:59Z'::TIMESTAMPTZ)
+      AND $2::TIMESTAMPTZ < COALESCE(ends_at, '2099-12-31T23:59:59Z'::TIMESTAMPTZ)
     ORDER BY starts_at
     LIMIT 1
   `, [productId, startsAt, endsAt, excludeId]);
