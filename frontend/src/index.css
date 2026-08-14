@@ -4166,8 +4166,10 @@ a.hdr-user:hover .hdr-user-name {
 @media(max-width: 1024px) {
 
   .admin-ov-row2,
-  .admin-ov-row3 {
-    grid-template-columns: 1fr;
+  .admin-ov-row3,
+  /* Biểu đồ đường và biểu đồ tròn xếp dọc khi màn hẹp, tránh bóp méo cả hai */
+  .admin-ov-charts {
+    grid-template-columns: 1fr !important;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { vnd, Img, Icon, toast, confirm, discountPct, flashStatus, FLASH_STATUS_STYLE, orderTotals, normalizeMapEmbed, isMapEmbed, telHref } from "../components/ui.jsx";
@@ -8,6 +8,37 @@ import { AdminChat } from "../components/AdminChat.jsx";
 import { useAppContext } from "../context.js";
 import { isAdmin as isAdminRole, ROLE_LABEL, STAFF_HIDDEN_TABS } from "../utils/roles.js";
 
+// ── Trang Tổng quan ────────────────────────────────────────────────────
+/** Mốc thời gian bấm nhanh, số ngày phải khớp period.days của server. */
+const QUICK_RANGES = [
+  { label: "7 ngày", days: 7 },
+  { label: "30 ngày", days: 30 },
+  { label: "90 ngày", days: 90 },
+];
+
+/**
+ * Bề ngang tối đa của thẻ chứa biểu đồ doanh thu — để nó không kéo hết màn hình
+ * trên máy màn rộng. Biểu đồ bên trong tự co theo thẻ, nên chỉ cần đổi số này.
+ */
+const CHART_CARD_MAX_W = 780;
+
+/** Màu cho các cột danh mục, lặp lại khi hết. */
+const CATEGORY_COLORS = ["#15803d", "#2563eb", "#7c3aed", "#ca8a04", "#0891b2", "#dc2626"];
+
+const dmy = (s) => {
+  const [y, m, d] = String(s).split("-");
+  return `${d}/${m}/${y}`;
+};
+
+const ovLabel = { display: "block", fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 };
+const ovEmpty = { color: "var(--muted)", fontSize: 13, textAlign: "center", padding: "18px 0", margin: 0 };
+const ovRank = (i) => ({
+  width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+  display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700,
+  background: i === 0 ? "#fef3c7" : i === 1 ? "#e5e7eb" : i === 2 ? "#fde8d7" : "var(--mint)",
+  color: i === 0 ? "#92400e" : i === 1 ? "#4b5563" : i === 2 ? "#9a3412" : "var(--green-ink)",
+});
+
 // Màu nhãn vai trò trong bảng Người dùng.
 const ROLE_BADGE = {
   admin:    { bg: "#fef3c7", fg: "#92400e", text: "👑 Quản trị viên" },
@@ -16,6 +47,229 @@ const ROLE_BADGE = {
 };
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
+/** Rút gọn tiền cho nhãn trục: 12.500.000 → "12,5tr" */
+function shortVnd(n) {
+  const v = Number(n) || 0;
+  if (v >= 1e9) return `${(v / 1e9).toFixed(v >= 1e10 ? 0 : 1).replace(".", ",")} tỷ`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace(".", ",")}tr`;
+  if (v >= 1e3) return `${Math.round(v / 1e3)}k`;
+  return String(v);
+}
+
+/**
+ * Biểu đồ đường doanh thu theo ngày.
+ *
+ * Vẽ bằng SVG thuần thay vì kéo thêm thư viện biểu đồ: chỉ cần một đường gấp
+ * khúc, vùng tô dưới đường và vài nhãn trục nên không đáng để thêm phụ thuộc.
+ * viewBox cố định còn width="100%" nên hình tự co giãn theo khung chứa.
+ */
+function LineChart({ data, labelKey = "date", valueKey = "revenue", color = "#15803d" }) {
+  // Hệ toạ độ viewBox. Tỉ lệ W:H quyết định biểu đồ dẹt hay cao; bề ngang hiển
+  // thị do thẻ chứa quyết định.
+  const W = 760;
+  const H = 260;
+  // right phải đủ rộng cho nửa bề ngang nhãn ngày cuối (canh giữa), nếu không
+  // chữ tràn khỏi viewBox và bị xén mất chữ số tháng.
+  const PAD = { top: 16, right: 26, bottom: 30, left: 54 };
+  const iw = W - PAD.left - PAD.right;
+  const ih = H - PAD.top - PAD.bottom;
+
+  const svgRef = useRef(null);
+  const [hover, setHover] = useState(null);
+
+  const vals = data.map(d => Number(d[valueKey]) || 0);
+  const rawMax = Math.max(...vals, 1);
+  // Làm tròn trần lên số đẹp để các đường lưới không ra số lẻ.
+  const step = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const max = Math.ceil(rawMax / step) * step;
+
+  const x = (i) => PAD.left + (data.length <= 1 ? iw / 2 : (i / (data.length - 1)) * iw);
+  const y = (v) => PAD.top + ih - (v / max) * ih;
+
+  const pts = data.map((d, i) => [x(i), y(Number(d[valueKey]) || 0)]);
+
+  /**
+   * Nối các điểm bằng đường cong trơn.
+   *
+   * Dùng Catmull-Rom quy đổi sang đường Bézier bậc ba: điểm điều khiển của mỗi
+   * đoạn lấy theo độ dốc giữa điểm trước và điểm sau, nhờ đó đường đi mượt qua
+   * đúng mọi điểm dữ liệu. Toạ độ y của điểm điều khiển bị kẹp trong vùng vẽ để
+   * chỗ dốc mạnh đường không vọt ra ngoài trục.
+   */
+  const clampY = (v) => Math.max(PAD.top, Math.min(PAD.top + ih, v));
+  const TENSION = 0.75;
+  const curve = (() => {
+    if (pts.length === 0) return "";
+    if (pts.length === 1) return `M${pts[0][0]},${pts[0][1]}`;
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] ?? pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] ?? p2;
+      const c1x = p1[0] + ((p2[0] - p0[0]) / 6) * TENSION;
+      const c1y = clampY(p1[1] + ((p2[1] - p0[1]) / 6) * TENSION);
+      const c2x = p2[0] - ((p3[0] - p1[0]) / 6) * TENSION;
+      const c2y = clampY(p2[1] - ((p3[1] - p1[1]) / 6) * TENSION);
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  })();
+
+  const baseY = PAD.top + ih;
+  const areaPath = curve
+    ? `${curve} L${pts[pts.length - 1][0].toFixed(1)},${baseY} L${pts[0][0].toFixed(1)},${baseY} Z`
+    : "";
+
+  // Nhãn trục ngang: tối đa 8 mốc. Đếm NGƯỢC từ ngày cuối để mốc cuối luôn được
+  // ghi mà vẫn cách đều mốc trước — đi xuôi rồi ép thêm ngày cuối sẽ đè chữ.
+  const tickEvery = Math.max(1, Math.ceil(data.length / 8));
+  const ticks = [];
+  for (let i = data.length - 1; i >= 0; i -= tickEvery) ticks.unshift(i);
+  const gridLines = 4;
+
+  const dm = (s) => {
+    const p = String(s).split("-");
+    return p.length === 3 ? `${p[2]}/${p[1]}` : s;
+  };
+
+  /** Đổi toạ độ chuột sang hệ viewBox rồi tìm điểm dữ liệu gần nhất. */
+  const handleMove = (e) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || data.length === 0) return;
+    const vx = ((e.clientX - rect.left) / rect.width) * W;
+    const ratio = (vx - PAD.left) / (iw || 1);
+    const i = Math.round(ratio * (data.length - 1));
+    setHover(Math.max(0, Math.min(data.length - 1, i)));
+  };
+
+  const hp = hover != null ? pts[hover] : null;
+
+  // Hộp thông tin: lật sang trái khi điểm nằm gần mép phải để không bị cắt.
+  const TIP_W = 132;
+  const TIP_H = 40;
+  const tipLeft = hp ? hp[0] + TIP_W + 14 > W : false;
+  const tipX = hp ? (tipLeft ? hp[0] - TIP_W - 12 : hp[0] + 12) : 0;
+  const tipY = hp ? Math.max(PAD.top, Math.min(hp[1] - TIP_H / 2, PAD.top + ih - TIP_H)) : 0;
+
+  return (
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ display: "block", width: "100%", height: "auto" }}
+      onMouseMove={handleMove}
+      onMouseLeave={() => setHover(null)}
+    >
+      <defs>
+        <linearGradient id="lcFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+
+      {/* Lưới ngang và nhãn trục dọc */}
+      {Array.from({ length: gridLines + 1 }, (_, i) => {
+        const v = (max / gridLines) * i;
+        const gy = y(v);
+        return (
+          <g key={i}>
+            <line x1={PAD.left} y1={gy} x2={PAD.left + iw} y2={gy}
+              stroke="var(--line)" strokeWidth="1" strokeDasharray={i === 0 ? "0" : "3 4"} />
+            <text x={PAD.left - 9} y={gy + 3.8} textAnchor="end" fontSize="11.5" fill="var(--muted)">
+              {shortVnd(v)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Vùng tô dưới đường + đường doanh thu dạng cong */}
+      <path d={areaPath} fill="url(#lcFill)" />
+      <path d={curve} fill="none" stroke={color} strokeWidth="2.4"
+        strokeLinejoin="round" strokeLinecap="round" />
+
+      {/* Chấm và thông tin chỉ hiện khi rê chuột */}
+      {hp && (
+        <g pointerEvents="none">
+          <line x1={hp[0]} y1={PAD.top} x2={hp[0]} y2={PAD.top + ih}
+            stroke={color} strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
+          <circle cx={hp[0]} cy={hp[1]} r="5.5" fill="#fff" stroke={color} strokeWidth="2.6" />
+
+          <rect x={tipX} y={tipY} width={TIP_W} height={TIP_H} rx="7"
+            fill="#1d2722" opacity="0.94" />
+          <text x={tipX + 10} y={tipY + 16} fontSize="11.5" fill="#c8d6cd">
+            {dm(data[hover][labelKey])} · {data[hover].orders ?? 0} đơn
+          </text>
+          <text x={tipX + 10} y={tipY + 31} fontSize="13" fontWeight="700" fill="#fff">
+            {(Number(data[hover][valueKey]) || 0).toLocaleString("vi-VN")}đ
+          </text>
+        </g>
+      )}
+
+      {/* Nhãn trục ngang */}
+      {ticks.map(i => (
+        <text key={i} x={x(i)} y={H - 10} textAnchor="middle" fontSize="11.5"
+          fill={hover === i ? "var(--ink)" : "var(--muted)"}
+          fontWeight={hover === i ? 700 : 400}>
+          {dm(data[i][labelKey])}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * Biểu đồ tròn khuyết (donut) cho doanh thu theo danh mục.
+ *
+ * Mỗi phần được vẽ bằng một vòng tròn dùng stroke-dasharray: đoạn nét bằng
+ * chiều dài cung cần tô, phần còn lại để trống, rồi dịch điểm bắt đầu bằng
+ * stroke-dashoffset. Cách này gọn hơn nhiều so với tự tính toạ độ cung tròn
+ * bằng path arc, và các phần luôn khít nhau không hở.
+ */
+function DonutChart({ data, valueKey = "revenue", labelKey = "category", colors, size = 190 }) {
+  const R = 66;                    // bán kính đường tâm của vành
+  const SW = 30;                   // bề dày vành
+  const C = 2 * Math.PI * R;       // chu vi
+  const cx = size / 2;
+  const cy = size / 2;
+
+  const total = data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0);
+  let acc = 0;
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} style={{ display: "block", flexShrink: 0 }}>
+      {/* Vành nền cho trường hợp chưa có dữ liệu */}
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line)" strokeWidth={SW} />
+
+      {total > 0 && data.map((d, i) => {
+        const v = Number(d[valueKey]) || 0;
+        const len = (v / total) * C;
+        const el = (
+          <circle
+            key={i}
+            cx={cx} cy={cy} r={R}
+            fill="none"
+            stroke={colors[i % colors.length]}
+            strokeWidth={SW}
+            strokeDasharray={`${len} ${C - len}`}
+            strokeDashoffset={-acc}
+            transform={`rotate(-90 ${cx} ${cy})`}
+          >
+            <title>{`${d[labelKey]}: ${v.toLocaleString("vi-VN")}đ`}</title>
+          </circle>
+        );
+        acc += len;
+        return el;
+      })}
+
+      {/* Lỗ giữa: tổng doanh thu của kỳ */}
+      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="13" fill="var(--muted)">Tổng</text>
+      <text x={cx} y={cy + 16} textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--ink)">
+        {shortVnd(total)}
+      </text>
+    </svg>
+  );
+}
+
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
   const max = Math.max(...data.map(d => d[valueKey]), 1);
   return (
@@ -271,6 +525,67 @@ export function AdminDashboard() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [printingInvoice, setPrintingInvoice] = useState(false);
+
+  // ── Xuất báo cáo Excel ────────────────────────────────────────────────────
+  // Mặc định 30 ngày gần nhất, trùng với mặc định phía server.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [reportFrom, setReportFrom] = useState(
+    new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10),
+  );
+  const [reportTo, setReportTo] = useState(todayStr);
+  const [exporting, setExporting] = useState(false);
+
+  const handlePrintInvoice = async (orderId) => {
+    setPrintingInvoice(true);
+    try {
+      await api.openInvoice(orderId);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setPrintingInvoice(false);
+    }
+  };
+
+  /** Nạp lại số liệu trang Tổng quan theo khoảng ngày đang chọn. */
+  const fetchOverview = async (range = {}) => {
+    const from = range.from ?? reportFrom;
+    const to = range.to ?? reportTo;
+    if (from > to) { toast("Ngày bắt đầu phải trước ngày kết thúc"); return; }
+    setLoading(true);
+    try {
+      setStats(await api.getStatsOverview({ from, to }));
+    } catch (err) {
+      toast("Lỗi tải thống kê: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Bấm nhanh 7 / 30 / 90 ngày — đặt lại ô ngày rồi nạp luôn. */
+  const applyQuickRange = (days) => {
+    const to = todayStr;
+    const from = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+    setReportFrom(from);
+    setReportTo(to);
+    fetchOverview({ from, to });
+  };
+
+  const handleExportExcel = async () => {
+    if (reportFrom > reportTo) {
+      toast("Ngày bắt đầu phải trước ngày kết thúc");
+      return;
+    }
+    setExporting(true);
+    try {
+      await api.downloadStatsExcel({ from: reportFrom, to: reportTo });
+      toast("Đã tải báo cáo thống kê");
+    } catch (err) {
+      toast("Lỗi xuất báo cáo: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── Product form ──────────────────────────────────────────────────
   const [formData, setFormData] = useState({
@@ -287,7 +602,8 @@ export function AdminDashboard() {
       const ordersData = await api.getAllOrders();
       setOrders(ordersData || []);
 
-      const statsData = await api.getStatsOverview();
+      // Lần nạp đầu dùng đúng khoảng ngày mặc định của trang Tổng quan.
+      const statsData = await api.getStatsOverview({ from: reportFrom, to: reportTo });
       setStats(statsData);
 
       const catsData = await api.getCategories();
@@ -1050,6 +1366,28 @@ export function AdminDashboard() {
   };
 
   // Derived stats (fallback khi chưa load)
+  // ── Dữ liệu trang Tổng quan ─────────────────────────────────────────────
+  // Server trả về cả cấu trúc mới (kpi/totals/todo/...) lẫn các trường phẳng cũ,
+  // nên phần dưới đọc cấu trúc mới còn các tab khác vẫn dùng trường cũ bình thường.
+  const ov = stats ?? {};
+  const kpi = ov.kpi ?? {};
+  const totals = ov.totals ?? {};
+  const revenueByCategory = ov.revenueByCategory ?? [];
+  const topCustomers = ov.topCustomers ?? [];
+  const recentOrders = ov.recentOrders ?? [];
+  const lowStockList = ov.lowStock ?? [];
+
+  // Kỳ dài thì biểu đồ cột sẽ chi chít — chỉ vẽ 30 ngày cuối, số liệu đủ nằm ở Excel.
+  const chartDays = (ov.revenueByDay ?? []).slice(-30);
+
+  const todoItems = [
+    { tab: "orders", label: "Đơn chờ xử lý", icon: "🧾", color: "#2563eb", count: ov.todo?.pendingOrders ?? 0 },
+    { tab: "returns", label: "Trả hàng chờ duyệt", icon: "🔄", color: "#b45309", count: ov.todo?.pendingReturns ?? 0 },
+    { tab: "consultations", label: "Tư vấn mới", icon: "📞", color: "#7c3aed", count: ov.todo?.newConsultations ?? 0 },
+    { tab: "chat", label: "Tin chưa đọc", icon: "💬", color: "#0891b2", count: ov.todo?.unreadChats ?? 0 },
+    { tab: "products", label: "Sắp hết hàng", icon: "⚠️", color: "#dc2626", count: ov.todo?.lowStock ?? 0 },
+  ].filter(t => t.count > 0);
+
   const totalRevenue = stats?.totalRevenue ?? orders.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
   const totalOrders = stats?.totalOrders ?? orders.length;
   const totalProducts = stats?.totalProducts ?? products.length;
@@ -1186,112 +1524,271 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Trang tổng quan cửa hàng</h2>
-              <span style={{ fontSize: 14, color: "var(--muted)" }}>Dữ liệu từ API BE</span>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                Kỳ báo cáo: {ov.period ? `${dmy(ov.period.from)} – ${dmy(ov.period.to)} (${ov.period.days} ngày)` : "—"}
+              </span>
             </div>
 
-            {/* 6 Stat Cards */}
+            {/* ── Chọn kỳ báo cáo · áp cho cả trang lẫn tệp Excel ───────── */}
+            <div className="admin-card" style={{ padding: 16, marginBottom: 18 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <div>
+                  <label style={ovLabel}>Từ ngày</label>
+                  <input type="date" className="admin-input" style={{ width: 160 }}
+                    value={reportFrom} max={reportTo}
+                    onChange={e => setReportFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label style={ovLabel}>Đến ngày</label>
+                  <input type="date" className="admin-input" style={{ width: 160 }}
+                    value={reportTo} min={reportFrom} max={todayStr}
+                    onChange={e => setReportTo(e.target.value)} />
+                </div>
+                <button className="btn-pill" style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => fetchOverview()} disabled={loading}>
+                  {loading ? "Đang tải..." : "Áp dụng"}
+                </button>
+                <button className="btn-pill ghost" style={{ padding: "9px 18px", fontSize: 13 }}
+                  disabled={exporting} onClick={handleExportExcel}>
+                  {exporting ? "Đang tạo tệp..." : "📊 Xuất báo cáo Excel"}
+                </button>
+
+                {/* Mốc thời gian đặt sẵn — bấm một cái là xong, khỏi chọn ngày */}
+                <div style={{ display: "flex", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
+                  {QUICK_RANGES.map(r => (
+                    <button key={r.label} onClick={() => applyQuickRange(r.days)}
+                      style={{
+                        padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                        cursor: "pointer", background: "#fff",
+                        border: `1.5px solid ${ov.period?.days === r.days ? "var(--green)" : "var(--line)"}`,
+                        color: ov.period?.days === r.days ? "var(--green-ink)" : "var(--muted)",
+                      }}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Việc cần xử lý — bấm vào là sang đúng tab ─────────────── */}
+            {todoItems.length > 0 && (
+              <div className="admin-card" style={{ padding: 14, marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>⚡ Cần xử lý</span>
+                  {todoItems.map(t => (
+                    <button key={t.tab} onClick={() => setActiveTab(t.tab)}
+                      title={`Sang tab ${t.label}`}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 7, cursor: "pointer",
+                        padding: "6px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+                        border: `1.5px solid ${t.color}33`, background: `${t.color}14`, color: t.color,
+                      }}>
+                      {t.icon} {t.label}
+                      <span style={{
+                        minWidth: 20, padding: "1px 6px", borderRadius: 999,
+                        background: t.color, color: "#fff", fontSize: 11, fontWeight: 700, textAlign: "center",
+                      }}>{t.count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Chỉ số chính, kèm mức tăng so với kỳ trước ────────────── */}
             <div className="admin-ov-stats">
               {[
-                { icon: "💰", label: "Doanh thu", val: `${vnd(totalRevenue)} đ`, accent: "var(--green)" },
-                { icon: "📦", label: "Tổng đơn hàng", val: totalOrders, accent: "var(--gold)" },
-                { icon: "🛋️", label: "Số sản phẩm", val: totalProducts, accent: "var(--green-ink)" },
-                { icon: "⚠️", label: "Sắp hết hàng", val: lowStockCount, accent: "#ff4d4f", valColor: lowStockCount > 0 ? "#ff4d4f" : undefined },
-                { icon: "👥", label: "Khách hàng", val: totalUsers, accent: "#3b82f6" },
-                { icon: "📈", label: "Giá trị ĐH trung bình", val: `${vnd(avgOrderValue)} đ`, accent: "#8b5cf6" },
-              ].map(({ icon, label, val, accent, valColor }) => (
+                { icon: "💰", label: "Doanh thu trong kỳ", val: `${vnd(kpi.revenue)}đ`, accent: "#16a34a", g: kpi.growth?.revenue },
+                { icon: "🧾", label: "Số đơn trong kỳ", val: kpi.orders ?? 0, accent: "#2563eb", g: kpi.growth?.orders },
+                { icon: "📈", label: "Giá trị đơn TB", val: `${vnd(kpi.avgOrderValue)}đ`, accent: "#7c3aed", g: kpi.growth?.avgOrderValue },
+                { icon: "🧑", label: "Khách hàng mới", val: kpi.newCustomers ?? 0, accent: "#0891b2", g: kpi.growth?.newCustomers },
+                { icon: "📦", label: "Sản phẩm đã bán", val: kpi.itemsSold ?? 0, accent: "#ca8a04" },
+                { icon: "⚠️", label: "Sắp hết hàng", val: totals.lowStockCount ?? 0, accent: "#dc2626",
+                  valColor: (totals.lowStockCount ?? 0) > 0 ? "#dc2626" : undefined },
+              ].map(({ icon, label, val, accent, valColor, g }) => (
                 <div key={label} className="admin-stat-card" style={{ "--accent": accent }}>
                   <div className="admin-stat-icon">{icon}</div>
                   <div className="admin-stat-info">
                     <span className="admin-stat-label">{label}</span>
                     <span className="admin-stat-val" style={{ color: valColor }}>{val}</span>
+                    {g !== undefined && (
+                      <span style={{
+                        fontSize: 11.5, fontWeight: 700,
+                        color: g > 0 ? "#16a34a" : g < 0 ? "#dc2626" : "var(--muted)",
+                      }}>
+                        {g > 0 ? "▲" : g < 0 ? "▼" : "—"} {Math.abs(g)}% so với kỳ trước
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Row 2: biểu đồ doanh thu + trạng thái đơn */}
-            <div className="admin-ov-row2">
-              <div className="admin-card">
-                <h4 className="admin-card-title">📊 Doanh thu 7 ngày gần nhất</h4>
-                {revenueByDay.length > 0
-                  ? <BarChart data={revenueByDay} labelKey="date" valueKey="revenue" color="var(--green)" />
-                  : <p style={{ color: "var(--muted)", textAlign: "center", padding: "20px 0" }}>Chưa có dữ liệu</p>
-                }
+            {/* ── Biểu đồ doanh thu ──────────────────────────────────────── */}
+            {/* Bỏ alignItems:start để hai thẻ kéo bằng chiều cao nhau (mặc định
+                của grid là stretch) — hàng nhìn cân, không thẻ nào hụt xuống. */}
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.55fr) minmax(0,1fr)",
+                          gap: 16, marginTop: 16 }} className="admin-ov-charts">
+            <div className="admin-card" style={{ padding: 16, display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                <h4 className="admin-card-title" style={{ margin: 0 }}>📊 Doanh thu theo ngày</h4>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Tổng {vnd(kpi.revenue)}đ · {kpi.orders ?? 0} đơn
+                </span>
               </div>
-              <div className="admin-card">
+              <div style={{ marginTop: 8, flex: 1, display: "flex", alignItems: "center" }}>
+                {revenueByDay.length > 0
+                  ? <LineChart data={chartDays} labelKey="date" valueKey="revenue" color="#15803d" />
+                  : <p style={{ color: "var(--muted)", textAlign: "center", padding: 30 }}>Chưa có dữ liệu trong kỳ</p>}
+              </div>
+              {revenueByDay.length > chartDays.length && (
+                <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--muted)", textAlign: "center" }}>
+                  Kỳ dài {revenueByDay.length} ngày — biểu đồ hiển thị {chartDays.length} ngày gần nhất cho dễ đọc.
+                  Số liệu đầy đủ có trong tệp Excel.
+                </p>
+              )}
+            </div>
+
+            {/* ── Doanh thu theo danh mục — biểu đồ tròn ─────────────────── */}
+            <div className="admin-card" style={{ padding: 16, display: "flex", flexDirection: "column" }}>
+              <h4 className="admin-card-title" style={{ margin: 0 }}>🗂️ Doanh thu theo danh mục</h4>
+              {revenueByCategory.length === 0 ? (
+                <p style={{ ...ovEmpty, flex: 1, display: "grid", placeItems: "center" }}>Chưa có dữ liệu trong kỳ</p>
+              ) : (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginTop: 10, flex: 1 }}>
+                    <DonutChart data={revenueByCategory} colors={CATEGORY_COLORS} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 11, marginTop: 16 }}>
+                    {revenueByCategory.map((c, i) => (
+                      <div key={c.category} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
+                        <span style={{
+                          width: 13, height: 13, borderRadius: 4, flexShrink: 0,
+                          background: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                        }} />
+                        <span style={{ flex: 1, minWidth: 0, color: "var(--ink-2)", fontWeight: 600,
+                                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {c.category}
+                        </span>
+                        <span style={{ color: "var(--muted)", fontSize: 13, minWidth: 44, textAlign: "right" }}>{c.share}%</span>
+                        <b style={{ color: "var(--green-ink)", minWidth: 88, textAlign: "right", fontSize: 14 }}>{vnd(c.revenue)}đ</b>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            </div>
+
+            {/* ── Trạng thái đơn hàng ────────────────────────────────────── */}
+            <div className="admin-ov-row2" style={{ marginTop: 20 }}>
+              {/* Chỉ còn một thẻ trong hàng nên cho nó trải hết bề ngang */}
+              <div className="admin-card" style={{ padding: 18, gridColumn: "1 / -1" }}>
                 <h4 className="admin-card-title">🎯 Trạng thái đơn hàng</h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 11, marginTop: 12 }}>
+                  {ordersByStatus.length === 0 && <p style={ovEmpty}>Chưa có đơn nào trong kỳ</p>}
                   {ordersByStatus.map(item => {
-                    const pct = totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0;
+                    const totalCnt = ordersByStatus.reduce((s, x) => s + x.count, 0) || 1;
+                    const pct = Math.round((item.count / totalCnt) * 100);
                     return (
                       <div key={item.status}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                           <span style={{ fontWeight: 600, color: "var(--ink-2)" }}>{getStatusLabel(item.status)}</span>
-                          <span style={{ fontWeight: 700, color: STATUS_COLORS[item.status] }}>{item.count}</span>
+                          <span style={{ fontWeight: 700, color: STATUS_COLORS[item.status] }}>{item.count} · {pct}%</span>
                         </div>
-                        <div style={{ height: 6, borderRadius: 999, background: "var(--line)", overflow: "hidden" }}>
+                        <div style={{ height: 7, borderRadius: 999, background: "var(--line)", overflow: "hidden" }}>
                           <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, background: STATUS_COLORS[item.status], transition: "width .6s ease" }} />
                         </div>
                       </div>
                     );
                   })}
-                  {ordersByStatus.length === 0 && <p style={{ color: "var(--muted)", fontSize: 13 }}>Chưa có đơn hàng</p>}
+                </div>
+              </div>
+
+            </div>
+
+            {/* ── Top sản phẩm · Top khách hàng ──────────────────────────── */}
+            <div className="admin-ov-row2" style={{ marginTop: 20 }}>
+              <div className="admin-card" style={{ padding: 18 }}>
+                <h4 className="admin-card-title">🏆 Sản phẩm bán chạy trong kỳ</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+                  {topProducts.length === 0 && <p style={ovEmpty}>Chưa có sản phẩm nào được bán</p>}
+                  {topProducts.map((p, i) => (
+                    <div key={p.id ?? i} style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <span style={ovRank(i)}>{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--muted)" }}>Đã bán {p.sold}</div>
+                      </div>
+                      <b style={{ fontSize: 13, color: "var(--green-ink)" }}>{vnd(p.revenue)}đ</b>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="admin-card" style={{ padding: 18 }}>
+                <h4 className="admin-card-title">👑 Khách hàng chi tiêu nhiều nhất</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+                  {topCustomers.length === 0 && <p style={ovEmpty}>Chưa có khách hàng nào trong kỳ</p>}
+                  {topCustomers.map((c, i) => (
+                    <div key={`${c.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <span style={ovRank(i)}>{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{c.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{c.phone || "—"} · {c.orders} đơn</div>
+                      </div>
+                      <b style={{ fontSize: 13, color: "var(--green-ink)" }}>{vnd(c.spent)}đ</b>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Row 3: top sản phẩm + đơn mới + tồn kho */}
-            <div className="admin-ov-row3">
-              <div className="admin-card">
-                <h4 className="admin-card-title">🏆 Top 5 bán chạy</h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {topProducts.map((p, i) => (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: i < 3 ? "var(--gold)" : "var(--muted)", minWidth: 18 }}>#{i + 1}</span>
-                      <Img src={p.img} alt={p.name} className="admin-img-thumb" style={{ width: 32, height: 32, borderRadius: 6, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: "var(--muted)" }}>Đã bán: <b style={{ color: "var(--green-ink)" }}>{p.sold}</b></div>
-                      </div>
-                    </div>
-                  ))}
-                  {topProducts.length === 0 && <p style={{ color: "var(--muted)", fontSize: 13 }}>Chưa có dữ liệu</p>}
-                </div>
-              </div>
-
-              <div className="admin-card">
+            {/* ── Đơn mới nhất · Hàng sắp hết ────────────────────────────── */}
+            <div className="admin-ov-row3" style={{ marginTop: 20 }}>
+              <div className="admin-card" style={{ padding: 18 }}>
                 <h4 className="admin-card-title">Đơn hàng mới nhất</h4>
-                <div className="admin-table-wrap">
+                <div className="admin-table-wrap" style={{ marginTop: 10 }}>
                   <table className="admin-table">
-                    <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
+                    <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Trạng thái</th><th style={{ textAlign: "right" }}>Tổng tiền</th></tr></thead>
                     <tbody>
-                      {orders.slice(0, 5).map(o => (
+                      {recentOrders.map(o => (
                         <tr key={o.id}>
-                          <td style={{ fontWeight: 600, fontSize: 12, color: "var(--green-ink)" }}>#{o.id.split('-')[0].toUpperCase()}</td>
-                          <td style={{ fontSize: 12 }}>{o.customerName || "Khách lẻ"}</td>
-                          <td style={{ fontWeight: 700, fontSize: 12 }}>{vnd(o.total)} đ</td>
-                          <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
+                          <td style={{ fontWeight: 700 }}>#{String(o.id).split("-")[0].toUpperCase()}</td>
+                          <td style={{ fontSize: 13 }}>{o.customerName}</td>
+                          <td>
+                            <span style={{
+                              display: "inline-block", padding: "2px 9px", borderRadius: 999, fontSize: 11.5,
+                              fontWeight: 700, background: `${STATUS_COLORS[o.status] ?? "#888"}1a`,
+                              color: STATUS_COLORS[o.status] ?? "#888",
+                            }}>{getStatusLabel(o.status)}</span>
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 700, color: "var(--green-ink)" }}>{vnd(o.total)}đ</td>
                         </tr>
                       ))}
-                      {orders.length === 0 && <tr><td colSpan="4" style={{ textAlign: "center", padding: 24, color: "var(--muted)" }}>Chưa có đơn hàng nào</td></tr>}
+                      {recentOrders.length === 0 && (
+                        <tr><td colSpan="4" style={{ textAlign: "center", padding: 26, color: "var(--muted)" }}>Chưa có đơn hàng</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              <div className="admin-card">
-                <h4 className="admin-card-title">Cảnh báo tồn kho</h4>
-                <div className="admin-table-wrap">
+              <div className="admin-card" style={{ padding: 18 }}>
+                <h4 className="admin-card-title">⚠️ Sản phẩm sắp hết hàng</h4>
+                <div className="admin-table-wrap" style={{ marginTop: 10 }}>
                   <table className="admin-table">
-                    <thead><tr><th>Sản phẩm</th><th>Còn</th></tr></thead>
+                    <thead><tr><th>Sản phẩm</th><th style={{ textAlign: "center" }}>Còn</th><th style={{ textAlign: "center" }}>Đã bán</th></tr></thead>
                     <tbody>
-                      {lowStockProducts.map(p => (
+                      {lowStockList.map(p => (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 500, fontSize: 12 }}>{p.name}</td>
-                          <td style={{ fontWeight: 700, color: p.stock === 0 ? "#ff4d4f" : "var(--orange-2)" }}>{p.stock}</td>
+                          <td style={{ fontSize: 13 }}>{p.name}</td>
+                          <td style={{ textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{p.stock}</td>
+                          <td style={{ textAlign: "center", color: "var(--muted)" }}>{p.sold}</td>
                         </tr>
                       ))}
-                      {lowStockCount === 0 && <tr><td colSpan="2" style={{ textAlign: "center", padding: 16, color: "var(--green-ink)", fontWeight: 500, fontSize: 12 }}>✅ Đủ hàng</td></tr>}
+                      {lowStockList.length === 0 && (
+                        <tr><td colSpan="3" style={{ textAlign: "center", padding: 26, color: "var(--muted)" }}>Tồn kho đang ổn</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2753,7 +3250,21 @@ export function AdminDashboard() {
         <div className="admin-modal-backdrop" onClick={() => setShowOrderModal(false)}>
           <div className="admin-modal-panel" style={{ maxWidth: 920, width: "94%" }} onClick={e => e.stopPropagation()}>
             <button className="admin-modal-close" onClick={() => setShowOrderModal(false)}><Icon name="close" size={14} /></button>
-            <h3 className="admin-modal-title">Chi tiết đơn hàng #{selectedOrder.id.split('-')[0].toUpperCase()}</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <h3 className="admin-modal-title" style={{ margin: 0 }}>Chi tiết đơn hàng #{selectedOrder.id.split('-')[0].toUpperCase()}</h3>
+              <button
+                type="button"
+                className="btn-pill ghost"
+                /* Nút đóng modal nằm absolute ở right:20px, rộng 32px — chừa
+                   46px bên phải để hai nút không dính vào nhau. */
+                style={{ padding: "6px 14px", fontSize: 13, marginLeft: "auto", marginRight: 46 }}
+                disabled={printingInvoice}
+                onClick={() => handlePrintInvoice(selectedOrder.id)}
+              >
+                {printingInvoice ? "Đang tạo..." : "🧾 In hóa đơn"}
+              </button>
+            </div>
+            <div style={{ height: 14 }} />
 
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 20, marginBottom: 20, fontSize: 13.5, background: "var(--paper-2)", padding: 14, borderRadius: 10 }}>
               <div>
