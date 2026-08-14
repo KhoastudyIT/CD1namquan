@@ -58,13 +58,12 @@ export async function updateStatus(req, res, next) {
     const { status } = updateConsultationStatusSchema.parse(req.body);
     const request = await consultationService.updateConsultationStatus(parseId(req), status);
     const labels = {
-      new:       'Đã chuyển về chưa xử lý',
       contacted: 'Đã đánh dấu liên hệ',
       quoted:    'Đã đánh dấu báo giá',
       closed:    'Đã đóng yêu cầu',
       cancelled: 'Đã huỷ yêu cầu',
     };
-    ok(res, request, labels[status]);
+    ok(res, request, labels[status] ?? 'Đã cập nhật trạng thái');
   } catch (error) {
     next(error);
   }

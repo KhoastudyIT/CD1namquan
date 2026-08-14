@@ -10,7 +10,8 @@
     "setup": "node src/db/setup.js",
     "seed": "node src/db/seed.js",
     "test": "node tests/api.test.js",
-    "test:rbac": "node tests/rbac.test.js"
+    "test:rbac": "node tests/rbac.test.js",
+    "test:consult": "node tests/consultation-flow.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",

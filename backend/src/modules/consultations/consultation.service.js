@@ -1,5 +1,10 @@
 import db from '../../db/index.js';
 import { AppError } from '../../middleware/errorHandler.js';
+import {
+  canTransitionConsultation,
+  CONSULTATION_TERMINAL,
+  CONSULTATION_STATUS_LABEL,
+} from './consultation.schema.js';
 
 function mapRow(row) {
   return {
@@ -121,11 +126,25 @@ export async function getConsultationById(id) {
 }
 
 export async function updateConsultationStatus(id, status) {
+  const current = await db.query('SELECT * FROM consultation_requests WHERE id = $1', [id]);
+  if (current.rows.length === 0) throw new AppError('Không tìm thấy yêu cầu tư vấn', 404);
+
+  const from = current.rows[0].status;
+  // Bấm lại đúng trạng thái đang có thì coi như không làm gì, không báo lỗi.
+  if (from === status) return mapRow(current.rows[0]);
+
+  if (!canTransitionConsultation(from, status)) {
+    const label = (s) => CONSULTATION_STATUS_LABEL[s] ?? s;
+    const message = CONSULTATION_TERMINAL.includes(from)
+      ? `Yêu cầu đã ở trạng thái "${label(from)}" nên không đổi được nữa.`
+      : `Không thể chuyển từ "${label(from)}" về "${label(status)}" — quy trình xử lý chỉ đi tới, không lùi.`;
+    throw new AppError(message, 409);
+  }
+
   const res = await db.query(
-    'UPDATE consultation_requests SET status = $1 WHERE id = $2 RETURNING *',
+    'UPDATE consultation_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
     [status, id],
   );
-  if (res.rows.length === 0) throw new AppError('Không tìm thấy yêu cầu tư vấn', 404);
   return mapRow(res.rows[0]);
 }
 

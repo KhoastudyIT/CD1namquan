@@ -2,6 +2,43 @@ import { z } from 'zod';
 
 export const CONSULTATION_STATUSES = ['new', 'contacted', 'quoted', 'closed', 'cancelled'];
 
+/** Nhãn tiếng Việt dùng chung cho thông báo trả về client. */
+export const CONSULTATION_STATUS_LABEL = {
+  new:       'Chưa xử lý',
+  contacted: 'Đã liên hệ',
+  quoted:    'Đã báo giá',
+  closed:    'Đã chốt',
+  cancelled: 'Đã huỷ',
+};
+
+// ── Vòng đời yêu cầu tư vấn: CHỈ ĐI TỚI, KHÔNG LÙI ──────────────────────────
+//
+//   new ──▶ contacted ──▶ quoted ──▶ closed
+//    └──────────┴───────────┴──▶ cancelled
+//
+// Được phép nhảy cóc về phía trước (khách gọi tới hỏi giá luôn thì đi thẳng
+// new → quoted), nhưng không bao giờ quay ngược: đã gọi cho khách rồi thì không
+// thể "chưa xử lý" lại được, và một lead đã chốt hoặc đã huỷ là chốt sổ.
+//
+// Ràng buộc này để lịch sử xử lý lead phản ánh đúng việc đã làm — nếu cho lùi,
+// số liệu đếm theo trạng thái ở dashboard sẽ không còn tin được.
+export const CONSULTATION_FLOW = ['new', 'contacted', 'quoted', 'closed'];
+
+/** Trạng thái kết thúc — không đổi đi đâu được nữa. */
+export const CONSULTATION_TERMINAL = ['closed', 'cancelled'];
+
+/** Các trạng thái hợp lệ có thể chuyển tới từ `current`. */
+export function nextConsultationStatuses(current) {
+  if (CONSULTATION_TERMINAL.includes(current)) return [];
+  const rank = CONSULTATION_FLOW.indexOf(current);
+  if (rank === -1) return [];
+  return [...CONSULTATION_FLOW.slice(rank + 1), 'cancelled'];
+}
+
+export function canTransitionConsultation(from, to) {
+  return nextConsultationStatuses(from).includes(to);
+}
+
 const optionalText = (max) => z.string().trim().max(max).optional().default('');
 
 const phoneField = z
