@@ -17,6 +17,10 @@ const backoffice = authorize('admin', 'staff');
 orderRouter.get('/admin/list',     backoffice, orderController.listAll);
 orderRouter.put('/:id/status',     backoffice, validate(updateOrderStatusSchema), orderController.updateStatus);
 
+// Hoá đơn PDF — khách in đơn của mình, admin/nhân viên in mọi đơn.
+// Kiểm tra chủ sở hữu nằm trong controller nên không gắn authorize ở đây.
+orderRouter.get('/:id/invoice', orderController.invoice);
+
 // Customer routes
 orderRouter.get('/',    orderController.list);
 orderRouter.post('/',   validate(createOrderSchema), orderController.create);

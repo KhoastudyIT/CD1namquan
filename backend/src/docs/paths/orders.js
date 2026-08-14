@@ -149,4 +149,30 @@ export const orderPaths = {
     },
   },
 },
+'/api/v1/orders/{id}/invoice': {
+  get: {
+    tags: ['Tài khoản - Đơn hàng'],
+    summary: '[Khách hàng · Admin · Nhân viên] Tải hoá đơn PDF',
+    description:
+      'Sinh hoá đơn dạng PDF cho một đơn hàng, gồm thông tin cửa hàng, người nhận, phương thức '
+      + 'và trạng thái thanh toán, bảng sản phẩm kèm đơn giá, và phần tổng kết tiền.\n\n'
+      + 'Khách hàng chỉ tải được hoá đơn đơn hàng của chính mình; admin và nhân viên tải được mọi đơn '
+      + '(cần khi khách gọi lên nhờ gửi lại hoá đơn).\n\n'
+      + 'Tệp được tạo bằng thư viện pdfkit với phông Be Vietnam Pro nhúng sẵn — phông mặc định của '
+      + 'pdfkit không có glyph tiếng Việt nên chữ có dấu sẽ bị mất.\n\n'
+      + 'Phản hồi là dữ liệu nhị phân kèm `Content-Disposition: inline`, client cần fetch có gắn '
+      + 'Bearer token rồi mở blob.',
+    security: [{ bearerAuth: [] }],
+    parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+    responses: {
+      '200': {
+        description: 'Tệp PDF hoá đơn',
+        content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } },
+      },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '403': { description: 'Đơn hàng không thuộc về bạn', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+  },
+},
 };

@@ -14,6 +14,18 @@ export function OrderDetail() {
   const [loading, setLoading] = useState(true);
   // Yêu cầu trả/đổi của chính đơn này, lọc từ danh sách yêu cầu của khách.
   const [myReturn, setMyReturn] = useState(null);
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrintInvoice = async () => {
+    setPrinting(true);
+    try {
+      await api.openInvoice(id);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -58,10 +70,21 @@ export function OrderDetail() {
               <h2 style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Chi tiết đơn hàng #{order.id.split('-')[0].toUpperCase()}</h2>
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>Ngày đặt: {new Date(order.createdAt).toLocaleString('vi-VN')}</div>
             </div>
-            <span className={"acc-status acc-status-" + orderStatusClass(order)} style={{ fontSize: 13, padding: '5px 12px' }}>
-              {orderStatusLabel(order)}
-              {order.shippingStatus === 'returned' && order.paymentStatus === 'refunded' ? ' · đã hoàn tiền' : ''}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-pill ghost"
+                style={{ padding: '6px 14px', fontSize: 13 }}
+                disabled={printing}
+                onClick={handlePrintInvoice}
+              >
+                {printing ? 'Đang tạo...' : '🧾 In hóa đơn'}
+              </button>
+              <span className={"acc-status acc-status-" + orderStatusClass(order)} style={{ fontSize: 13, padding: '5px 12px' }}>
+                {orderStatusLabel(order)}
+                {order.shippingStatus === 'returned' && order.paymentStatus === 'refunded' ? ' · đã hoàn tiền' : ''}
+              </span>
+            </div>
           </div>
 
           <div className="order-detail-info">

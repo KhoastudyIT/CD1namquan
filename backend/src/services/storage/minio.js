@@ -63,6 +63,31 @@ export class MinioStorage {
     return `${this.#publicUrl}/${this.#bucket}/${key}`;
   }
 
+  /**
+   * Suy ngược object key từ một URL công khai đã lưu trong CSDL.
+   * Trả về null nếu URL không thuộc kho lưu trữ này (ví dụ ảnh tĩnh /images/...).
+   */
+  keyFromPublicUrl(url) {
+    if (typeof url !== 'string') return null;
+    const prefix = `${this.#publicUrl}/${this.#bucket}/`;
+    return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+  }
+
+  /**
+   * Đọc nội dung một object thành Buffer.
+   *
+   * Dùng client nội bộ (endpoint http://minio:9000) chứ không tải qua URL công
+   * khai: bên trong container, localhost:9000 trỏ về chính backend chứ không
+   * phải MinIO nên tải theo publicUrl sẽ hỏng khi chạy Docker.
+   */
+  async getObjectBuffer(key) {
+    this.#assertPublicKey(key);
+    const res = await this.#client.send(new GetObjectCommand({ Bucket: this.#bucket, Key: key }));
+    const chunks = [];
+    for await (const chunk of res.Body) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  }
+
   async delete(key) {
     this.#assertPublicKey(key);
     await this.#client.send(new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }));

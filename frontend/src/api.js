@@ -112,7 +112,67 @@ export function validateImageFile(file) {
   return null;
 }
 
+/**
+ * Tải tệp nhị phân (PDF, Excel) từ API.
+ *
+ * Không dùng thẻ <a href> trực tiếp được vì các tuyến này đòi Bearer token —
+ * trình duyệt sẽ không tự gắn header. Vì vậy phải fetch kèm token rồi tạo URL
+ * tạm từ blob nhận về.
+ *
+ * @param {string} endpoint  Đường dẫn API, ví dụ '/orders/abc/invoice'
+ * @returns {Promise<{url: string, fileName: string, revoke: () => void}>}
+ */
+async function fetchFile(endpoint, fallbackName) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    // Lỗi trả về vẫn là JSON nên đọc ra để hiện đúng thông báo cho người dùng.
+    let message = `Tải tệp thất bại (HTTP ${res.status}).`;
+    try { message = (await res.json()).message || message; } catch { /* giữ mặc định */ }
+    throw new Error(message);
+  }
+
+  // Ưu tiên tên tệp do server đặt trong Content-Disposition.
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const matched = disposition.match(/filename="?([^";]+)"?/);
+  const fileName = matched ? matched[1] : fallbackName;
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  return { url, fileName, revoke: () => URL.revokeObjectURL(url) };
+}
+
 export const api = {
+  /** Mở hoá đơn PDF ở tab mới để người dùng xem rồi in hoặc lưu lại. */
+  openInvoice: async (orderId) => {
+    const { url, revoke } = await fetchFile(`/orders/${orderId}/invoice`, 'hoa-don.pdf');
+    const win = window.open(url, '_blank');
+    if (!win) throw new Error('Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép rồi thử lại.');
+    // Giữ URL đủ lâu cho tab mới nạp xong rồi mới thu hồi.
+    setTimeout(revoke, 60_000);
+  },
+
+  /** Tải báo cáo thống kê Excel về máy. */
+  downloadStatsExcel: async ({ from, to } = {}) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const { url, fileName, revoke } = await fetchFile(
+      `/stats/export${q.toString() ? `?${q}` : ''}`,
+      'thong-ke.xlsx',
+    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    revoke();
+  },
+
   /**
    * Tải ảnh lên theo 2 bước: xin URL có chữ ký từ backend, rồi PUT file thẳng
    * lên MinIO. File không đi qua API nên không vướng giới hạn body của Express.
@@ -250,7 +310,10 @@ export const api = {
   deleteProduct: (id) => fetchAPI(`/products/${id}`, { method: 'DELETE' }),
   getAllOrders: () => fetchAPI('/orders/admin/list'),
   updateOrderStatus: (id, status) => fetchAPI(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-  getStatsOverview: () => fetchAPI('/stats/overview'),
+  getStatsOverview: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/stats/overview${q ? `?${q}` : ''}`);
+  },
 
   // Admin — Users
   getUsers: (params = {}) => {

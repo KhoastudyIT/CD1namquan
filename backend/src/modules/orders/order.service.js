@@ -157,6 +157,65 @@ export async function getOrderById(userId, orderId) {
   };
 }
 
+/**
+ * Bản đầy đủ của một đơn hàng, dùng để in hoá đơn.
+ *
+ * Khác getOrderById ở hai điểm: trả về đủ mọi trường cần cho hoá đơn (thông tin
+ * người nhận, phương thức thanh toán, phí vận chuyển, giảm giá, tổng cuối), và
+ * KHÔNG tự kiểm tra chủ sở hữu — việc đó do controller quyết định, vì admin và
+ * nhân viên được in hoá đơn của mọi đơn còn khách chỉ được in đơn của mình.
+ */
+export async function getOrderForInvoice(orderId) {
+  // Lấy kèm thông tin tài khoản: nhiều đơn cũ có customer_name/phone/email rỗng
+  // vì lúc đặt chỉ lưu user_id — khi đó hoá đơn lấy tạm thông tin tài khoản
+  // thay vì in ra dấu gạch ngang.
+  const res = await db.query(
+    `SELECT o.*,
+            u.name  AS account_name,
+            u.email AS account_email,
+            u.phone AS account_phone
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.user_id
+      WHERE o.id = $1`,
+    [orderId],
+  );
+  if (res.rows.length === 0) throw new AppError('Không tìm thấy đơn hàng', 404);
+  const o = res.rows[0];
+
+  const itemsRes = await db.query(
+    'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id',
+    [orderId],
+  );
+
+  return {
+    id: o.id,
+    userId: o.user_id,
+    customerName:  o.customer_name  || o.account_name  || '',
+    customerEmail: o.customer_email || o.account_email || '',
+    customerPhone: o.customer_phone || o.account_phone || '',
+    total: o.total,
+    shippingFee: o.shipping_fee,
+    discountAmount: o.discount_amount,
+    finalTotal: o.final_total,
+    shippingAddress: o.shipping_address,
+    paymentMethod: o.payment_method,
+    paymentStatus: o.payment_status,
+    shippingStatus: o.shipping_status,
+    status: o.status,
+    note: o.note,
+    createdAt: o.created_at,
+    items: itemsRes.rows.map(item => ({
+      productId: item.product_id,
+      quantity: item.quantity,
+      name: item.name,
+      price: item.price,
+      listPrice: item.list_price,
+      // Có flash sale thì hoá đơn ghi rõ "Flash Sale −X%" thay vì "Khuyến mãi".
+      flashSaleId: item.flash_sale_id,
+    })),
+  };
+}
+
 export async function createOrder(userId, { shippingAddress, note, items }) {
   await db.query('BEGIN');
   try {
