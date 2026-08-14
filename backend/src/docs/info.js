@@ -41,6 +41,7 @@ tags: [
   { name: 'Tài khoản - Hồ sơ',              description: 'Trang Hồ sơ & Cài đặt - xem thông tin, đổi tên/SĐT, đổi mật khẩu' },
   { name: 'Tài khoản - Giỏ hàng',           description: 'Trang Giỏ hàng - thêm, sửa số lượng, xoá từng món hoặc xoá sạch' },
   { name: 'Tài khoản - Đơn hàng',           description: 'Trang Đơn hàng - đặt hàng, xem lịch sử và chi tiết từng đơn' },
+  { name: 'Tài khoản - Trả/đổi hàng',        description: 'Trang Trả / đổi hàng - gửi yêu cầu kèm ảnh sau khi nhận hàng, xem lịch sử và phản hồi của cửa hàng' },
   { name: 'Tài khoản - Thông báo',          description: 'Chuông thông báo và trang Thông báo - đọc từng cái hoặc đánh dấu đã đọc tất cả' },
   { name: 'Tài khoản - Tin nhắn',           description: 'Trang Tin nhắn và khung chat nổi - khách nhắn, bot trả lời tự động theo dữ liệu sản phẩm thật' },
 
@@ -51,7 +52,8 @@ tags: [
   { name: 'Admin - Danh mục & Bộ sưu tập',  description: 'Tab Danh mục và Bộ sưu tập - thêm, sửa, xoá' },
   { name: 'Admin - Tin tức',                description: 'Tab Tin tức - soạn bài, xem cả bản nháp, đổi trạng thái nháp/đăng/ẩn, SEO' },
   { name: 'Admin - Đơn hàng',               description: 'Tab Đơn hàng - xem toàn bộ đơn và cập nhật trạng thái' },
-  { name: 'Admin - Người dùng',             description: 'Tab Người dùng - danh sách, phân quyền, khoá/mở tài khoản' },
+  { name: 'Admin - Trả/đổi hàng',            description: 'Tab Trả hàng - duyệt, từ chối, hoàn tất yêu cầu; hoàn tất một yêu cầu TRẢ hàng sẽ hoàn tồn kho và đánh dấu đơn đã hoàn tiền' },
+  { name: 'Admin - Người dùng',             description: 'Tab Người dùng (khách hàng) và tab Nhân viên (tài khoản nội bộ) - tạo tài khoản nhân viên, phân quyền, khoá/mở' },
   { name: 'Admin - Tin nhắn',               description: 'Tab Tin nhắn - xem hội thoại, nhân viên tiếp quản trả lời thay bot' },
   { name: 'Admin - Yêu cầu tư vấn',         description: 'Danh sách khách để lại thông tin ở trang chủ - lọc, tìm, đổi trạng thái xử lý, xoá' },
   { name: 'Admin - Thông tin công ty',      description: 'Tab Thông tin công ty - đổi logo, tên, slogan, hotline, địa chỉ, mạng xã hội; lưu xong khách thấy ngay' },

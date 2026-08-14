@@ -93,7 +93,7 @@ export const orderPaths = {
 '/api/v1/orders/admin/list': {
   get: {
     tags: ['Admin - Đơn hàng'],
-    summary: '[Admin] Danh sách tất cả đơn hàng',
+    summary: '[Admin · Nhân viên] Danh sách tất cả đơn hàng',
     security: [{ bearerAuth: [] }],
     responses: {
       '200': {
@@ -117,7 +117,7 @@ export const orderPaths = {
 '/api/v1/orders/{id}/status': {
   put: {
     tags: ['Admin - Đơn hàng'],
-    summary: '[Admin] Cập nhật trạng thái đơn hàng',
+    summary: '[Admin · Nhân viên] Cập nhật trạng thái đơn hàng',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Order UUID' }],
     requestBody: {

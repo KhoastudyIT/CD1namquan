@@ -18,7 +18,7 @@ export const consultationPaths = {
   },
   get: {
     tags: ['Admin - Yêu cầu tư vấn'],
-    summary: '[Admin] Danh sách yêu cầu tư vấn',
+    summary: '[Admin · Nhân viên] Danh sách yêu cầu tư vấn',
     description: 'Mới nhất trước. Lọc theo trạng thái, tìm theo tên (bỏ qua dấu), số điện thoại hoặc email.',
     security: [{ bearerAuth: [] }],
     parameters: [
@@ -39,7 +39,7 @@ export const consultationPaths = {
 '/api/v1/consultations/stats': {
   get: {
     tags: ['Admin - Yêu cầu tư vấn'],
-    summary: '[Admin] Đếm yêu cầu theo trạng thái',
+    summary: '[Admin · Nhân viên] Đếm yêu cầu theo trạng thái',
     description: 'Dùng cho badge "còn N yêu cầu chưa xử lý". Trạng thái không có yêu cầu nào thì không xuất hiện trong kết quả.',
     security: [{ bearerAuth: [] }],
     responses: {
@@ -78,7 +78,7 @@ export const consultationPaths = {
 '/api/v1/consultations/{id}': {
   get: {
     tags: ['Admin - Yêu cầu tư vấn'],
-    summary: '[Admin] Chi tiết một yêu cầu',
+    summary: '[Admin · Nhân viên] Chi tiết một yêu cầu',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
     responses: {
@@ -91,6 +91,7 @@ export const consultationPaths = {
   delete: {
     tags: ['Admin - Yêu cầu tư vấn'],
     summary: '[Admin] Xoá yêu cầu',
+    description: 'Chỉ admin. Nhân viên xem và đổi trạng thái được nhưng không xoá được yêu cầu.',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
     responses: {
@@ -104,8 +105,14 @@ export const consultationPaths = {
 '/api/v1/consultations/{id}/status': {
   patch: {
     tags: ['Admin - Yêu cầu tư vấn'],
-    summary: '[Admin] Đổi trạng thái xử lý',
-    description: '`new` chưa xử lý · `contacted` đã liên hệ · `quoted` đã báo giá · `closed` đã chốt/đóng · `cancelled` khách huỷ.',
+    summary: '[Admin · Nhân viên] Đổi trạng thái xử lý',
+    description:
+      'Quy trình CHỈ ĐI TỚI, không lùi: `new` → `contacted` → `quoted` → `closed`, '
+      + 'và huỷ được từ mọi bước chưa kết thúc.\n\n'
+      + '`new` chưa xử lý · `contacted` đã liên hệ · `quoted` đã báo giá · `closed` đã chốt · `cancelled` khách huỷ.\n\n'
+      + '- Nhảy cóc về phía trước là hợp lệ (khách gọi hỏi giá luôn thì `new` sang thẳng `quoted`).\n'
+      + '- Lùi trạng thái trả **409**. `closed` và `cancelled` là chốt sổ, không đổi được nữa.\n'
+      + '- Bấm lại đúng trạng thái đang có thì trả 200 và không ghi gì.',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
     requestBody: {
@@ -117,6 +124,7 @@ export const consultationPaths = {
       '401': { $ref: '#/components/responses/Unauthorized' },
       '403': { $ref: '#/components/responses/Forbidden' },
       '404': { $ref: '#/components/responses/NotFound' },
+      '409': { description: 'Bước chuyển không hợp lệ (lùi trạng thái, hoặc yêu cầu đã chốt sổ)', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
       '422': { $ref: '#/components/responses/ValidationError' },
     },
   },

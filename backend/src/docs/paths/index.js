@@ -7,6 +7,7 @@ import { collectionPaths } from './collections.js';
 import { newsPaths } from './news.js';
 import { cartPaths } from './cart.js';
 import { orderPaths } from './orders.js';
+import { returnPaths } from './returns.js';
 import { userPaths } from './users.js';
 import { uploadPaths } from './uploads.js';
 import { statsPaths } from './stats.js';
@@ -23,6 +24,7 @@ export const paths = {
   ...newsPaths,
   ...cartPaths,
   ...orderPaths,
+  ...returnPaths,
   ...userPaths,
   ...uploadPaths,
   ...statsPaths,

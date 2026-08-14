@@ -82,7 +82,8 @@ export const productPaths = {
 '/api/v1/products/flash-sales/admin': {
   get: {
     tags: ['Admin - Flash sale'],
-    summary: '[Admin] Danh sách tất cả Flash Sale',
+    summary: '[Admin · Nhân viên] Danh sách tất cả Flash Sale',
+    description: 'Nhân viên (`staff`) CHỈ XEM được để tra giá khi tư vấn khách; tạo, sửa, xoá chương trình là đặc quyền của admin.',
     security: [{ bearerAuth: [] }],
     responses: {
       '200': {

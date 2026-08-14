@@ -138,7 +138,7 @@ export const chatPaths = {
 '/api/v1/chat/admin/conversations': {
   get: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Danh sách hội thoại',
+    summary: '[Admin · Nhân viên] Danh sách hội thoại',
     description: 'Sắp xếp theo tin nhắn mới nhất, tối đa 100 hội thoại.',
     security: [{ bearerAuth: [] }],
     parameters: [
@@ -167,7 +167,7 @@ export const chatPaths = {
 '/api/v1/chat/admin/conversations/{id}': {
   get: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Xem nội dung một hội thoại',
+    summary: '[Admin · Nhân viên] Xem nội dung một hội thoại',
     security: [{ bearerAuth: [] }],
     parameters: [
       { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'Id hội thoại' },
@@ -204,7 +204,7 @@ export const chatPaths = {
   },
   patch: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Bật/tắt bot hoặc đóng/mở hội thoại',
+    summary: '[Admin · Nhân viên] Bật/tắt bot hoặc đóng/mở hội thoại',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
     requestBody: {
@@ -240,7 +240,7 @@ export const chatPaths = {
 '/api/v1/chat/admin/conversations/{id}/messages': {
   post: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Nhân viên trả lời khách',
+    summary: '[Admin · Nhân viên] Nhân viên trả lời khách',
     description: 'Gửi tin sẽ TỰ ĐỘNG TẮT bot cho hội thoại này (tránh hai bên cùng trả lời một khách) và gửi thông báo cho khách. Bot tự bật lại nếu nhân viên im lặng quá 15 phút.',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
@@ -277,7 +277,7 @@ export const chatPaths = {
 '/api/v1/chat/admin/conversations/{id}/read': {
   put: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Đánh dấu đã đọc tin của khách',
+    summary: '[Admin · Nhân viên] Đánh dấu đã đọc tin của khách',
     security: [{ bearerAuth: [] }],
     parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
     responses: {
@@ -303,7 +303,7 @@ export const chatPaths = {
 '/api/v1/chat/admin/unread-count': {
   get: {
     tags: ['Admin - Tin nhắn'],
-    summary: '[Admin] Tổng số tin chưa đọc',
+    summary: '[Admin · Nhân viên] Tổng số tin chưa đọc',
     description: 'Dùng cho badge trên sidebar quản trị. Frontend poll 15 giây.',
     security: [{ bearerAuth: [] }],
     responses: {
