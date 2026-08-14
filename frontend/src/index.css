@@ -4868,10 +4868,23 @@ a.hdr-user:hover .hdr-user-name {
   border-color: #c7d2fe;
 }
 
+.acc-status-processing {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #ddd6fe;
+}
+
+.acc-status-delivered,
 .acc-status-completed {
   background: #ecfdf5;
   color: #047857;
   border-color: #a7f3d0;
+}
+
+.acc-status-returned {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 .acc-status-cancelled {

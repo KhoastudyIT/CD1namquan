@@ -5,9 +5,9 @@ import { createNotification } from '../notifications/notification.service.js';
 import { activeFlashJoin, effectivePriceSQL } from '../../utils/price.js';
 
 const STATUS_TEXT = {
-  pending:   'đang chờ xử lý',
+  pending: 'đang chờ xử lý',
   confirmed: 'đã được xác nhận',
-  shipped:   'đang được giao đến bạn',
+  shipped: 'đang được giao đến bạn',
   delivered: 'đã giao thành công',
   cancelled: 'đã bị hủy',
 };
@@ -38,6 +38,8 @@ export async function listOrders(userId) {
     userId: row.user_id,
     total: row.total,
     status: row.status,
+    shippingStatus: row.shipping_status,
+    paymentStatus: row.payment_status,
     shippingAddress: row.shipping_address,
     createdAt: row.created_at,
     items: itemsMap[row.id] ?? []
@@ -59,6 +61,10 @@ export async function listAllOrders() {
     customerEmail: row.customer_email ?? '',
     total: row.total,
     status: row.status,
+    // Trả hàng ghi nhận ở shipping_status ('returned') vì orders.status không có
+    // giá trị đó — client cần cả hai mới hiển thị đúng tình trạng đơn.
+    shippingStatus: row.shipping_status,
+    paymentStatus: row.payment_status,
     shippingAddress: row.shipping_address,
     createdAt: row.created_at,
     items: itemsMap[row.id] ?? []
@@ -128,14 +134,16 @@ export async function getOrderById(userId, orderId) {
   if (res.rows.length === 0) throw new AppError('Không tìm thấy đơn hàng', 404);
   const order = res.rows[0];
   if (order.user_id !== userId) throw new AppError('Bạn không có quyền xem đơn hàng này', 403);
-  
+
   const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
-  
+
   return {
     id: order.id,
     userId: order.user_id,
     total: order.total,
     status: order.status,
+    shippingStatus: order.shipping_status,
+    paymentStatus: order.payment_status,
     shippingAddress: order.shipping_address,
     createdAt: order.created_at,
     items: itemsRes.rows.map(item => ({

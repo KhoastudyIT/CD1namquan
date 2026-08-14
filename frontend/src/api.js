@@ -140,6 +140,31 @@ export const api = {
     return publicUrl;
   },
 
+  uploadReturnImage: async (file) => {
+    const invalid = validateImageFile(file);
+    if (invalid) throw new Error(invalid);
+
+    const { uploadUrl, objectKey } = await fetchAPI('/uploads/image-url', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'returns', mimeType: file.type, size: file.size, originalName: file.name }),
+    });
+    const put = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!put.ok) throw new Error(`Tải ảnh lên thất bại (HTTP ${put.status}).`);
+    return objectKey;
+  },
+
+  // Trả / đổi hàng — khách hàng
+  getMyReturns: () => fetchAPI('/returns'),
+  createReturn: (data) => fetchAPI('/returns', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Trả / đổi hàng — admin & nhân viên
+  getReturnsAdmin: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchAPI(`/returns/admin/list${q ? `?${q}` : ''}`, {}, true);
+  },
+  getReturnStats: () => fetchAPI('/returns/admin/stats'),
+  updateReturnStatus: (id, data) => fetchAPI(`/returns/${id}/status`, { method: 'PUT', body: JSON.stringify(data) }),
+
   // Products & Public
   getProducts: (params = {}) => {
     const q = new URLSearchParams(params).toString();

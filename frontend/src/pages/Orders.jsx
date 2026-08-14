@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { vnd, Icon, toast } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
+import { orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
 
 export function Orders() {
   const { user } = useAppContext();
@@ -58,8 +59,8 @@ export function Orders() {
                 <div className="order-card-left">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <b style={{ color: 'var(--ink)' }}>#{o.id.split('-')[0].toUpperCase()}</b>
-                    <span style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, background: o.status === 'pending' ? '#fff3cd' : 'var(--mint)', color: o.status === 'pending' ? '#856404' : 'var(--green-ink)', fontWeight: 600 }}>
-                      {o.status === 'pending' ? 'Chờ xác nhận' : 'Hoàn thành'}
+                    <span className={"acc-status acc-status-" + orderStatusClass(o)}>
+                      {orderStatusLabel(o)}
                     </span>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--muted)' }}>

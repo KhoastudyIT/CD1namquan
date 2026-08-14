@@ -357,6 +357,32 @@ CREATE TABLE order_items (
   flash_sale_id INTEGER REFERENCES flash_sales(id) ON DELETE SET NULL
 );
 
+-- Yêu cầu trả hàng / đổi hàng của khách sau khi đơn đã giao.
+--
+-- Vòng đời: pending → approved → completed, và có thể rejected ở hai bước đầu.
+-- Chỉ khi CHỐT trả hàng (completed + type='return') hệ thống mới đụng tới kho và
+-- tiền; đổi hàng không đụng kho vì khách trả một cái rồi nhận lại một cái cùng
+-- loại, số lượng ròng không đổi.
+CREATE TABLE order_returns (
+  id SERIAL PRIMARY KEY,
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  type VARCHAR(20) NOT NULL CHECK (type IN ('return','exchange')),
+  reason VARCHAR(500) NOT NULL,
+  images JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+         CHECK (status IN ('pending','approved','rejected','completed')),
+  admin_note VARCHAR(500) NOT NULL DEFAULT '',
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_order_returns_one_open
+  ON order_returns (order_id) WHERE status IN ('pending','approved');
+
+CREATE INDEX idx_order_returns_order  ON order_returns (order_id);
+CREATE INDEX idx_order_returns_status ON order_returns (status, created_at DESC);
+
 -- =============================================================
 -- FAVORITE / NOTIFICATION / SEARCH
 -- =============================================================
@@ -648,6 +674,7 @@ CREATE TRIGGER trg_coupons_updated_at BEFORE UPDATE ON coupons FOR EACH ROW EXEC
 CREATE TRIGGER trg_news_updated_at BEFORE UPDATE ON news FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_carts_updated_at BEFORE UPDATE ON carts FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+CREATE TRIGGER trg_order_returns_updated_at BEFORE UPDATE ON order_returns FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_menus_updated_at BEFORE UPDATE ON menus FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_banners_updated_at BEFORE UPDATE ON banners FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 CREATE TRIGGER trg_company_info_updated_at BEFORE UPDATE ON company_info FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();

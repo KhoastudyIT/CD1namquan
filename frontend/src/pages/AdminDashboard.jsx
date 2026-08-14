@@ -82,6 +82,24 @@ const CONSULT_STATUSES = Object.keys(CONSULT_STATUS_META);
 // Quy trình chỉ đi tới, không lùi (khớp consultation.schema.js phía server):
 //   new → contacted → quoted → closed, và huỷ được từ mọi bước chưa kết thúc.
 // Cho phép nhảy cóc về trước (khách gọi hỏi giá luôn → new sang thẳng quoted).
+// ── Trả / đổi hàng ─────────────────────────────────────────────────────
+// Vòng đời: pending → approved → completed, từ chối được ở hai bước đầu.
+// Cũng chỉ đi tới, không lùi — bước completed đụng tới kho và tiền nên cho lùi
+// rồi tiến lại sẽ hoàn kho hai lần.
+const RETURN_STATUS_META = {
+  pending:   { label: "Chờ duyệt", bg: "#fef3c7", color: "#92400e" },
+  approved:  { label: "Đã duyệt",  bg: "#dbeafe", color: "#1e40af" },
+  rejected:  { label: "Từ chối",   bg: "#fee2e2", color: "#b91c1c" },
+  completed: { label: "Hoàn tất",  bg: "#dcfce7", color: "var(--green-ink)" },
+};
+const RETURN_TYPE_LABEL = { return: "Trả hàng", exchange: "Đổi hàng" };
+const RETURN_NEXT = {
+  pending:   ["approved", "rejected"],
+  approved:  ["completed", "rejected"],
+  rejected:  [],
+  completed: [],
+};
+
 const CONSULT_FLOW = ["new", "contacted", "quoted", "closed"];
 const CONSULT_TERMINAL = ["closed", "cancelled"];
 
@@ -125,7 +143,7 @@ export function AdminDashboard() {
   const canManage = isAdminRole(user?.role);
 
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const ALL_TABS = ["overview", "products", "orders", "users", "staff", "categories", "collections", "news", "flash_sales", "consultations", "chat", "settings"];
+  const ALL_TABS = ["overview", "products", "orders", "returns", "users", "staff", "categories", "collections", "news", "flash_sales", "consultations", "chat", "settings"];
   const VALID_TABS = canManage ? ALL_TABS : ALL_TABS.filter(t => !STAFF_HIDDEN_TABS.includes(t));
   const hashTab = location.hash.replace("#", "");
   // Nhân viên gõ thẳng #settings vào URL cũng bị đưa về Tổng quan.
@@ -151,6 +169,17 @@ export function AdminDashboard() {
   const [userSearch, setUserSearch] = useState("");
   const [userStatus, setUserStatus] = useState("");
   const [userPage, setUserPage] = useState(1);
+  // ── Tab Trả hàng ──────────────────────────────────────────────────
+  const [returns, setReturns] = useState([]);
+  const [returnsMeta, setReturnsMeta] = useState({ total: 0, page: 1, limit: 15, totalPages: 1 });
+  const [returnsLoading, setReturnsLoading] = useState(false);
+  const [returnFilter, setReturnFilter] = useState("pending"); // mặc định mở ở nhóm cần xử lý
+  const [returnPage, setReturnPage] = useState(1);
+  const [returnCounts, setReturnCounts] = useState({ pending: 0, approved: 0, rejected: 0, completed: 0, total: 0 });
+  const [selectedReturn, setSelectedReturn] = useState(null);
+  const [returnNote, setReturnNote] = useState("");
+  const [returnSaving, setReturnSaving] = useState(false);
+
   // ── Tab Nhân viên (chỉ admin) ─────────────────────────────────────
   // Tách khỏi tab Người dùng: ở đây chỉ có nhân sự nội bộ (staff + admin),
   // còn tab Người dùng dành cho toàn bộ tài khoản kể cả khách hàng.
@@ -310,6 +339,62 @@ export function AdminDashboard() {
     }
   };
 
+  const fetchReturns = async (overrides = {}) => {
+    setReturnsLoading(true);
+    try {
+      const params = { status: returnFilter, page: returnPage, limit: 15, ...overrides };
+      Object.keys(params).forEach(k => params[k] === "" && delete params[k]);
+      const res = await api.getReturnsAdmin(params);
+      setReturns(res.data || []);
+      setReturnsMeta(res.meta || { total: 0, page: 1, limit: 15, totalPages: 1 });
+    } catch (err) {
+      toast("Lỗi tải yêu cầu trả hàng: " + err.message);
+    } finally {
+      setReturnsLoading(false);
+    }
+  };
+
+  const fetchReturnCounts = async () => {
+    try { setReturnCounts(await api.getReturnStats()); } catch { /* chip đếm hỏng không chặn tab */ }
+  };
+
+  /**
+   * Duyệt / từ chối / hoàn tất. Hoàn tất một yêu cầu TRẢ hàng sẽ hoàn tồn kho và
+   * đánh dấu đơn đã hoàn tiền, nên hỏi lại cho chắc trước khi gọi API.
+   */
+  const handleReturnStatus = async (r, status) => {
+    // Từ chối phải kèm lý do — server cũng chặn, đây chỉ là báo sớm cho đỡ mất công.
+    if (status === "rejected" && !returnNote.trim() && !r.adminNote) {
+      toast("Vui lòng nhập lý do từ chối để khách hàng nắm được");
+      return;
+    }
+    if (status === "completed" && r.type === "return") {
+      const okToRun = await confirm(
+        `Hoàn tất trả hàng cho đơn #${String(r.orderId).split("-")[0].toUpperCase()}?\n\n`
+        + "Hệ thống sẽ cộng lại tồn kho, trừ số đã bán và đánh dấu đơn là đã trả / đã hoàn tiền.",
+        "Xác nhận hoàn tất trả hàng",
+      );
+      if (!okToRun) return;
+    }
+    setReturnSaving(true);
+    try {
+      const body = { status };
+      if (returnNote.trim()) body.adminNote = returnNote.trim();
+      const updated = await api.updateReturnStatus(r.id, body);
+      toast(`Đã chuyển yêu cầu sang: ${RETURN_STATUS_META[status].label}`);
+      setSelectedReturn(updated);
+      setReturnNote("");
+      fetchReturns();
+      fetchReturnCounts();
+      // Tồn kho vừa đổi thì bảng sản phẩm và thống kê ở tab khác cũng cũ theo.
+      if (status === "completed" && r.type === "return") fetchData();
+    } catch (err) {
+      toast("Lỗi: " + err.message);
+    } finally {
+      setReturnSaving(false);
+    }
+  };
+
   /** Danh sách nhân sự nội bộ — backend nhận nhiều vai trò phân tách bằng dấu phẩy. */
   const fetchStaff = async (overrides = {}) => {
     setStaffLoading(true);
@@ -437,6 +522,8 @@ export function AdminDashboard() {
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { if (activeTab === "users") fetchUsers(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "returns") fetchReturns(); }, [activeTab]);
+  useEffect(() => { fetchReturnCounts(); }, []);
   useEffect(() => { if (activeTab === "staff") fetchStaff(); }, [activeTab]);
   // Nạp một lần lúc vào dashboard để sidebar hiện ngay số nhân sự.
   useEffect(() => { if (canManage && activeTab !== "staff") fetchStaff(); }, []);
@@ -1040,6 +1127,7 @@ export function AdminDashboard() {
     { key: "news", icon: "bell", label: "Tin tức" },
     { key: "flash_sales", icon: "fire", label: `Flash Sale (${flashSales.length})` },
     { key: "orders", icon: "truck", label: `Đơn hàng (${totalOrders})` },
+    { key: "returns", icon: "refresh", label: returnCounts.pending > 0 ? `Trả hàng (${returnCounts.pending})` : "Trả hàng" },
     { key: "users", icon: "user", label: "Người dùng" },
     { key: "staff", icon: "shield", label: staffMeta.total > 0 ? `Nhân viên (${staffMeta.total})` : "Nhân viên" },
     { key: "consultations", icon: "phone", label: consultCounts.new > 0 ? `Tư vấn (${consultCounts.new})` : "Tư vấn" },
@@ -1636,6 +1724,133 @@ export function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ===== TAB: TRẢ / ĐỔI HÀNG ===== */}
+        {activeTab === "returns" && (
+          <div>
+            <div className="admin-sec-header">
+              <h2>Yêu cầu trả / đổi hàng</h2>
+              <span style={{ fontSize: 13, color: "var(--muted)", background: "var(--mint)", padding: "4px 12px", borderRadius: 999, fontWeight: 600 }}>
+                {returnCounts.total} yêu cầu
+              </span>
+            </div>
+
+            {/* Chip lọc theo trạng thái, kèm số đếm để biết ngay còn gì phải xử lý. */}
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {[{ value: "", label: "Tất cả", count: returnCounts.total },
+                  ...Object.keys(RETURN_STATUS_META).map(s => ({ value: s, label: RETURN_STATUS_META[s].label, count: returnCounts[s] }))
+                ].map(f => (
+                  <button
+                    key={f.value || "all"}
+                    onClick={() => { setReturnFilter(f.value); setReturnPage(1); fetchReturns({ page: 1, status: f.value }); }}
+                    style={{
+                      padding: "7px 15px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                      border: `1.5px solid ${returnFilter === f.value ? "var(--green)" : "var(--line)"}`,
+                      background: returnFilter === f.value ? "var(--green)" : "#fff",
+                      color: returnFilter === f.value ? "#fff" : "var(--ink-2)",
+                    }}
+                  >
+                    {f.label}{f.count > 0 ? ` (${f.count})` : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {returnsLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
+            ) : (
+              <>
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Khách hàng</th>
+                        <th style={{ width: 110 }}>Loại</th>
+                        <th>Lý do</th>
+                        <th style={{ width: 130 }}>Ngày gửi</th>
+                        <th style={{ width: 120 }}>Trạng thái</th>
+                        <th style={{ width: 100 }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {returns.map(r => {
+                        const meta = RETURN_STATUS_META[r.status] ?? RETURN_STATUS_META.pending;
+                        return (
+                          <tr key={r.id}>
+                            <td>
+                              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{r.customerName || "Khách mua lẻ"}</div>
+                              <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 3 }}>
+                                Đơn #{String(r.orderId).split("-")[0].toUpperCase()} · {vnd(r.orderTotal)}đ
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{
+                                display: "inline-block", padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                                background: r.type === "return" ? "#fee2e2" : "#ede9fe",
+                                color: r.type === "return" ? "#b91c1c" : "#5b21b6",
+                              }}>
+                                {RETURN_TYPE_LABEL[r.type]}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: 13, color: "var(--ink-2)", maxWidth: 320 }}>
+                              <div style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                {r.reason}
+                              </div>
+                              {r.imageUrls?.length > 0 && (
+                                <span style={{ fontSize: 11.5, color: "var(--muted)" }}>📎 {r.imageUrls.length} ảnh</span>
+                              )}
+                            </td>
+                            <td style={{ color: "var(--muted)", fontSize: 12.5 }}>
+                              {new Date(r.createdAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td>
+                              <span style={{
+                                display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                                fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.color,
+                              }}>
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="admin-btn-sm edit"
+                                onClick={() => { setSelectedReturn(r); setReturnNote(""); }}
+                              >
+                                Xem
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {returns.length === 0 && (
+                        <tr><td colSpan="6" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
+                          Không có yêu cầu nào trong nhóm này
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {returnsMeta.totalPages > 1 && (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
+                    <button className="page-btn" disabled={returnPage <= 1}
+                      onClick={() => { const p = returnPage - 1; setReturnPage(p); fetchReturns({ page: p }); }}>‹</button>
+                    {Array.from({ length: returnsMeta.totalPages }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={`page-btn ${p === returnPage ? "active" : ""}`}
+                        onClick={() => { setReturnPage(p); fetchReturns({ page: p }); }}>{p}</button>
+                    ))}
+                    <button className="page-btn" disabled={returnPage >= returnsMeta.totalPages}
+                      onClick={() => { const p = returnPage + 1; setReturnPage(p); fetchReturns({ page: p }); }}>›</button>
+                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                      Trang {returnPage} / {returnsMeta.totalPages} ({returnsMeta.total} yêu cầu)
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -2608,6 +2823,126 @@ export function AdminDashboard() {
       )}
 
       {/* ===== MODAL: ADD CATEGORY ===== */}
+      {/* ===== MODAL: CHI TIẾT YÊU CẦU TRẢ / ĐỔI HÀNG ===== */}
+      {selectedReturn && (() => {
+        const r = selectedReturn;
+        const meta = RETURN_STATUS_META[r.status] ?? RETURN_STATUS_META.pending;
+        const nextSteps = RETURN_NEXT[r.status] ?? [];
+        return (
+          <div className="admin-modal-backdrop" onClick={() => setSelectedReturn(null)}>
+            <div className="admin-modal-panel" onClick={e => e.stopPropagation()}>
+              <button className="admin-modal-close" onClick={() => setSelectedReturn(null)}><Icon name="close" size={14} /></button>
+              <h3 className="admin-modal-title">
+                {RETURN_TYPE_LABEL[r.type]} · đơn #{String(r.orderId).split("-")[0].toUpperCase()}
+              </h3>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+                <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.color }}>
+                  {meta.label}
+                </span>
+                <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
+                  Gửi {new Date(r.createdAt).toLocaleString("vi-VN")}
+                </span>
+                {r.resolvedAt && (
+                  <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
+                    · chốt {new Date(r.resolvedAt).toLocaleString("vi-VN")}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gap: 6, fontSize: 13.5, marginBottom: 16 }}>
+                <div><b>Khách hàng:</b> {r.customerName || "—"}</div>
+                <div><b>Liên hệ:</b> <a href={telHref(r.customerPhone)}>{r.customerPhone || "—"}</a>{r.customerEmail ? ` · ${r.customerEmail}` : ""}</div>
+                <div><b>Giá trị đơn:</b> {vnd(r.orderTotal)}đ · thanh toán: {r.orderPaymentStatus}</div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 5 }}>LÝ DO KHÁCH NÊU</div>
+                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: "var(--ink-2)" }}>{r.reason}</p>
+              </div>
+
+              {r.imageUrls?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 6 }}>
+                    ẢNH KHÁCH GỬI ({r.imageUrls.length})
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {r.imageUrls.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer"
+                        style={{ width: 88, height: 88, borderRadius: 10, overflow: "hidden", border: "1px solid var(--line-2)" }}>
+                        <img src={url} alt={`Ảnh ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {r.adminNote && (
+                <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: "#f9fbf9", border: "1px solid var(--line)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 }}>GHI CHÚ XỬ LÝ</div>
+                  <div style={{ fontSize: 13.5, color: "var(--ink-2)", lineHeight: 1.6 }}>{r.adminNote}</div>
+                </div>
+              )}
+
+              {nextSteps.length > 0 ? (
+                <>
+                  <div className="admin-form-group">
+                    <label>
+                      Phản hồi gửi khách
+                      {nextSteps.includes("rejected") && (
+                        <span style={{ color: "#b91c1c" }}> * bắt buộc nếu từ chối</span>
+                      )}
+                    </label>
+                    <textarea
+                      className="admin-input" rows={3} maxLength={500}
+                      placeholder="Nhập phản hồi gửi khách hàng..."
+                      value={returnNote}
+                      onChange={e => setReturnNote(e.target.value)}
+                      style={{ fontFamily: "inherit", resize: "vertical" }}
+                    />
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {returnNote.length}/500 — khách đọc được nội dung này ở trang chi tiết đơn hàng.
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                    {nextSteps.map(s => (
+                      <button
+                        key={s}
+                        disabled={returnSaving}
+                        onClick={() => handleReturnStatus(r, s)}
+                        style={{
+                          padding: "8px 16px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                          border: `1.5px solid ${RETURN_STATUS_META[s].color}`,
+                          background: RETURN_STATUS_META[s].bg, color: RETURN_STATUS_META[s].color,
+                        }}
+                      >
+                        {s === "approved" ? "✓ Duyệt yêu cầu"
+                          : s === "rejected" ? "✕ Từ chối"
+                          : r.type === "return" ? "✓ Hoàn tất — hoàn kho & hoàn tiền" : "✓ Hoàn tất đổi hàng"}
+                      </button>
+                    ))}
+                  </div>
+                  {r.status === "approved" && r.type === "return" && (
+                    <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
+                      Bấm “Hoàn tất” sau khi đã nhận lại hàng: hệ thống cộng lại tồn kho,
+                      trừ số đã bán và đánh dấu đơn là đã trả / đã hoàn tiền.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Yêu cầu đã kết thúc — không đổi trạng thái được nữa.
+                </p>
+              )}
+
+              <div className="admin-form-actions">
+                <button type="button" className="btn-pill ghost" onClick={() => setSelectedReturn(null)}>Đóng</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ===== MODAL: THÊM NHÂN VIÊN ===== */}
       {showStaffModal && canManage && (
         <div className="admin-modal-backdrop" onClick={() => setShowStaffModal(false)}>

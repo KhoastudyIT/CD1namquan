@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { vnd, Img, toast, orderTotals } from "../components/ui.jsx";
+import { ReturnRequest } from "../components/ReturnRequest.jsx";
+import { orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
 
 export function OrderDetail() {
   const { id } = useParams();
@@ -10,6 +12,8 @@ export function OrderDetail() {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Yêu cầu trả/đổi của chính đơn này, lọc từ danh sách yêu cầu của khách.
+  const [myReturn, setMyReturn] = useState(null);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -27,6 +31,11 @@ export function OrderDetail() {
         navigate("/account/orders");
       })
       .finally(() => setLoading(false));
+
+    // Lỗi ở đây không chặn việc xem đơn — chỉ là khối trả/đổi không hiện.
+    api.getMyReturns()
+      .then(list => setMyReturn((list ?? []).find(r => r.orderId === id) ?? null))
+      .catch(() => {});
   }, [id, navigate]);
 
   if (!user) return null;
@@ -49,8 +58,9 @@ export function OrderDetail() {
               <h2 style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Chi tiết đơn hàng #{order.id.split('-')[0].toUpperCase()}</h2>
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>Ngày đặt: {new Date(order.createdAt).toLocaleString('vi-VN')}</div>
             </div>
-            <span style={{ fontSize: 13, padding: '5px 12px', borderRadius: 8, background: order.status === 'pending' ? '#fff3cd' : 'var(--mint)', color: order.status === 'pending' ? '#856404' : 'var(--green-ink)', fontWeight: 600 }}>
-              {order.status === 'pending' ? 'Chờ xác nhận' : 'Hoàn thành'}
+            <span className={"acc-status acc-status-" + orderStatusClass(order)} style={{ fontSize: 13, padding: '5px 12px' }}>
+              {orderStatusLabel(order)}
+              {order.shippingStatus === 'returned' && order.paymentStatus === 'refunded' ? ' · đã hoàn tiền' : ''}
             </span>
           </div>
 
@@ -117,6 +127,8 @@ export function OrderDetail() {
           </div>
 
         </div>
+
+        <ReturnRequest order={order} existing={myReturn} onCreated={setMyReturn} />
     </>
   );
 }

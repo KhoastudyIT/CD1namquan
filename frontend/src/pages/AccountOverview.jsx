@@ -5,13 +5,7 @@ import { AccountHeader } from "../components/AccountLayout.jsx";
 import { useAppContext } from "../context.js";
 import { api } from "../api.js";
 
-const STATUS_LABEL = {
-  pending: "Chờ xác nhận",
-  confirmed: "Đã xác nhận",
-  shipped: "Đang giao",
-  completed: "Hoàn thành",
-  cancelled: "Đã hủy",
-};
+import { orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
 
 export function AccountOverview() {
   const { user, cart, favs } = useAppContext();
@@ -86,8 +80,8 @@ export function AccountOverview() {
                     </span>
                   </div>
                   <div className="acc-order-right">
-                    <span className={"acc-status acc-status-" + o.status}>
-                      {STATUS_LABEL[o.status] ?? o.status}
+                    <span className={"acc-status acc-status-" + orderStatusClass(o)}>
+                      {orderStatusLabel(o)}
                     </span>
                     <b>{vnd(o.total)}đ</b>
                   </div>

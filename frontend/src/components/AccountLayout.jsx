@@ -13,6 +13,7 @@ import { useAppContext } from "../context.js";
 const NAV_ITEMS = [
   { label: "Tổng quan", to: "/account", icon: "grid", end: true },
   { label: "Đơn hàng", to: "/account/orders", icon: "truck" },
+  { label: "Trả / đổi hàng", to: "/account/returns", icon: "refresh" },
   { label: "Giỏ hàng", to: "/account/cart", icon: "cart", count: "cart" },
   { label: "Yêu thích", to: "/account/favorites", icon: "heart", count: "favs" },
   { label: "Thông báo", to: "/account/notifications", icon: "bell", count: "notifs" },

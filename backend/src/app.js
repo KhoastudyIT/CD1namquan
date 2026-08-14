@@ -16,6 +16,7 @@ import { collectionRouter } from './modules/collections/collection.routes.js';
 import { newsRouter } from './modules/news/news.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { orderRouter } from './modules/orders/order.routes.js';
+import { returnRouter } from './modules/returns/return.routes.js';
 import { notificationRouter } from './modules/notifications/notification.routes.js';
 import { chatRouter } from './modules/chat/chat.routes.js';
 import { userRouter } from './modules/user/user.routes.js';
@@ -54,6 +55,7 @@ export function createApp() {
   app.use(`${v1}/news`, newsRouter);
   app.use(`${v1}/cart`, cartRouter);
   app.use(`${v1}/orders`, orderRouter);
+  app.use(`${v1}/returns`, returnRouter);
   app.use(`${v1}/notifications`, notificationRouter);
   app.use(`${v1}/chat`, chatRouter);
   app.use(`${v1}/users`, userRouter);

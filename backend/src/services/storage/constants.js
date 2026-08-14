@@ -8,7 +8,7 @@
  * Thư mục ảnh hợp lệ. Client chỉ được chọn trong danh sách này — không tự đặt
  * đường dẫn, tránh ghi ra ngoài vùng cho phép.
  */
-export const IMAGE_FOLDERS = ['news', 'products', 'categories', 'collections', 'settings'];
+export const IMAGE_FOLDERS = ['news', 'products', 'categories', 'collections', 'settings', 'returns'];
 
 // Key có tiền tố nằm trong danh sách này mới được phép sinh URL công khai.
 export const PUBLIC_KEY_PREFIXES = IMAGE_FOLDERS.map(folder => `${folder}/`);

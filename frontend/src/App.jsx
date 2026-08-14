@@ -16,6 +16,7 @@ import { ProductDetail } from "./pages/ProductDetail.jsx";
 import { Checkout } from "./pages/Checkout.jsx";
 import { Orders } from "./pages/Orders.jsx";
 import { OrderDetail } from "./pages/OrderDetail.jsx";
+import { AccountReturns } from "./pages/AccountReturns.jsx";
 import { Profile } from "./pages/Profile.jsx";
 import { NewsList } from "./pages/NewsList.jsx";
 import { NewsDetail } from "./pages/NewsDetail.jsx";
@@ -214,6 +215,7 @@ export default function App() {
             <Route index element={<AccountOverview />} />
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id" element={<OrderDetail />} />
+            <Route path="returns" element={<AccountReturns />} />
             <Route path="cart" element={<Cart />} />
             <Route path="favorites" element={<Favorites />} />
             <Route path="notifications" element={<Notifications />} />
