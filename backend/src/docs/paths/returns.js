@@ -9,7 +9,9 @@ export const returnPaths = {
       'Điều kiện: đơn phải ở trạng thái `delivered` và trong vòng 7 ngày kể từ khi giao. '
       + 'Bắt buộc đính kèm 2–5 ảnh tình trạng sản phẩm (xin key ở POST /uploads/image-url với `type=returns`). '
       + 'Mỗi đơn chỉ được có một yêu cầu đang mở (`pending` hoặc `approved`) tại một thời điểm; '
-      + 'yêu cầu đã bị từ chối thì gửi lại được.',
+      + 'yêu cầu đã bị từ chối thì gửi lại được. '
+      + 'Đơn đã trả xong (`shipping_status = returned`) thì không nhận thêm yêu cầu nào nữa — '
+      + 'hàng đã về kho và tiền đã hoàn.',
     security: [{ bearerAuth: [] }],
     requestBody: {
       required: true,
@@ -21,7 +23,7 @@ export const returnPaths = {
       '401': { $ref: '#/components/responses/Unauthorized' },
       '403': { description: 'Đơn hàng không thuộc về bạn', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
       '404': { $ref: '#/components/responses/NotFound' },
-      '409': { description: 'Đơn này đang có một yêu cầu chờ xử lý', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+      '409': { description: 'Đơn này đang có một yêu cầu chờ xử lý, hoặc đơn đã được trả và hoàn tiền', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
       '422': { $ref: '#/components/responses/ValidationError' },
     },
   },

@@ -150,6 +150,18 @@ const run = async () => {
   check('completed → approved (đã chốt) → 409', (await setStatus(ret1, { status: 'approved' })).status, 409);
   check('completed → rejected (đã chốt) → 409', (await setStatus(ret1, { status: 'rejected' })).status, 409);
 
+  // Chỉ mục một-phần ở DB chỉ chặn yêu cầu đang MỞ, nên ca này phải chặn ở service.
+  const afterReturned = await req('/returns', {
+    method: 'POST', token: custToken,
+    body: { orderId: order1, type: 'exchange', reason: 'Đổi tiếp sang mẫu khác xem sao', images: IMAGES },
+  });
+  check('đơn đã trả xong → gửi yêu cầu mới bị chặn (409)', afterReturned.status, 409);
+  console.log('       ', afterReturned.json?.message);
+  check('  kể cả loại trả hàng', (await req('/returns', {
+    method: 'POST', token: custToken,
+    body: { orderId: order1, type: 'return', reason: 'Trả thêm lần nữa cho chắc', images: IMAGES },
+  })).status, 409);
+
   console.log('\n=== 8. Đổi hàng KHÔNG đụng kho ===');
   const order2 = await makeDeliveredOrder(3);
   const ex = await req('/returns', {

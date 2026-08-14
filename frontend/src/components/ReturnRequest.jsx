@@ -4,10 +4,10 @@ import { Icon, toast } from "./ui.jsx";
 
 /** Khớp với backend: order_returns.status và return.schema.js */
 export const RETURN_STATUS_META = {
-  pending:   { label: "Chờ duyệt", bg: "#fef3c7", color: "#92400e" },
-  approved:  { label: "Đã duyệt",  bg: "#dbeafe", color: "#1e40af" },
-  rejected:  { label: "Từ chối",   bg: "#fee2e2", color: "#b91c1c" },
-  completed: { label: "Hoàn tất",  bg: "#dcfce7", color: "var(--green-ink)" },
+  pending: { label: "Chờ duyệt", bg: "#fef3c7", color: "#92400e" },
+  approved: { label: "Đã duyệt", bg: "#dbeafe", color: "#1e40af" },
+  rejected: { label: "Từ chối", bg: "#fee2e2", color: "#b91c1c" },
+  completed: { label: "Hoàn tất", bg: "#dcfce7", color: "var(--green-ink)" },
 };
 
 export const RETURN_TYPE_LABEL = { return: "Trả hàng", exchange: "Đổi hàng" };
@@ -34,6 +34,7 @@ export function ReturnRequest({ order, existing, onCreated }) {
   const fileRef = useRef(null);
 
   const delivered = order.status === "delivered";
+  const settled = order.shippingStatus === "returned";
   const daysSince = (Date.now() - new Date(order.updatedAt ?? order.createdAt).getTime()) / 86_400_000;
   const expired = daysSince > RETURN_WINDOW_DAYS;
 
@@ -125,18 +126,28 @@ export function ReturnRequest({ order, existing, onCreated }) {
           </div>
         )}
 
-        {canResend && !open && (
+        {canResend && !settled && !open && (
           <button type="button" style={btnGhost} onClick={() => setOpen(true)}>
             Gửi yêu cầu khác
           </button>
         )}
-        {canResend && open && renderForm()}
+        {canResend && !settled && open && renderForm()}
       </div>
     );
   }
 
   // ── Chưa có yêu cầu nào ────────────────────────────────────────────────────
   if (!delivered) return null;
+  if (settled) {
+    return (
+      <div style={box}>
+        <h3 style={heading}>Trả / đổi hàng</h3>
+        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "var(--muted)", lineHeight: 1.65 }}>
+          Đơn hàng này đã được trả và hoàn tiền nên không gửi thêm yêu cầu được.
+        </p>
+      </div>
+    );
+  }
 
   if (expired) {
     return (

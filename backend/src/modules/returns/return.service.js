@@ -56,7 +56,7 @@ function withImageUrls(row) {
 
 export async function createReturn(userId, { orderId, type, reason, images }) {
   const ordRes = await db.query(
-    'SELECT id, user_id, status, updated_at FROM orders WHERE id = $1',
+    'SELECT id, user_id, status, shipping_status, updated_at FROM orders WHERE id = $1',
     [orderId],
   );
   const order = ordRes.rows[0];
@@ -70,6 +70,15 @@ export async function createReturn(userId, { orderId, type, reason, images }) {
       + 'Đơn chưa giao xong thì vui lòng liên hệ để huỷ.',
       400,
     );
+  }
+
+  const settled = await db.query(
+    `SELECT 1 FROM order_returns
+     WHERE order_id = $1 AND status = 'completed' AND type = 'return' LIMIT 1`,
+    [orderId],
+  );
+  if (settled.rows.length > 0 || order.shipping_status === 'returned') {
+    throw new AppError('Đơn hàng này đã được trả và hoàn tiền, không gửi thêm yêu cầu được.', 409);
   }
 
   // Mốc tính hạn là lúc đơn chuyển sang đã giao (updated_at), không phải lúc
@@ -131,7 +140,7 @@ export async function listReturns({ status, type, page = 1, limit = 15 } = {}) {
   const where = [];
 
   if (status) { params.push(status); where.push(`r.status = $${params.length}`); }
-  if (type)   { params.push(type);   where.push(`r.type   = $${params.length}`); }
+  if (type) { params.push(type); where.push(`r.type   = $${params.length}`); }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
   const countRes = await db.query(
