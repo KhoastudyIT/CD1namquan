@@ -12,7 +12,9 @@ productRouter.get('/',            validateQuery(productQuerySchema), productCont
 productRouter.get('/flash-sales', productController.listFlashSales);
 
 // Admin Flash Sales routes
-productRouter.get('/flash-sales/admin',      authenticate, authorize('admin'),                                productController.listFlashSalesAdmin);
+// Nhân viên chỉ được XEM danh sách đợt sale (để tư vấn giá cho khách); tạo,
+// sửa, xoá đợt sale vẫn là đặc quyền của admin.
+productRouter.get('/flash-sales/admin',      authenticate, authorize('admin', 'staff'),                       productController.listFlashSalesAdmin);
 productRouter.post('/flash-sales/admin',     authenticate, authorize('admin'), validate(createFlashSaleSchema), productController.createFlashSaleAdmin);
 productRouter.put('/flash-sales/admin/:id',  authenticate, authorize('admin'), validate(updateFlashSaleSchema), productController.updateFlashSaleAdmin);
 productRouter.delete('/flash-sales/admin/:id', authenticate, authorize('admin'),                               productController.deleteFlashSaleAdmin);

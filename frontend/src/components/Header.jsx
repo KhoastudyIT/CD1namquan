@@ -4,11 +4,12 @@ import { Icon } from "./ui.jsx";
 import { Logo } from "./Logo.jsx";
 import { NotificationsBell } from "./NotificationsBell.jsx";
 import { useAppContext } from "../context.js";
+import { isBackoffice } from "../utils/roles.js";
 
 export function Header({ cartCount, favCount, onMenu }) {
   const { user, logout, requireLogin } = useAppContext();
   const navigate = useNavigate();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = isBackoffice(user?.role);
 
   // Icons that need an account: show the login popup for guests.
   const guardNav = (path, message) => {

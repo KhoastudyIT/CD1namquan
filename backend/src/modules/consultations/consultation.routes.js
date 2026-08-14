@@ -7,7 +7,9 @@ import { consultationListQuerySchema } from './consultation.schema.js';
 
 export const consultationRouter = Router();
 
-const adminOnly = [authenticate, authorize('admin')];
+// Tiếp nhận và theo dõi yêu cầu tư vấn là việc của nhân viên, nên staff được
+// vào đầy đủ; riêng xoá yêu cầu vẫn giữ cho admin (khai báo lại ở tuyến DELETE).
+const adminOnly = [authenticate, authorize('admin', 'staff')];
 
 // ── Public ───────────────────────────────────────────────────────────────────
 // Khách để lại thông tin ở trang chủ — không cần đăng nhập.
@@ -19,4 +21,4 @@ consultationRouter.get('/stats', ...adminOnly, consultationController.stats);
 consultationRouter.get('/', ...adminOnly, validateQuery(consultationListQuerySchema), consultationController.list);
 consultationRouter.get('/:id', ...adminOnly, consultationController.getOne);
 consultationRouter.patch('/:id/status', ...adminOnly, consultationController.updateStatus);
-consultationRouter.delete('/:id', ...adminOnly, consultationController.remove);
+consultationRouter.delete('/:id', authenticate, authorize('admin'), consultationController.remove);

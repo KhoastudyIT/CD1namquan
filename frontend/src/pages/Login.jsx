@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { toast, Icon } from "../components/ui.jsx";
+import { isBackoffice } from "../utils/roles.js";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,8 @@ export function Login() {
         fetchCart();
         fetchNotifs();
         toast("Đăng nhập thành công!");
-        navigate(data.user?.role === 'admin' ? '/admin' : from, { replace: true });
+        // Nhân viên cũng vào thẳng khu quản trị như admin.
+        navigate(isBackoffice(data.user?.role) ? '/admin' : from, { replace: true });
       }
     } catch (err) {
       toast(err.message || "Đăng nhập thất bại");

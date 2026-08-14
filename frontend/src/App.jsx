@@ -28,6 +28,7 @@ import { AccountMessages } from "./pages/AccountMessages.jsx";
 import { AccountSettings } from "./pages/AccountSettings.jsx";
 import { AdminDashboard } from "./pages/AdminDashboard.jsx";
 import { RequireAuth } from "./components/RequireAuth.jsx";
+import { isBackoffice as isBackofficeRole } from "./utils/roles.js";
 import { LoginModal } from "./components/LoginModal.jsx";
 import { ChatWidget } from "./components/ChatWidget.jsx";
 
@@ -184,15 +185,17 @@ export default function App() {
 
   const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat, settings, refreshSettings };
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const isAdmin = user?.role === 'admin';
+  // Admin và nhân viên dùng chung khu quản trị; phạm vi thao tác của từng vai
+  // trò do AdminDashboard và middleware phía server quyết định.
+  const isBackoffice = isBackofficeRole(user?.role);
 
   return (
     <AppContext.Provider value={contextValue}>
       <Header cartCount={cartCount} favCount={favs.size} onMenu={() => setMenu(true)} />
-      {!isAdmin && <Drawer open={menu} onClose={() => setMenu(false)} />}
+      {!isBackoffice && <Drawer open={menu} onClose={() => setMenu(false)} />}
       <main>
-        {isAdmin ? (
-          /* Admin sees only the dashboard; any other path goes back to it. */
+        {isBackoffice ? (
+          /* Admin và nhân viên chỉ thấy dashboard; mọi đường dẫn khác quay về đây. */
           <Routes>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
@@ -252,8 +255,8 @@ export default function App() {
         </Routes>
         )}
       </main>
-      {!isAdmin && <Footer />}
-      {!isAdmin && (
+      {!isBackoffice && <Footer />}
+      {!isBackoffice && (
         <ChatWidget
           open={chatOpen}
           setOpen={setChatOpen}

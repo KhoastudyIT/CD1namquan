@@ -10,7 +10,9 @@ export const chatRouter = Router();
 chatRouter.use(authenticate);
 
 // ── Quản trị (đặt trước các route của khách để '/admin' không bị nuốt) ──────
-const adminOnly = [authorize('admin')];
+// Trả lời tin nhắn khách là việc của nhân viên, nên staff dùng chung luồng này
+// với admin (controller đã ghi nhận người gửi là 'staff').
+const adminOnly = [authorize('admin', 'staff')];
 
 chatRouter.get('/admin/unread-count',          adminOnly, chatController.unreadCount);
 chatRouter.get('/admin/conversations',         adminOnly, chatController.listConversations);

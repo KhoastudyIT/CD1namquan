@@ -1,10 +1,18 @@
 import * as userService from './user.service.js';
-import { ok, paginated } from '../../utils/response.js';
+import { ok, created, paginated } from '../../utils/response.js';
 
 export async function list(req, res, next) {
   try {
     const { data, meta } = await userService.listUsers(req.query);
     paginated(res, data, meta);
+  } catch(err) { next(err); }
+}
+
+export async function create(req, res, next) {
+  try {
+    const user = await userService.createUser(req.body);
+    const msg = user.role === 'staff' ? 'Đã tạo tài khoản nhân viên' : 'Đã tạo tài khoản';
+    created(res, user, msg);
   } catch(err) { next(err); }
 }
 

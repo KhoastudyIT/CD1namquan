@@ -180,8 +180,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         console.log('Dùng `npm run seed -- --force` để nạp đè lên bảng đã có.');
       }
       console.log('\nTài khoản mẫu:');
-      console.log('  admin@namquan.vn    / admin123');
-      console.log('  customer@namquan.vn / admin123');
+      console.log('  admin@namquan.vn    / admin123     (quản trị viên)');
+      console.log('  nhanvien@namquan.vn / nhanvien123  (nhân viên)');
+      console.log('  customer@namquan.vn / admin123     (khách hàng)');
       return db.end();
     })
     .catch(async (err) => {

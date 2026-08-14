@@ -10,8 +10,12 @@ export const orderRouter = Router();
 orderRouter.use(authenticate);
 
 // Admin routes (specific paths before parameterized ones)
-orderRouter.get('/admin/list',     authorize('admin'), orderController.listAll);
-orderRouter.put('/:id/status',     authorize('admin'), validate(updateOrderStatusSchema), orderController.updateStatus);
+// Xử lý đơn hàng là nghiệp vụ chính của nhân viên: staff được xem toàn bộ đơn
+// và cập nhật trạng thái giao hàng như admin.
+const backoffice = authorize('admin', 'staff');
+
+orderRouter.get('/admin/list',     backoffice, orderController.listAll);
+orderRouter.put('/:id/status',     backoffice, validate(updateOrderStatusSchema), orderController.updateStatus);
 
 // Customer routes
 orderRouter.get('/',    orderController.list);

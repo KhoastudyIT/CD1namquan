@@ -12,6 +12,17 @@ export const users = [
     email_verified: true,
   },
   {
+    // Tài khoản nhân viên mẫu để thử phân quyền: vào được /admin nhưng chỉ
+    // xử lý đơn hàng, tư vấn, chat; các mục còn lại chỉ xem (xem utils/roles.js).
+    id: '33333333-3333-3333-3333-333333333333',
+    name: 'Nhân viên Demo',
+    email: 'nhanvien@namquan.vn',
+    phone: '0922222222',
+    password: '$2a$10$Nm2ODF5Qce0rJgciddML9ufL14Ebms35UW5y9SJkamAoKcaRoIjVG',
+    role: 'staff',
+    email_verified: true,
+  },
+  {
     id: '22222222-2222-2222-2222-222222222222',
     name: 'Khách hàng Demo',
     email: 'customer@namquan.vn',

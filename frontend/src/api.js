@@ -233,6 +233,7 @@ export const api = {
     return fetchAPI(`/users${q ? `?${q}` : ''}`, {}, true);
   },
   getUserById: (id) => fetchAPI(`/users/${id}`),
+  createUser: (data) => fetchAPI('/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUserRole: (id, role) => fetchAPI(`/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   updateUserStatus: (id, status) => fetchAPI(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
 

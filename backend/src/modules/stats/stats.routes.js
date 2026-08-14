@@ -5,7 +5,8 @@ import { authorize } from '../../middleware/authorize.js';
 
 export const statsRouter = Router();
 
-// Admin only — dashboard analytics
-statsRouter.use(authenticate, authorize('admin'));
+// Khu thống kê của dashboard — nhân viên xem được để nắm tình hình đơn hàng,
+// tồn kho; toàn bộ tuyến ở đây đều là GET nên không cần readOnly.
+statsRouter.use(authenticate, authorize('admin', 'staff'));
 
 statsRouter.get('/overview', statsController.overview);

@@ -6,6 +6,14 @@ import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
 import { AdminChat } from "../components/AdminChat.jsx";
 import { useAppContext } from "../context.js";
+import { isAdmin as isAdminRole, ROLE_LABEL, STAFF_HIDDEN_TABS } from "../utils/roles.js";
+
+// Màu nhãn vai trò trong bảng Người dùng.
+const ROLE_BADGE = {
+  admin:    { bg: "#fef3c7", fg: "#92400e", text: "👑 Quản trị viên" },
+  staff:    { bg: "#e0f2fe", fg: "#0369a1", text: "👔 Nhân viên" },
+  customer: { bg: "var(--mint)", fg: "var(--green-ink)", text: "👤 Khách hàng" },
+};
 
 // ── Mini bar chart (pure CSS) ──────────────────────────────────────────
 function BarChart({ data, labelKey, valueKey, color = "var(--green)" }) {
@@ -71,6 +79,18 @@ const CONSULT_STATUS_META = {
 
 const CONSULT_STATUSES = Object.keys(CONSULT_STATUS_META);
 
+// Quy trình chỉ đi tới, không lùi (khớp consultation.schema.js phía server):
+//   new → contacted → quoted → closed, và huỷ được từ mọi bước chưa kết thúc.
+// Cho phép nhảy cóc về trước (khách gọi hỏi giá luôn → new sang thẳng quoted).
+const CONSULT_FLOW = ["new", "contacted", "quoted", "closed"];
+const CONSULT_TERMINAL = ["closed", "cancelled"];
+
+const consultRank = (s) => CONSULT_FLOW.indexOf(s);
+const isConsultDone = (s) => CONSULT_TERMINAL.includes(s);
+/** Bước này đã đi qua hoặc đang đứng ở đây → hiển thị nhưng khoá lại. */
+const canGoToConsult = (from, to) =>
+  !isConsultDone(from) && (to === "cancelled" || consultRank(to) > consultRank(from));
+
 // ── Tin tức ────────────────────────────────────────────────────────────
 const NEWS_STATUS_META = {
   published: { label: "Đã đăng", bg: "#dcfce7", color: "var(--green-ink)" },
@@ -98,9 +118,17 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const { user, logout, settings, refreshSettings } = useAppContext();
 
+  // ── Phân quyền ────────────────────────────────────────────────────
+  // canManage = admin (toàn quyền). Nhân viên chỉ được xem ở các tab nội dung,
+  // nhưng vẫn thao tác đầy đủ với đơn hàng, tư vấn và chat.
+  // Đây chỉ là lớp che giao diện — server vẫn chặn lại bằng authorize/readOnly.
+  const canManage = isAdminRole(user?.role);
+
   // Đọc tab từ URL hash (#overview, #products, v.v.), fallback về 'overview'
-  const VALID_TABS = ["overview", "products", "orders", "users", "categories", "collections", "news", "flash_sales", "consultations", "chat", "settings"];
+  const ALL_TABS = ["overview", "products", "orders", "users", "staff", "categories", "collections", "news", "flash_sales", "consultations", "chat", "settings"];
+  const VALID_TABS = canManage ? ALL_TABS : ALL_TABS.filter(t => !STAFF_HIDDEN_TABS.includes(t));
   const hashTab = location.hash.replace("#", "");
+  // Nhân viên gõ thẳng #settings vào URL cũng bị đưa về Tổng quan.
   const activeTab = VALID_TABS.includes(hashTab) ? hashTab : "overview";
 
   // Thay đổi tab → cập nhật URL hash (reload sẽ giữ đúng tab)
@@ -121,9 +149,19 @@ export function AdminDashboard() {
   const [usersMeta, setUsersMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
-  const [userRole, setUserRole] = useState("");
   const [userStatus, setUserStatus] = useState("");
   const [userPage, setUserPage] = useState(1);
+  // ── Tab Nhân viên (chỉ admin) ─────────────────────────────────────
+  // Tách khỏi tab Người dùng: ở đây chỉ có nhân sự nội bộ (staff + admin),
+  // còn tab Người dùng dành cho toàn bộ tài khoản kể cả khách hàng.
+  const [staffList, setStaffList] = useState([]);
+  const [staffMeta, setStaffMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffPage, setStaffPage] = useState(1);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", password: "", role: "staff" });
 
   // ── Categories tab ────────────────────────────────────────────────
   const [allCategories, setAllCategories] = useState([]);
@@ -252,8 +290,10 @@ export function AdminDashboard() {
     setUsersLoading(true);
     try {
       const params = {
+        // Tab này chỉ quản lý KHÁCH HÀNG; nhân viên và quản trị viên nằm ở
+        // tab Nhân viên để không lẫn tài khoản nội bộ với tài khoản mua hàng.
+        role: "customer",
         search: userSearch,
-        role: userRole,
         status: userStatus,
         page: userPage,
         limit: 10,
@@ -267,6 +307,22 @@ export function AdminDashboard() {
       toast("Lỗi tải danh sách người dùng: " + err.message);
     } finally {
       setUsersLoading(false);
+    }
+  };
+
+  /** Danh sách nhân sự nội bộ — backend nhận nhiều vai trò phân tách bằng dấu phẩy. */
+  const fetchStaff = async (overrides = {}) => {
+    setStaffLoading(true);
+    try {
+      const params = { role: "staff,admin", search: staffSearch, page: staffPage, limit: 10, ...overrides };
+      Object.keys(params).forEach(k => params[k] === "" && delete params[k]);
+      const res = await api.getUsers(params);
+      setStaffList(res.data || []);
+      setStaffMeta(res.meta || { total: 0, page: 1, limit: 10, totalPages: 1 });
+    } catch (err) {
+      toast("Lỗi tải danh sách nhân viên: " + err.message);
+    } finally {
+      setStaffLoading(false);
     }
   };
 
@@ -381,6 +437,9 @@ export function AdminDashboard() {
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { if (activeTab === "users") fetchUsers(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "staff") fetchStaff(); }, [activeTab]);
+  // Nạp một lần lúc vào dashboard để sidebar hiện ngay số nhân sự.
+  useEffect(() => { if (canManage && activeTab !== "staff") fetchStaff(); }, []);
   useEffect(() => { if (activeTab === "categories") fetchCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
@@ -465,22 +524,46 @@ export function AdminDashboard() {
   };
 
   // ─────────────── USER HANDLERS ───────────────────────────────────
-  const handleUpdateUserRole = async (u) => {
-    const newRole = u.role === "admin" ? "customer" : "admin";
+  const handleUpdateUserRole = async (u, newRole) => {
+    if (!newRole || newRole === u.role) return;
     try {
       await api.updateUserRole(u.id, newRole);
-      toast(`Đã đổi quyền thành ${newRole === "admin" ? "Admin" : "Khách hàng"}!`);
+      toast(`Đã đổi quyền của ${u.name} thành ${ROLE_LABEL[newRole]}`);
       fetchUsers({ page: userPage });
     } catch (err) { toast("Lỗi: " + err.message); }
   };
 
   const handleUpdateUserStatus = async (u) => {
-    const newStatus = (u.status || "active") === "active" ? "suspended" : "active";
+    // Giá trị phải khớp CHECK của cột users.status ('active','inactive','blocked').
+    const newStatus = (u.status || "active") === "active" ? "blocked" : "active";
     try {
       await api.updateUserStatus(u.id, newStatus);
-      toast(newStatus === "suspended" ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!");
+      toast(newStatus === "blocked" ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!");
       fetchUsers({ page: userPage });
     } catch (err) { toast("Lỗi: " + err.message); }
+  };
+
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    if (staffForm.password.length < 6) {
+      toast("Mật khẩu phải có ít nhất 6 ký tự");
+      return;
+    }
+    setStaffSaving(true);
+    try {
+      const createdUser = await api.createUser(staffForm);
+      toast(`Đã tạo tài khoản ${ROLE_LABEL[createdUser.role]} cho ${createdUser.name}`);
+      setShowStaffModal(false);
+      setStaffForm({ name: "", email: "", phone: "", password: "", role: "staff" });
+      // Về trang 1 để thấy ngay người vừa tạo (danh sách xếp theo ngày tạo giảm dần).
+      setStaffSearch("");
+      setStaffPage(1);
+      fetchStaff({ page: 1, search: "" });
+    } catch (err) {
+      toast("Lỗi tạo tài khoản: " + err.message);
+    } finally {
+      setStaffSaving(false);
+    }
   };
 
   // ─────────────── CATEGORY HANDLERS ───────────────────────────────
@@ -958,10 +1041,11 @@ export function AdminDashboard() {
     { key: "flash_sales", icon: "fire", label: `Flash Sale (${flashSales.length})` },
     { key: "orders", icon: "truck", label: `Đơn hàng (${totalOrders})` },
     { key: "users", icon: "user", label: "Người dùng" },
+    { key: "staff", icon: "shield", label: staffMeta.total > 0 ? `Nhân viên (${staffMeta.total})` : "Nhân viên" },
     { key: "consultations", icon: "phone", label: consultCounts.new > 0 ? `Tư vấn (${consultCounts.new})` : "Tư vấn" },
     { key: "chat", icon: "chat", label: chatUnread > 0 ? `Chat (${chatUnread})` : "Chat" },
     { key: "settings", icon: "gear", label: "Thông tin công ty" },
-  ];
+  ].filter(item => VALID_TABS.includes(item.key));
   const currentNavLabel = NAV_ITEMS.find(t => t.key === activeTab)?.label || "Quản trị";
 
   return (
@@ -1133,7 +1217,7 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Quản lý sản phẩm</h2>
-              <button className="btn-pill" onClick={handleOpenAdd}><span style={{ fontSize: 16 }}>+</span> Thêm sản phẩm</button>
+              {canManage && <button className="btn-pill" onClick={handleOpenAdd}><span style={{ fontSize: 16 }}>+</span> Thêm sản phẩm</button>}
             </div>
 
             <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
@@ -1181,10 +1265,12 @@ export function AdminDashboard() {
                       <td style={{ fontWeight: 600, color: p.stock < 10 ? "var(--orange-2)" : "inherit" }}>{p.stock}</td>
                       <td>{p.sold}</td>
                       <td>
-                        <div className="admin-actions">
-                          <button className="admin-btn-sm edit" onClick={() => handleOpenEdit(p)}>Sửa</button>
-                          <button className="admin-btn-sm delete" onClick={() => handleDeleteProduct(p.id, p.name)}>Xóa</button>
-                        </div>
+                        {canManage ? (
+                          <div className="admin-actions">
+                            <button className="admin-btn-sm edit" onClick={() => handleOpenEdit(p)}>Sửa</button>
+                            <button className="admin-btn-sm delete" onClick={() => handleDeleteProduct(p.id, p.name)}>Xóa</button>
+                          </div>
+                        ) : <span style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ xem</span>}
                       </td>
                     </tr>
                   ))}
@@ -1200,9 +1286,11 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Quản lý danh mục</h2>
-              <button className="btn-pill" onClick={handleOpenAddCat}>
-                <span style={{ fontSize: 16 }}>+</span> Thêm danh mục
-              </button>
+              {canManage && (
+                <button className="btn-pill" onClick={handleOpenAddCat}>
+                  <span style={{ fontSize: 16 }}>+</span> Thêm danh mục
+                </button>
+              )}
             </div>
 
             {categoriesLoading ? (
@@ -1229,10 +1317,12 @@ export function AdminDashboard() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{c.name}</td>
                         <td>
-                          <div className="admin-actions">
-                            <button className="admin-btn-sm edit" onClick={() => handleOpenEditCat(c)}>Sửa</button>
-                            <button className="admin-btn-sm delete" onClick={() => handleDeleteCategory(c.id, c.name)}>Xóa</button>
-                          </div>
+                          {canManage ? (
+                            <div className="admin-actions">
+                              <button className="admin-btn-sm edit" onClick={() => handleOpenEditCat(c)}>Sửa</button>
+                              <button className="admin-btn-sm delete" onClick={() => handleDeleteCategory(c.id, c.name)}>Xóa</button>
+                            </div>
+                          ) : <span style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ xem</span>}
                         </td>
                       </tr>
                     ))}
@@ -1251,9 +1341,11 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Quản lý bộ sưu tập</h2>
-              <button className="btn-pill" onClick={handleOpenAddColl}>
-                <span style={{ fontSize: 16 }}>+</span> Thêm bộ sưu tập
-              </button>
+              {canManage && (
+                <button className="btn-pill" onClick={handleOpenAddColl}>
+                  <span style={{ fontSize: 16 }}>+</span> Thêm bộ sưu tập
+                </button>
+              )}
             </div>
 
             {collectionsLoading ? (
@@ -1280,10 +1372,12 @@ export function AdminDashboard() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{c.name}</td>
                         <td>
-                          <div className="admin-actions">
-                            <button className="admin-btn-sm edit" onClick={() => handleOpenEditColl(c)}>Sửa</button>
-                            <button className="admin-btn-sm delete" onClick={() => handleDeleteCollection(c.id, c.name)}>Xóa</button>
-                          </div>
+                          {canManage ? (
+                            <div className="admin-actions">
+                              <button className="admin-btn-sm edit" onClick={() => handleOpenEditColl(c)}>Sửa</button>
+                              <button className="admin-btn-sm delete" onClick={() => handleDeleteCollection(c.id, c.name)}>Xóa</button>
+                            </div>
+                          ) : <span style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ xem</span>}
                         </td>
                       </tr>
                     ))}
@@ -1314,9 +1408,11 @@ export function AdminDashboard() {
                   <Icon name="refresh" size={15} />
                   {newsLoading ? "Đang tải…" : "Làm mới"}
                 </button>
-                <button className="btn-pill" onClick={handleOpenAddNews}>
-                  <span style={{ fontSize: 16 }}>+</span> Viết bài mới
-                </button>
+                {canManage && (
+                  <button className="btn-pill" onClick={handleOpenAddNews}>
+                    <span style={{ fontSize: 16 }}>+</span> Viết bài mới
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1448,23 +1544,25 @@ export function AdminDashboard() {
                             <td style={{ fontSize: 13, color: "var(--muted)" }}>{n.views?.toLocaleString("vi-VN")}</td>
                             <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{n.date}</td>
                             <td>
-                              <div className="admin-actions">
-                                <button className="admin-btn-sm edit" onClick={() => handleOpenEditNews(n)}>Sửa</button>
-                                <button
-                                  className="admin-btn-sm"
-                                  style={{
-                                    fontSize: 11,
-                                    background: n.status === "published" ? "#e5e7eb" : "#dcfce7",
-                                    color: n.status === "published" ? "#4b5563" : "var(--green-ink)",
-                                    border: "none", borderRadius: 7, padding: "5px 10px", fontWeight: 600, cursor: "pointer",
-                                  }}
-                                  title={n.status === "published" ? "Gỡ khỏi trang tin tức" : "Đăng lên trang tin tức"}
-                                  onClick={() => handleToggleNewsStatus(n)}
-                                >
-                                  {n.status === "published" ? "Gỡ bài" : "Đăng bài"}
-                                </button>
-                                <button className="admin-btn-sm delete" onClick={() => handleDeleteNews(n.id, n.title)}>Xóa</button>
-                              </div>
+                              {canManage ? (
+                                <div className="admin-actions">
+                                  <button className="admin-btn-sm edit" onClick={() => handleOpenEditNews(n)}>Sửa</button>
+                                  <button
+                                    className="admin-btn-sm"
+                                    style={{
+                                      fontSize: 11,
+                                      background: n.status === "published" ? "#e5e7eb" : "#dcfce7",
+                                      color: n.status === "published" ? "#4b5563" : "var(--green-ink)",
+                                      border: "none", borderRadius: 7, padding: "5px 10px", fontWeight: 600, cursor: "pointer",
+                                    }}
+                                    title={n.status === "published" ? "Gỡ khỏi trang tin tức" : "Đăng lên trang tin tức"}
+                                    onClick={() => handleToggleNewsStatus(n)}
+                                  >
+                                    {n.status === "published" ? "Gỡ bài" : "Đăng bài"}
+                                  </button>
+                                  <button className="admin-btn-sm delete" onClick={() => handleDeleteNews(n.id, n.title)}>Xóa</button>
+                                </div>
+                              ) : <span style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ xem</span>}
                             </td>
                           </tr>
                         );
@@ -1547,7 +1645,7 @@ export function AdminDashboard() {
             <div className="admin-sec-header">
               <h2>Quản lý người dùng</h2>
               <span style={{ fontSize: 13, color: "var(--muted)", background: "var(--mint)", padding: "4px 12px", borderRadius: 999, fontWeight: 600 }}>
-                {usersMeta.total} tài khoản
+                {usersMeta.total} khách hàng
               </span>
             </div>
 
@@ -1570,21 +1668,6 @@ export function AdminDashboard() {
                 />
                 <select
                   className="admin-select"
-                  style={{ width: 150 }}
-                  value={userRole}
-                  onChange={e => {
-                    const v = e.target.value;
-                    setUserRole(v);
-                    setUserPage(1);
-                    fetchUsers({ page: 1, role: v });
-                  }}
-                >
-                  <option value="">Tất cả quyền</option>
-                  <option value="customer">Khách hàng</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <select
-                  className="admin-select"
                   style={{ width: 160 }}
                   value={userStatus}
                   onChange={e => {
@@ -1596,7 +1679,7 @@ export function AdminDashboard() {
                 >
                   <option value="">Tất cả trạng thái</option>
                   <option value="active">Đang hoạt động</option>
-                  <option value="suspended">Đã khóa</option>
+                  <option value="blocked">Đã khóa</option>
                 </select>
                 <button
                   className="btn-pill"
@@ -1618,10 +1701,10 @@ export function AdminDashboard() {
                       <tr>
                         <th>Tên</th>
                         <th>Email</th>
-                        <th>Quyền</th>
+                        <th style={{ textAlign: "center" }}>Số đơn</th>
                         <th>Trạng thái</th>
                         <th>Ngày đăng ký</th>
-                        <th style={{ width: 200 }}>Hành động</th>
+                        <th style={{ width: 140 }}>Hành động</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1629,16 +1712,7 @@ export function AdminDashboard() {
                         <tr key={u.id}>
                           <td style={{ fontWeight: 600 }}>{u.name}</td>
                           <td style={{ color: "var(--muted)", fontSize: 13 }}>{u.email}</td>
-                          <td>
-                            <span style={{
-                              display: "inline-block", padding: "3px 10px", borderRadius: 999,
-                              fontSize: 12, fontWeight: 700,
-                              background: u.role === "admin" ? "#fef3c7" : "var(--mint)",
-                              color: u.role === "admin" ? "#92400e" : "var(--green-ink)",
-                            }}>
-                              {u.role === "admin" ? "👑 Admin" : "👤 Khách hàng"}
-                            </span>
-                          </td>
+                          <td style={{ textAlign: "center", fontWeight: 600 }}>{u.orderCount ?? 0}</td>
                           <td>
                             <span style={{
                               display: "inline-block", padding: "3px 10px", borderRadius: 999,
@@ -1653,15 +1727,12 @@ export function AdminDashboard() {
                             {new Date(u.createdAt).toLocaleDateString("vi-VN")}
                           </td>
                           <td>
-                            <div className="admin-actions">
-                              <button
-                                className="admin-btn-sm edit"
-                                style={{ fontSize: 11 }}
-                                title={u.role === "admin" ? "Hạ xuống khách hàng" : "Nâng lên admin"}
-                                onClick={() => handleUpdateUserRole(u)}
-                              >
-                                {u.role === "admin" ? "⬇ Hạ quyền" : "⬆ Admin"}
-                              </button>
+                            {/* Không có đổi vai trò ở đây: nâng khách hàng lên nhân
+                                viên là việc của tab Nhân viên. Nhân viên xem tab này
+                                cũng không khóa được ai — server chặn bằng readOnly('staff'). */}
+                            {!canManage ? (
+                              <span style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ xem</span>
+                            ) : (
                               <button
                                 className="admin-btn-sm"
                                 style={{
@@ -1675,12 +1746,12 @@ export function AdminDashboard() {
                               >
                                 {(u.status || "active") === "active" ? "🔒 Khóa" : "🔓 Mở"}
                               </button>
-                            </div>
+                            )}
                           </td>
                         </tr>
                       ))}
                       {users.length === 0 && (
-                        <tr><td colSpan="6" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Không tìm thấy người dùng nào</td></tr>
+                        <tr><td colSpan="6" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Không tìm thấy khách hàng nào</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1698,7 +1769,145 @@ export function AdminDashboard() {
                     <button className="page-btn" disabled={userPage >= usersMeta.totalPages}
                       onClick={() => { const p = userPage + 1; setUserPage(p); fetchUsers({ page: p }); }}>›</button>
                     <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {userPage} / {usersMeta.totalPages} ({usersMeta.total} người dùng)
+                      Trang {userPage} / {usersMeta.totalPages} ({usersMeta.total} khách hàng)
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB: QUẢN LÝ NHÂN VIÊN (chỉ admin) ===== */}
+        {activeTab === "staff" && canManage && (
+          <div>
+            <div className="admin-sec-header">
+              <h2>Quản lý nhân viên</h2>
+              <button className="btn-pill" onClick={() => setShowStaffModal(true)}>
+                <span style={{ fontSize: 16 }}>+</span> Thêm nhân viên
+              </button>
+            </div>
+
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: 220 }}
+                  placeholder="Tìm theo tên hoặc email nhân viên..."
+                  value={staffSearch}
+                  onChange={e => setStaffSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { setStaffPage(1); fetchStaff({ page: 1 }); } }}
+                />
+                <button
+                  className="btn-pill"
+                  style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => { setStaffPage(1); fetchStaff({ page: 1 }); }}
+                >
+                  🔍 Tìm kiếm
+                </button>
+              </div>
+            </div>
+
+            {staffLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>Đang tải...</div>
+            ) : (
+              <>
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Họ và tên</th>
+                        <th>Email đăng nhập</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th style={{ width: 230 }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffList.map(s => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 600 }}>{s.name}</td>
+                          <td style={{ color: "var(--muted)", fontSize: 13 }}>{s.email}</td>
+                          <td>
+                            <span style={{
+                              display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                              fontSize: 12, fontWeight: 700,
+                              background: ROLE_BADGE[s.role]?.bg, color: ROLE_BADGE[s.role]?.fg,
+                            }}>
+                              {ROLE_BADGE[s.role]?.text ?? ROLE_LABEL[s.role]}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{
+                              display: "inline-block", padding: "3px 10px", borderRadius: 999,
+                              fontSize: 12, fontWeight: 700,
+                              background: (s.status || "active") === "active" ? "#dcfce7" : "#fee2e2",
+                              color: (s.status || "active") === "active" ? "var(--green-ink)" : "#ef4444",
+                            }}>
+                              {(s.status || "active") === "active" ? "✅ Hoạt động" : "🔒 Đã khóa"}
+                            </span>
+                          </td>
+                          <td style={{ color: "var(--muted)", fontSize: 12 }}>
+                            {new Date(s.createdAt).toLocaleDateString("vi-VN")}
+                          </td>
+                          <td>
+                            {/* Không cho tự hạ quyền hay tự khóa mình — server cũng
+                                trả 400 cho hai thao tác này. */}
+                            {s.id === user?.id ? (
+                              <span style={{ color: "var(--muted)", fontSize: 12 }}>Tài khoản của bạn</span>
+                            ) : (
+                              <div className="admin-actions">
+                                <select
+                                  className="admin-select"
+                                  style={{ width: 130, fontSize: 12, padding: "5px 8px" }}
+                                  value={s.role}
+                                  title="Đổi vai trò trong nội bộ. Nhân viên nghỉ việc thì Khóa tài khoản, không hạ xuống khách hàng."
+                                  onChange={async e => { await handleUpdateUserRole(s, e.target.value); fetchStaff(); }}
+                                >
+                                  <option value="staff">Nhân viên</option>
+                                  <option value="admin">Quản trị viên</option>
+                                </select>
+                                <button
+                                  className="admin-btn-sm"
+                                  style={{
+                                    fontSize: 11,
+                                    background: (s.status || "active") === "active" ? "#fee2e2" : "#dcfce7",
+                                    color: (s.status || "active") === "active" ? "#ef4444" : "var(--green-ink)",
+                                    border: "none", borderRadius: 7, padding: "5px 10px", fontWeight: 600, cursor: "pointer",
+                                  }}
+                                  title={(s.status || "active") === "active" ? "Khóa tài khoản — nhân viên nghỉ việc dùng nút này; chặn đăng nhập ngay lập tức" : "Mở khóa tài khoản"}
+                                  onClick={async () => { await handleUpdateUserStatus(s); fetchStaff(); }}
+                                >
+                                  {(s.status || "active") === "active" ? "🔒 Khóa" : "🔓 Mở"}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {staffList.length === 0 && (
+                        <tr><td colSpan="6" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
+                          Chưa có tài khoản nhân viên nào. Bấm “Thêm nhân viên” để tạo.
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {staffMeta.totalPages > 1 && (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
+                    <button className="page-btn" disabled={staffPage <= 1}
+                      onClick={() => { const p = staffPage - 1; setStaffPage(p); fetchStaff({ page: p }); }}>‹</button>
+                    {Array.from({ length: staffMeta.totalPages }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={`page-btn ${p === staffPage ? "active" : ""}`}
+                        onClick={() => { setStaffPage(p); fetchStaff({ page: p }); }}>{p}</button>
+                    ))}
+                    <button className="page-btn" disabled={staffPage >= staffMeta.totalPages}
+                      onClick={() => { const p = staffPage + 1; setStaffPage(p); fetchStaff({ page: p }); }}>›</button>
+                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                      Trang {staffPage} / {staffMeta.totalPages} ({staffMeta.total} nhân sự)
                     </span>
                   </div>
                 )}
@@ -1712,7 +1921,7 @@ export function AdminDashboard() {
           <div>
             <div className="admin-sec-header">
               <h2>Quản lý Flash Sale</h2>
-              <button className="btn-pill" onClick={handleOpenAddFlash}>🔥 Thêm Flash Sale</button>
+              {canManage && <button className="btn-pill" onClick={handleOpenAddFlash}>🔥 Thêm Flash Sale</button>}
             </div>
 
             <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
@@ -1824,7 +2033,7 @@ export function AdminDashboard() {
                                 sửa giá của nó làm sai lệch các đơn đã bán theo
                                 chương trình, còn dời ends_at là hồi sinh nó. Muốn
                                 chạy lại thì tạo chương trình mới. */}
-                            {status.tone !== "expired" && (
+                            {status.tone !== "expired" && canManage && (
                               <div className="admin-actions">
                                 <button className="admin-btn-sm edit" onClick={() => handleOpenEditFlash(fs)}>Sửa</button>
                                 {status.running && (
@@ -2399,6 +2608,64 @@ export function AdminDashboard() {
       )}
 
       {/* ===== MODAL: ADD CATEGORY ===== */}
+      {/* ===== MODAL: THÊM NHÂN VIÊN ===== */}
+      {showStaffModal && canManage && (
+        <div className="admin-modal-backdrop" onClick={() => setShowStaffModal(false)}>
+          <div className="admin-modal-panel" onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setShowStaffModal(false)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title">Thêm tài khoản nhân viên</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>
+              Nhân viên không tự đăng ký được. Quản trị viên tạo tài khoản tại đây
+              rồi bàn giao email và mật khẩu cho người đó.
+            </p>
+            <form onSubmit={handleCreateStaff}>
+              <div className="admin-form-group">
+                <label>Họ và tên *</label>
+                <input type="text" className="admin-input" required minLength={2} maxLength={100}
+                  value={staffForm.name}
+                  onChange={e => setStaffForm({ ...staffForm, name: e.target.value })} />
+              </div>
+              <div className="admin-form-group">
+                <label>Email đăng nhập *</label>
+                <input type="email" className="admin-input" required
+                  value={staffForm.email}
+                  onChange={e => setStaffForm({ ...staffForm, email: e.target.value })} />
+              </div>
+              <div className="admin-form-group">
+                <label>Số điện thoại</label>
+                <input type="tel" className="admin-input" maxLength={20}
+                  value={staffForm.phone}
+                  onChange={e => setStaffForm({ ...staffForm, phone: e.target.value })} />
+              </div>
+              <div className="admin-form-group">
+                <label>Mật khẩu tạm thời *</label>
+                <input type="text" className="admin-input" required minLength={6} maxLength={100}
+                  placeholder="Ít nhất 6 ký tự"
+                  value={staffForm.password}
+                  onChange={e => setStaffForm({ ...staffForm, password: e.target.value })} />
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Hiển thị dạng chữ để bạn sao chép gửi cho nhân viên; nhắc họ đổi lại sau lần đăng nhập đầu.
+                </span>
+              </div>
+              <div className="admin-form-group">
+                <label>Vai trò *</label>
+                <select className="admin-select" value={staffForm.role}
+                  onChange={e => setStaffForm({ ...staffForm, role: e.target.value })}>
+                  <option value="staff">Nhân viên — xử lý đơn hàng, tư vấn, chat</option>
+                  <option value="admin">Quản trị viên — toàn quyền</option>
+                </select>
+              </div>
+              <div className="admin-form-actions">
+                <button type="button" className="btn-pill ghost" onClick={() => setShowStaffModal(false)}>Hủy bỏ</button>
+                <button type="submit" className="btn-pill" disabled={staffSaving}>
+                  {staffSaving ? "Đang tạo..." : "Tạo tài khoản"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showAddCatModal && (
         <div className="admin-modal-backdrop" onClick={() => setShowAddCatModal(false)}>
           <div className="admin-modal-panel" onClick={e => e.stopPropagation()}>
@@ -2907,29 +3174,73 @@ export function AdminDashboard() {
               <p className="admin-consult-note">{selectedConsult.message || "Khách không để lại ghi chú."}</p>
             </div>
 
-            {/* Đổi trạng thái ngay trong modal — khỏi đóng lại rồi tìm đúng dòng. */}
+            {/* Đổi trạng thái ngay trong modal — khỏi đóng lại rồi tìm đúng dòng.
+                Luồng một chiều: bước đã qua bị khoá, chỉ bấm được bước phía trước. */}
             <div style={{ marginTop: 20 }}>
               <span className="admin-consult-k">Trạng thái xử lý</span>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                {CONSULT_STATUSES.map(s => {
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                {CONSULT_FLOW.map((s, i) => {
                   const meta = CONSULT_STATUS_META[s];
-                  const on = selectedConsult.status === s;
+                  const cur = selectedConsult.status;
+                  const on = cur === s;
+                  const passed = !isConsultDone(cur) ? consultRank(s) < consultRank(cur)
+                                                     : cur === "closed" ? consultRank(s) <= consultRank(cur) : false;
+                  const clickable = canGoToConsult(cur, s);
                   return (
-                    <button
-                      key={s}
-                      onClick={() => handleConsultStatus(selectedConsult, s)}
-                      style={{
-                        padding: "7px 15px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                        border: `1.5px solid ${on ? meta.color : "var(--line)"}`,
-                        background: on ? meta.bg : "#fff",
-                        color: on ? meta.color : "var(--muted)",
-                        transition: ".18s",
-                      }}
-                    >
-                      {meta.label}
-                    </button>
+                    <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {i > 0 && <span style={{ color: "var(--line-2)", fontSize: 13 }}>→</span>}
+                      <button
+                        onClick={() => clickable && handleConsultStatus(selectedConsult, s)}
+                        disabled={!clickable}
+                        title={
+                          on ? "Trạng thái hiện tại"
+                          : clickable ? `Chuyển sang: ${meta.label}`
+                          : "Quy trình chỉ đi tới, không lùi được"
+                        }
+                        style={{
+                          padding: "7px 15px", borderRadius: 999, fontSize: 12.5, fontWeight: 700,
+                          cursor: clickable ? "pointer" : "default",
+                          border: `1.5px solid ${on ? meta.color : "var(--line)"}`,
+                          background: on ? meta.bg : "#fff",
+                          color: on ? meta.color : passed ? "var(--muted-2)" : "var(--muted)",
+                          opacity: !on && !clickable ? 0.55 : 1,
+                          transition: ".18s",
+                        }}
+                      >
+                        {passed && !on ? "✓ " : ""}{meta.label}
+                      </button>
+                    </span>
                   );
                 })}
+              </div>
+
+              {/* Huỷ tách riêng khỏi dòng quy trình — đây là nhánh thoát, không phải bước kế tiếp. */}
+              <div style={{ marginTop: 10 }}>
+                {selectedConsult.status === "cancelled" ? (
+                  <span style={{
+                    display: "inline-block", padding: "6px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 700,
+                    background: CONSULT_STATUS_META.cancelled.bg, color: CONSULT_STATUS_META.cancelled.color,
+                  }}>
+                    {CONSULT_STATUS_META.cancelled.label}
+                  </span>
+                ) : !isConsultDone(selectedConsult.status) ? (
+                  <button
+                    onClick={() => handleConsultStatus(selectedConsult, "cancelled")}
+                    style={{
+                      padding: "6px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                      border: "1.5px solid var(--line)", background: "#fff", color: "#b91c1c",
+                    }}
+                  >
+                    ✕ Huỷ yêu cầu
+                  </button>
+                ) : null}
+
+                {isConsultDone(selectedConsult.status) && (
+                  <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    Yêu cầu đã kết thúc — không đổi trạng thái được nữa.
+                  </p>
+                )}
               </div>
             </div>
 
