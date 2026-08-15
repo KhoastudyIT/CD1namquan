@@ -346,3 +346,25 @@ export async function markStaffRead(conversationId) {
     [conversationId],
   );
 }
+
+let QUICK_CHAT_NOTES = [
+  { id: 1, text: 'Dạ Nam Quan xin chào! Em có thể hỗ trợ gì cho anh/chị ạ?' },
+  { id: 2, text: 'Sản phẩm bên em đang có sẵn tại Showroom, bảo hành 24 tháng chính hãng ạ.' },
+  { id: 3, text: 'Dạ bên em hỗ trợ miễn phí vận chuyển & lắp đặt tận nơi nội thành ạ.' },
+  { id: 4, text: 'Chuyên viên tư vấn bên em sẽ liên hệ gọi lại ngay trong 5 phút ạ.' },
+];
+
+export async function listQuickNotes() {
+  return QUICK_CHAT_NOTES;
+}
+
+export async function createQuickNote(text) {
+  const note = { id: Date.now(), text: text || '' };
+  QUICK_CHAT_NOTES.push(note);
+  return note;
+}
+
+export async function deleteQuickNote(id) {
+  QUICK_CHAT_NOTES = QUICK_CHAT_NOTES.filter(n => Number(n.id) !== Number(id));
+  return { success: true };
+}

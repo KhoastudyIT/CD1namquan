@@ -28,6 +28,7 @@ import { AccountOverview } from "./pages/AccountOverview.jsx";
 import { AccountMessages } from "./pages/AccountMessages.jsx";
 import { AccountSettings } from "./pages/AccountSettings.jsx";
 import { AdminDashboard } from "./pages/AdminDashboard.jsx";
+import { Contact } from "./pages/Contact.jsx";
 import { RequireAuth } from "./components/RequireAuth.jsx";
 import { isBackoffice as isBackofficeRole } from "./utils/roles.js";
 import { LoginModal } from "./components/LoginModal.jsx";
@@ -142,6 +143,19 @@ export default function App() {
     });
   }, [requireLogin, fetchCart]);
 
+  const buyNow = useCallback((p, quantity = 1) => {
+    if (!requireLogin("Vui lòng đăng nhập để mua sản phẩm.", "/checkout")) return;
+    const targetId = Number(p.product_id || p.productId || p.id);
+    api.addToCart(targetId, Number(quantity)).then(data => {
+      if (data) {
+        fetchCart();
+        navigate('/checkout');
+      }
+    }).catch(err => {
+      toast(err.message || "Lỗi khi xử lý mua ngay");
+    });
+  }, [requireLogin, fetchCart, navigate]);
+
   const toggleFav = useCallback((id) => {
     if (!requireLogin("Vui lòng đăng nhập để lưu sản phẩm yêu thích.", "/favorites")) return;
     setFavs((prev) => {
@@ -184,7 +198,7 @@ export default function App() {
     }
   };
 
-  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat, settings, refreshSettings };
+  const contextValue = { user, setUser, cart, fetchCart, favs, toggleFav, addToCart, buyNow, logout, requireLogin, notifs, fetchNotifs, markNotifRead, markAllNotifsRead, openChat, settings, refreshSettings };
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   // Admin và nhân viên dùng chung khu quản trị; phạm vi thao tác của từng vai
   // trò do AdminDashboard và middleware phía server quyết định.
@@ -208,6 +222,7 @@ export default function App() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:idOrSlug" element={<NewsDetail />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
 
           {/* Khu vực tài khoản: sidebar dùng chung, trang con render vào Outlet */}

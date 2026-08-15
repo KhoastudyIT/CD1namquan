@@ -70,6 +70,11 @@ export function Footer() {
                 <a href={`mailto:${settings.email}`} className="foot-link">{settings.email}</a>
               </div>
             )}
+            <div className="foot-addr" style={{ marginTop: 8 }}>
+              <Link to="/contact" className="foot-link" style={{ fontWeight: 600, color: "var(--green)" }}>
+                › Trang liên hệ & tư vấn
+              </Link>
+            </div>
           </div>
 
           {hasMap && (

@@ -20,7 +20,8 @@ export function Header({ cartCount, favCount, onMenu }) {
     { label: "Cửa hàng", path: "/shop" },
     { label: "Bộ sưu tập", hash: "collections" },
     { label: "Showroom", hash: "showroom" },
-    { label: "Tin tức", path: "/news" }
+    { label: "Tin tức", path: "/news" },
+    { label: "Liên hệ", path: "/contact" }
   ];
   
   const handleNav = (e, link) => {

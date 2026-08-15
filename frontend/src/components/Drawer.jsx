@@ -12,6 +12,7 @@ export function Drawer({ open, onClose }) {
     { label: "Bộ sưu tập", hash: "collections", icon: "shield" },
     { label: "Showroom", hash: "showroom", icon: "pin" },
     { label: "Tin tức", path: "/news", icon: "arrowR" },
+    { label: "Liên hệ", path: "/contact", icon: "mail" },
   ];
 
   const handleNav = (link) => {

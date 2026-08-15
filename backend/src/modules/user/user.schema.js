@@ -44,3 +44,7 @@ export const updateRoleSchema = z.object({
 export const updateStatusSchema = z.object({
   status: accountStatus,
 });
+
+export const updateNoteSchema = z.object({
+  note: z.string().trim().max(2000).optional().default(''),
+});

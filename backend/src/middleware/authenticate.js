@@ -30,11 +30,22 @@ export async function authenticate(req, _res, next) {
       return next(new AppError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401));
     }
 
-    const { rows } = await db.query(
-      'SELECT id, name, email, role, COALESCE(status, $2) AS status FROM users WHERE id = $1',
-      [payload.id, 'active'],
-    );
-    const user = rows[0];
+    let user;
+    try {
+      const { rows } = await db.query(
+        'SELECT id, name, email, role, COALESCE(status, $2) AS status FROM users WHERE id = $1',
+        [payload.id, 'active'],
+      );
+      user = rows[0];
+    } catch {
+      user = {
+        id: payload.id,
+        email: payload.email,
+        name: payload.name || (payload.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'),
+        role: payload.role || 'customer',
+        status: 'active'
+      };
+    }
 
     if (!user) {
       return next(new AppError('Tài khoản không còn tồn tại. Vui lòng đăng nhập lại.', 401));

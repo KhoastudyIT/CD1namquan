@@ -1,6 +1,7 @@
 /* ============ NAM QUAN — cards ============ */
 import { Img, Icon, Stars, ColorDots, vnd, priceOf, discountPct } from "./ui.jsx";
 import { Link } from "react-router-dom";
+import { useAppContext } from "../context.js";
 
 export function FavBtn({ active, onClick }) {
   return (
@@ -15,19 +16,25 @@ export function FavBtn({ active, onClick }) {
   );
 }
 
-export function ProductCard({ p, fav, onFav, onAdd }) {
-  const { price, listPrice, hasDiscount, discountPct } = priceOf(p);
+export function ProductCard({ p, fav, onFav, onAdd, onBuy }) {
+  const { buyNow } = useAppContext() || {};
+  const handleBuy = onBuy || ((prod) => buyNow && buyNow(prod));
+  const { price, listPrice, hasDiscount, discountPct: discPct } = priceOf(p);
+
   return (
     <div className="pcard">
       <div className="pcard-media">
-        {hasDiscount && <span className="flash-tag">-{discountPct}%</span>}
+        {hasDiscount && <span className="flash-tag">-{discPct}%</span>}
         <Link to={`/product/${p.id}`} style={{ display: 'block', height: '100%' }}>
           <Img src={p.img} alt={p.name} label="ảnh sản phẩm" />
         </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.id)} />
-          <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
+          <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng" title="Thêm vào giỏ">
             <Icon name="cart" size={15} stroke={1.7} />
+          </button>
+          <button className="pcard-buy" onClick={() => handleBuy(p)} aria-label="Mua ngay" title="Mua ngay">
+            ⚡
           </button>
         </div>
       </div>
@@ -49,15 +56,17 @@ export function ProductCard({ p, fav, onFav, onAdd }) {
   );
 }
 
-export function FlashCard({ p, fav, onFav, onAdd }) {
+export function FlashCard({ p, fav, onFav, onAdd, onBuy }) {
+  const { buyNow } = useAppContext() || {};
+  const handleBuy = onBuy || ((prod) => buyNow && buyNow(prod));
+
   const price = Number(p.price || 0);
-  // product_price là giá niêm yết hiện tại; original_price chỉ là ảnh chụp lúc
-  // tạo chương trình nên dùng làm dự phòng, nếu không % ở đây sẽ lệch với Shop.
   const oldPrice = Number(p.product_price || p.old || p.originalPrice || p.original_price || price || 0);
   const sold = Number(p.sold || 0);
   const stock = Number(p.stock || 1);
   const pct = Math.min(100, Math.round((sold / stock) * 100));
   const remaining = Math.max(0, stock - sold);
+
   return (
     <div className="pcard flash">
       <div className="pcard-media">
@@ -67,8 +76,11 @@ export function FlashCard({ p, fav, onFav, onAdd }) {
         </Link>
         <div className="pcard-tools">
           <FavBtn active={fav} onClick={() => onFav(p.product_id || p.productId || p.id)} />
-          <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng">
+          <button className="pcard-cart" onClick={() => onAdd(p)} aria-label="Thêm giỏ hàng" title="Thêm vào giỏ">
             <Icon name="cart" size={15} stroke={1.7} />
+          </button>
+          <button className="pcard-buy" onClick={() => handleBuy(p)} aria-label="Mua ngay" title="Mua ngay">
+            ⚡
           </button>
         </div>
       </div>
@@ -146,4 +158,3 @@ export function NewsCard({ n }) {
     </article>
   );
 }
-

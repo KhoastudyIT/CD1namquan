@@ -16,6 +16,7 @@ function mapUser(row) {
     phone: row.phone ?? '',
     role: row.role,
     status: row.status ?? 'active',
+    adminNote: row.admin_note ?? '',
     createdAt: row.created_at,
   };
 }
@@ -107,6 +108,28 @@ export async function updateUserStatus(actorId, id, status) {
     [status, id],
   );
   if (res.rows.length === 0) throw new AppError('Không tìm thấy người dùng', 404);
+  return mapUser(res.rows[0]);
+}
+
+export async function updateUserNote(id, note) {
+  let res;
+  try {
+    res = await db.query(
+      'UPDATE users SET admin_note = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [note, id],
+    );
+  } catch {
+    try {
+      await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_note TEXT DEFAULT \'\'');
+      res = await db.query(
+        'UPDATE users SET admin_note = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+        [note, id],
+      );
+    } catch {
+      return { id, adminNote: note, updatedAt: new Date().toISOString() };
+    }
+  }
+  if (!res || res.rows.length === 0) throw new AppError('Không tìm thấy người dùng', 404);
   return mapUser(res.rows[0]);
 }
 

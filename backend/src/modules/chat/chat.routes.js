@@ -21,6 +21,10 @@ chatRouter.post('/admin/conversations/:id/messages', adminOnly, validate(staffRe
 chatRouter.patch('/admin/conversations/:id',   adminOnly, validate(updateConversationSchema), chatController.patchConversation);
 chatRouter.put('/admin/conversations/:id/read', adminOnly, chatController.markConversationRead);
 
+chatRouter.get('/admin/quick-notes',            adminOnly, chatController.getQuickNotes);
+chatRouter.post('/admin/quick-notes',           adminOnly, chatController.createQuickNote);
+chatRouter.delete('/admin/quick-notes/:id',     adminOnly, chatController.deleteQuickNote);
+
 // ── Khách hàng ──────────────────────────────────────────────────────────────
 chatRouter.get('/conversation', chatController.getMyConversation);
 chatRouter.get('/messages',     chatController.getMyMessages);

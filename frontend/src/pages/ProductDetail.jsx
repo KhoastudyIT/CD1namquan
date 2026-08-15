@@ -7,7 +7,7 @@ import { Img, Icon, Stars, ColorDots, vnd, toast, priceOf } from "../components/
 export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { favs, toggleFav, addToCart, openChat } = useAppContext();
+  const { favs, toggleFav, addToCart, buyNow, openChat } = useAppContext();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -41,6 +41,10 @@ export function ProductDetail() {
 
   const handleAddToCart = () => {
     addToCart(product, quantity);
+  };
+
+  const handleBuyNow = () => {
+    buyNow(product, quantity);
   };
 
   return (
@@ -111,15 +115,22 @@ export function ProductDetail() {
 
             <div className="pd-actions">
               <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid var(--line-2)", borderRadius: 12, padding: "4px" }}>
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)" }}>-</button>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)", cursor: "pointer" }}>-</button>
                 <div style={{ width: 40, textAlign: "center", fontSize: 16, fontWeight: 600 }}>{quantity}</div>
-                <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)" }}>+</button>
+                <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)", cursor: "pointer" }}>+</button>
               </div>
               <button 
                 onClick={handleAddToCart}
-                className="btn-pill"
+                className="btn-pill ghost"
+                style={{ borderColor: "var(--green)", color: "var(--green-ink)" }}
               >
                 <Icon name="cart" size={18} /> Thêm vào giỏ
+              </button>
+              <button 
+                onClick={handleBuyNow}
+                className="btn-pill btn-buy-now"
+              >
+                ⚡ Mua ngay
               </button>
             </div>
 

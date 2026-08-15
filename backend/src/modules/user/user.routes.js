@@ -3,7 +3,7 @@ import * as userController from './user.controller.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize, readOnly } from '../../middleware/authorize.js';
 import { validate, validateQuery } from '../../middleware/validate.js';
-import { listUsersQuerySchema, createUserSchema, updateRoleSchema, updateStatusSchema } from './user.schema.js';
+import { listUsersQuerySchema, createUserSchema, updateRoleSchema, updateStatusSchema, updateNoteSchema } from './user.schema.js';
 
 export const userRouter = Router();
 
@@ -17,3 +17,4 @@ userRouter.post('/',           validate(createUserSchema),          userControll
 userRouter.get('/:id',                                              userController.getById);
 userRouter.put('/:id/role',    validate(updateRoleSchema),          userController.updateRole);
 userRouter.put('/:id/status',  validate(updateStatusSchema),        userController.updateStatus);
+userRouter.put('/:id/note',    validate(updateNoteSchema),          userController.updateNote);

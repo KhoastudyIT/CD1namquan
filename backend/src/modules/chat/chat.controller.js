@@ -115,3 +115,22 @@ export async function unreadCount(_req, res, next) {
     next(error);
   }
 }
+
+export async function getQuickNotes(_req, res, next) {
+  try {
+    ok(res, await chatService.listQuickNotes());
+  } catch (error) { next(error); }
+}
+
+export async function createQuickNote(req, res, next) {
+  try {
+    const text = req.body.text || req.body.note || '';
+    created(res, await chatService.createQuickNote(text), 'Đã thêm ghi chú chat nhanh');
+  } catch (error) { next(error); }
+}
+
+export async function deleteQuickNote(req, res, next) {
+  try {
+    ok(res, await chatService.deleteQuickNote(req.params.id), 'Đã xóa ghi chú chat nhanh');
+  } catch (error) { next(error); }
+}

@@ -27,8 +27,7 @@ export async function update(req, res) {
 }
 
 export async function remove(req, res) {
-  await productService.deleteProduct(req.params.id);
-  noContent(res);
+  throw new AppError('API xóa sản phẩm đã bị vô hiệu hóa để bảo toàn lịch sử đơn hàng & báo cáo. Vui lòng cập nhật số lượng tồn kho = 0 hoặc ẩn sản phẩm.', 400);
 }
 
 export async function listFlashSalesAdmin(req, res) {

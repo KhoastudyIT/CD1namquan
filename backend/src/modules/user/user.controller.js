@@ -37,3 +37,10 @@ export async function updateStatus(req, res, next) {
     ok(res, user, msg);
   } catch(err) { next(err); }
 }
+
+export async function updateNote(req, res, next) {
+  try {
+    const user = await userService.updateUserNote(req.params.id, req.body.note);
+    ok(res, user, 'Đã cập nhật ghi chú khách hàng');
+  } catch(err) { next(err); }
+}

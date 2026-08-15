@@ -278,26 +278,27 @@ export const api = {
 
   // Chat — khách hàng
   getChatConversation: () => fetchAPI('/chat/conversation'),
-  // afterId = id tin nhắn cuối client đang có; server chỉ trả phần mới hơn.
-  pollChatMessages: (afterId = 0) => fetchAPI(`/chat/messages?after=${afterId}`),
-  sendChatMessage: (message, productId = null) =>
-    fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify({ message, productId }) }),
-  markChatRead: () => fetchAPI('/chat/read', { method: 'PUT' }),
+  getConversation: () => fetchAPI('/chat/conversation'),
+  getMessages: (after = 0) => fetchAPI(`/chat/messages?after=${after}`),
+  sendMessage: (data) => fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify(data) }),
+  markRead: () => fetchAPI('/chat/read', { method: 'PUT' }),
 
-  // Chat — quản trị
-  getChatConversations: (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    return fetchAPI(`/chat/admin/conversations${q ? `?${q}` : ''}`);
+  // Admin Chat
+  getAdminConversations: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.append('status', params.status);
+    if (params.search) q.append('search', params.search);
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return fetchAPI(`/chat/admin/conversations${queryStr}`);
   },
-  getChatConversationDetail: (id, afterId = 0) =>
-    fetchAPI(`/chat/admin/conversations/${id}?after=${afterId}`),
-  replyChatAsStaff: (id, message) =>
-    fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
-  updateChatConversation: (id, data) =>
-    fetchAPI(`/chat/admin/conversations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  markChatConversationRead: (id) =>
-    fetchAPI(`/chat/admin/conversations/${id}/read`, { method: 'PUT' }),
-  getChatUnreadCount: () => fetchAPI('/chat/admin/unread-count'),
+  getAdminConversationDetail: (id) => fetchAPI(`/chat/admin/conversations/${id}`),
+  replyAsStaff: (id, data) => fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(data) }),
+  updateConversation: (id, data) => fetchAPI(`/chat/admin/conversations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  markAdminConversationRead: (id) => fetchAPI(`/chat/admin/conversations/${id}/read`, { method: 'PUT' }),
+  getUnreadChatCount: () => fetchAPI('/chat/admin/unread-count'),
+  getQuickChatNotes: () => fetchAPI('/chat/admin/quick-notes'),
+  createQuickChatNote: (text) => fetchAPI('/chat/admin/quick-notes', { method: 'POST', body: JSON.stringify({ text }) }),
+  deleteQuickChatNote: (id) => fetchAPI(`/chat/admin/quick-notes/${id}`, { method: 'DELETE' }),
 
   // Orders
   getOrders: () => fetchAPI('/orders'),
@@ -324,6 +325,7 @@ export const api = {
   createUser: (data) => fetchAPI('/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUserRole: (id, role) => fetchAPI(`/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   updateUserStatus: (id, status) => fetchAPI(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  updateUserNote: (id, note) => fetchAPI(`/users/${id}/note`, { method: 'PUT', body: JSON.stringify({ note }) }),
 
   // Admin — Categories
   createCategory: (data) => fetchAPI('/categories', { method: 'POST', body: JSON.stringify(data) }),

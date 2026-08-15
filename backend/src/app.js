@@ -26,8 +26,8 @@ import { settingsRouter } from './modules/settings/settings.routes.js';
 import { consultationRouter } from './modules/consultations/consultation.routes.js';
 
 export function createApp() {
-  // Seed tài khoản admin mặc định vào in-memory store
-  seedAdmin();
+  // Seed tài khoản admin mặc định vào CSDL
+  seedAdmin().catch((err) => console.warn('  Seed Admin: bỏ qua —', err.message));
 
 
   seedAll()
