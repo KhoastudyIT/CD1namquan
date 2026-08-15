@@ -4,15 +4,14 @@ import { api } from "../api.js";
 import { useAppContext } from "../context.js";
 import { vnd, Icon, toast } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
-import { orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
+import { ORDER_STATUS_LABEL, orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
 
+// Sinh thẳng từ ORDER_STATUS_LABEL thay vì chép tay: danh sách chép tay trước
+// đây dùng key "shipping" trong khi trạng thái thật là "shipped" nên tab "Đang
+// giao" luôn rỗng, và thiếu hẳn tab "confirmed".
 const STATUS_TABS = [
   { key: "all", label: "Tất cả" },
-  { key: "pending", label: "Chờ duyệt" },
-  { key: "processing", label: "Đang xử lý" },
-  { key: "shipping", label: "Đang giao" },
-  { key: "delivered", label: "Hoàn thành" },
-  { key: "cancelled", label: "Đã hủy" },
+  ...Object.entries(ORDER_STATUS_LABEL).map(([key, label]) => ({ key, label })),
 ];
 
 export function Orders() {

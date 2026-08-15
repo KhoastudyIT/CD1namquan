@@ -283,21 +283,20 @@ export async function createOrder(userId, { shippingAddress, note, items, phone 
       }
     }
 
-    let orderRes;
-    try {
-      orderRes = await db.query(
-        'INSERT INTO orders (user_id, shipping_address, customer_phone, note, total, final_total, status) VALUES ($1, $2, $3, $4, $5, $5, $6) RETURNING id, created_at',
-        [userId, shippingAddress, phone ?? '', note ?? '', total, 'pending']
-      );
-    } catch {
-      orderRes = await db.query(
-        'INSERT INTO orders (user_id, shipping_address, note, total, final_total, status) VALUES ($1, $2, $3, $4, $4, $5) RETURNING id, created_at',
-        [userId, shippingAddress, note ?? '', total, 'pending']
-      );
-    }
+    const orderRes = await db.query(
+      'INSERT INTO orders (user_id, shipping_address, customer_phone, note, total, final_total, status) VALUES ($1, $2, $3, $4, $5, $5, $6) RETURNING id, created_at',
+      [userId, shippingAddress, phone ?? '', note ?? '', total, 'pending']
+    );
 
+    // Lần đầu khách nhập số điện thoại thì lưu lại vào hồ sơ cho các đơn sau.
+    // Không nuốt lỗi ở đây: mọi câu lệnh đều nằm trong transaction đã BEGIN,
+    // bỏ qua lỗi chỉ khiến transaction ở trạng thái aborted rồi các INSERT
+    // order_items phía dưới fail hàng loạt với lý do khó hiểu.
     if (phone) {
-      await db.query('UPDATE users SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = \'\')', [phone, userId]).catch(() => {});
+      await db.query(
+        "UPDATE users SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = '')",
+        [phone, userId],
+      );
     }
 
     const orderId = orderRes.rows[0].id;

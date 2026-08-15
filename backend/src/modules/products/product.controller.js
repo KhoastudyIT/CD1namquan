@@ -1,5 +1,6 @@
 import * as productService from './product.service.js';
 import { ok, created, noContent } from '../../utils/response.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 export async function list(req, res) {
   const result = await productService.listProducts(req.query);
@@ -26,7 +27,7 @@ export async function update(req, res) {
   ok(res, product, 'Sản phẩm đã được cập nhật');
 }
 
-export async function remove(req, res) {
+export async function remove(_req, _res) {
   throw new AppError('API xóa sản phẩm đã bị vô hiệu hóa để bảo toàn lịch sử đơn hàng & báo cáo. Vui lòng cập nhật số lượng tồn kho = 0 hoặc ẩn sản phẩm.', 400);
 }
 

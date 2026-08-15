@@ -538,6 +538,14 @@ export function AdminDashboard() {
 
   const handleSaveStatusModal = async () => {
     if (!statusOrder || !newStatusValue) return;
+    // Dropdown luôn có sẵn trạng thái hiện tại nên admin dễ bấm Lưu mà không
+    // đổi gì; server từ chối nextRank <= currentRank nên chặn sớm ở đây để
+    // khỏi hiện lỗi 400 vô cớ.
+    if (newStatusValue === statusOrder.status) {
+      setShowStatusModal(false);
+      setStatusOrder(null);
+      return;
+    }
     await handleUpdateOrderStatus(statusOrder.id, newStatusValue);
     setShowStatusModal(false);
     setStatusOrder(null);
@@ -2217,13 +2225,22 @@ export function AdminDashboard() {
                       <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
                       <td style={{ textAlign: "center" }}>
                         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                          <button
-                            className="admin-btn-sm edit"
-                            style={{ background: "var(--green)", color: "#fff", padding: "5px 12px", fontSize: 12.5 }}
-                            onClick={() => handleOpenStatusEdit(o)}
-                          >
-                            ✏️ Xử lý ĐH
-                          </button>
+                          {/* Đơn đã giao hoặc đã hủy là chốt sổ: không còn
+                              trạng thái nào đi tiếp được nên hiện nhãn thay vì
+                              nút, tránh mở modal chỉ để nhận lỗi 400. */}
+                          {getAvailableNextStatuses(o.status).length > 1 ? (
+                            <button
+                              className="admin-btn-sm edit"
+                              style={{ background: "var(--green)", color: "#fff", padding: "5px 12px", fontSize: 12.5 }}
+                              onClick={() => handleOpenStatusEdit(o)}
+                            >
+                              ✏️ Xử lý ĐH
+                            </button>
+                          ) : (
+                            <span style={{ padding: "5px 12px", fontSize: 12.5, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                              {o.status === "cancelled" ? "✕ Đã hủy" : "✓ Hoàn thành"}
+                            </span>
+                          )}
                           <button
                             className="admin-btn-sm edit"
                             style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)", padding: "5px 12px", fontSize: 12.5 }}

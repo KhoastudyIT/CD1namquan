@@ -119,6 +119,39 @@ export async function listMyReturns(userId) {
   return res.rows.map(withImageUrls);
 }
 
+/**
+ * Khách tự hủy yêu cầu của mình. Chỉ cho hủy khi còn 'pending': đã duyệt nghĩa
+ * là cửa hàng đã xếp lịch nhận hàng, còn rejected/completed là chốt sổ.
+ *
+ * Xóa hẳn dòng thay vì thêm trạng thái 'cancelled' — CHECK của bảng chỉ nhận 4
+ * trạng thái, và xóa mới giải phóng idx_order_returns_one_open để khách gửi lại
+ * yêu cầu khác cho cùng đơn.
+ */
+export async function cancelMyReturn(userId, id) {
+  const res = await db.query(
+    `SELECT r.id, r.status, o.user_id
+     FROM order_returns r
+     JOIN orders o ON o.id = r.order_id
+     WHERE r.id = $1`,
+    [Number(id)],
+  );
+  const row = res.rows[0];
+  if (!row) throw new AppError('Không tìm thấy yêu cầu trả hàng', 404);
+  if (row.user_id !== userId) {
+    throw new AppError('Bạn không có quyền thao tác trên yêu cầu này', 403);
+  }
+  if (row.status !== 'pending') {
+    throw new AppError(
+      `Yêu cầu đang ở trạng thái "${RETURN_STATUS_LABEL[row.status]}" nên không tự hủy được. `
+      + 'Vui lòng liên hệ Nam Quan để được hỗ trợ.',
+      400,
+    );
+  }
+
+  await db.query('DELETE FROM order_returns WHERE id = $1', [row.id]);
+  return { id: row.id };
+}
+
 // ─── Dùng chung ──────────────────────────────────────────────────────────────
 
 export async function getReturnById(id) {
