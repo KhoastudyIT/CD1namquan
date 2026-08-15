@@ -1,11 +1,12 @@
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { MIME_TO_EXT, IMAGE_FOLDERS } from './constants.js';
+import { MIME_TO_EXT, IMAGE_FOLDERS, ALLOWED_IMAGE_EXTS } from './constants.js';
 
-// Đuôi file lấy từ tên gốc nếu hợp lệ, không thì suy ra từ MIME.
+
 function ext(mimeType, originalName = '') {
   const fromOriginal = path.extname(originalName).toLowerCase().replace(/[^.a-z0-9]/g, '');
-  return fromOriginal || MIME_TO_EXT[mimeType] || '';
+  if (ALLOWED_IMAGE_EXTS.includes(fromOriginal)) return fromOriginal;
+  return MIME_TO_EXT[mimeType] || '';
 }
 
 /**

@@ -112,6 +112,17 @@ export function validateImageFile(file) {
   return null;
 }
 
+async function putUploadFile(uploadUrl, file) {
+  const headers = { 'Content-Type': file.type };
+  const token = localStorage.getItem('token');
+  if (token && uploadUrl.startsWith(API_URL)) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const put = await fetch(uploadUrl, { method: 'PUT', headers, body: file });
+  if (!put.ok) throw new Error(`Tải ảnh lên thất bại (HTTP ${put.status}).`);
+}
+
 /**
  * Tải tệp nhị phân (PDF, Excel) từ API.
  *
@@ -189,13 +200,7 @@ export const api = {
       body: JSON.stringify({ type, mimeType: file.type, size: file.size, originalName: file.name }),
     });
 
-    // Gọi thẳng MinIO — không dùng fetchAPI vì khác origin và không cần token.
-    const put = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    });
-    if (!put.ok) throw new Error(`Tải ảnh lên thất bại (HTTP ${put.status}).`);
+    await putUploadFile(uploadUrl, file);
 
     return publicUrl;
   },
@@ -208,8 +213,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ type: 'returns', mimeType: file.type, size: file.size, originalName: file.name }),
     });
-    const put = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-    if (!put.ok) throw new Error(`Tải ảnh lên thất bại (HTTP ${put.status}).`);
+    await putUploadFile(uploadUrl, file);
     return objectKey;
   },
 

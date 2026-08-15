@@ -27,10 +27,12 @@ export const BLOCKED_MIMES = new Set([
 
 export const MIME_TO_EXT = {
   'image/jpeg': '.jpg',
-  'image/jpg':  '.jpg',
-  'image/png':  '.png',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
   'image/webp': '.webp',
 };
 
+export const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+
 export const DEFAULT_UPLOAD_URL_TTL = 3600; // 1 giờ
-export const DEFAULT_VIEW_URL_TTL   = 900;  // 15 phút
+export const DEFAULT_VIEW_URL_TTL = 900;  // 15 phút
