@@ -7,10 +7,10 @@ const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
 
 export async function listProducts({
   category, categoryId, type, search, sort = 'newest', page = 1, limit = 12,
-  priceMin, priceMax, colors, styles, materials, sizes, brands,
+  priceMin, priceMax, colors, styles, materials, sizes, brands, stock,
 }) {
   const cacheKey = `products:list:${JSON.stringify({
-    category, categoryId, type, search, sort, page, limit, priceMin, priceMax, colors, styles, materials, sizes, brands
+    category, categoryId, type, search, sort, page, limit, priceMin, priceMax, colors, styles, materials, sizes, brands, stock
   })}`;
   const cached = dbCache.get(cacheKey);
   if (cached) return cached;
@@ -34,6 +34,15 @@ export async function listProducts({
     params.push(q);
     whereClauses.push(`(LOWER(p.name) LIKE $${params.length} OR LOWER(p.type) LIKE $${params.length})`);
   }
+  // Ngưỡng tồn kho khớp đúng nhãn hiển thị ở trang quản trị.
+  if (stock === 'in') {
+    whereClauses.push('p.stock >= 10');
+  } else if (stock === 'low') {
+    whereClauses.push('p.stock BETWEEN 1 AND 9');
+  } else if (stock === 'out') {
+    whereClauses.push('p.stock = 0');
+  }
+
   // Lọc theo giá hiệu lực chứ không phải giá niêm yết: khách lọc "dưới 5 triệu"
   // thì sản phẩm 6 triệu đang sale còn 4 triệu phải nằm trong kết quả.
   if (priceMin != null) {
@@ -95,6 +104,7 @@ export async function listProducts({
     rating:     'p.rating DESC',
     sold:       'p.sold DESC',
     newest:     'p.id DESC',
+    stock_asc:  'p.stock ASC',
   };
   queryStr += ` ORDER BY ${sortMap[sort] || sortMap.newest}`;
 

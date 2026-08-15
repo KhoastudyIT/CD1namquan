@@ -4,7 +4,7 @@ import { buildInvoicePdf, invoiceCode } from '../../services/pdf/invoice.js';
 import { storage } from '../../services/storage/index.js';
 import { isBackoffice } from '../../utils/roles.js';
 import { AppError } from '../../middleware/errorHandler.js';
-import { ok, created } from '../../utils/response.js';
+import { ok, created, paginated } from '../../utils/response.js';
 
 /**
  * Tải logo cửa hàng về dạng Buffer để in chìm lên hoá đơn.
@@ -81,9 +81,10 @@ export async function create(req, res, next) {
   }
 }
 
-export async function listAll(_req, res, next) {
+export async function listAll(req, res, next) {
   try {
-    ok(res, await orderService.listAllOrders());
+    const { data, meta } = await orderService.listAllOrders(req.query);
+    paginated(res, data, meta);
   } catch (error) {
     next(error);
   }

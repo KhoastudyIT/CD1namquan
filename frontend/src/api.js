@@ -330,7 +330,13 @@ export const api = {
   createProduct: (data) => fetchAPI('/products', { method: 'POST', body: JSON.stringify(data) }),
   updateProduct: (id, data) => fetchAPI(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProduct: (id) => fetchAPI(`/products/${id}`, { method: 'DELETE' }),
-  getAllOrders: () => fetchAPI('/orders/admin/list'),
+  getAllOrders: (params = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== "" && v != null) q.append(k, v);
+    });
+    return fetchAPI(`/orders/admin/list${q.toString() ? `?${q}` : ''}`, {}, true);
+  },
   updateOrderStatus: (id, status) => fetchAPI(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getStatsOverview: (params = {}) => {
     const q = new URLSearchParams(params).toString();

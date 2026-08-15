@@ -2,8 +2,8 @@ import { Router } from 'express';
 import * as orderController from './order.controller.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
-import { validate } from '../../middleware/validate.js';
-import { createOrderSchema, updateOrderStatusSchema } from './order.schema.js';
+import { validate, validateQuery } from '../../middleware/validate.js';
+import { createOrderSchema, updateOrderStatusSchema, orderQuerySchema } from './order.schema.js';
 
 export const orderRouter = Router();
 
@@ -14,7 +14,7 @@ orderRouter.use(authenticate);
 // và cập nhật trạng thái giao hàng như admin.
 const backoffice = authorize('admin', 'staff');
 
-orderRouter.get('/admin/list',     backoffice, orderController.listAll);
+orderRouter.get('/admin/list',     backoffice, validateQuery(orderQuerySchema), orderController.listAll);
 orderRouter.put('/:id/status',     backoffice, validate(updateOrderStatusSchema), orderController.updateStatus);
 
 // Hoá đơn PDF — khách in đơn của mình, admin/nhân viên in mọi đơn.

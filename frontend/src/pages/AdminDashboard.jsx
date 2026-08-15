@@ -5,8 +5,18 @@ import { vnd, Img, Icon, toast, confirm, discountPct, flashStatus, FLASH_STATUS_
 import { ImageField } from "../components/ImageField.jsx";
 import { ContentEditor } from "../components/ContentEditor.jsx";
 import { AdminChat } from "../components/AdminChat.jsx";
+import { Pager } from "../components/Pager.jsx";
 import { useAppContext } from "../context.js";
 import { isAdmin as isAdminRole, ROLE_LABEL, STAFF_HIDDEN_TABS } from "../utils/roles.js";
+
+/**
+ * Tạm ẩn khu vực "Tối ưu SEO" trong form bài viết — chưa dùng tới.
+ *
+ * Cố ý chỉ ẩn phần nhập liệu chứ không bỏ các trường seo* khỏi payload: bài
+ * viết cũ đã có sẵn dữ liệu SEO, nếu ngừng gửi thì lần sửa kế tiếp sẽ xoá
+ * trắng chúng. Cần dùng lại thì đổi cờ này thành true.
+ */
+const SHOW_NEWS_SEO = false;
 
 // ── Trang Tổng quan ────────────────────────────────────────────────────
 /** Mốc thời gian bấm nhanh, số ngày phải khớp period.days của server. */
@@ -497,6 +507,7 @@ export function AdminDashboard() {
   // (order_items.flash_sale_id), nên bảng sẽ dài dần — lọc theo trạng thái thay
   // vì xoá dữ liệu. Mặc định xem "Đang chạy" cho gọn.
   const [flashFilter, setFlashFilter] = useState("live");
+  const [flashPage, setFlashPage] = useState(1);
   const [showAddFlashModal, setShowAddFlashModal] = useState(false);
   const [showEditFlashModal, setShowEditFlashModal] = useState(false);
   const [selectedFlash, setSelectedFlash] = useState(null);
@@ -515,6 +526,23 @@ export function AdminDashboard() {
   const [productCategory, setProductCategory] = useState("all");
   const [productStock, setProductStock] = useState("all");     // all | in | low | out
   const [productSort, setProductSort] = useState("default");   // default | price-asc | price-desc | stock-asc | sold-desc
+  const [productPage, setProductPage] = useState(1);
+  const [productsMeta, setProductsMeta] = useState({ total: 0, page: 1, limit: 15, totalPages: 1 });
+  const [productsLoading, setProductsLoading] = useState(false);
+  // Ô chọn sản phẩm của Flash Sale cần TOÀN BỘ danh mục hàng, trong khi
+  // `products` giờ chỉ là trang đang xem của tab Sản phẩm.
+  const [productOptions, setProductOptions] = useState([]);
+
+  // ── Orders filter ─────────────────────────────────────────────────
+  // Lọc và phân trang đều làm ở server: cửa hàng chạy lâu thì bảng đơn là bảng
+  // lớn nhất, tải hết về client rồi lọc là hỏng ngay từ vài nghìn đơn.
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("");
+  const [orderFrom, setOrderFrom] = useState("");
+  const [orderTo, setOrderTo] = useState("");
+  const [orderPage, setOrderPage] = useState(1);
+  const [ordersMeta, setOrdersMeta] = useState({ total: 0, page: 1, limit: 15, totalPages: 1 });
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   // ── Mobile nav (menu hamburger) ───────────────────────────────────
   const [mobileNav, setMobileNav] = useState(false);
@@ -620,11 +648,8 @@ export function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const productsData = await api.getProducts({ limit: 100 });
-      setProducts(productsData.data || productsData || []);
-
-      const ordersData = await api.getAllOrders();
-      setOrders(ordersData || []);
+      await fetchProducts({ page: 1 });
+      await fetchOrders({ page: 1 });
 
       // Lần nạp đầu dùng đúng khoảng ngày mặc định của trang Tổng quan.
       const statsData = await api.getStatsOverview({ from: reportFrom, to: reportTo });
@@ -640,6 +665,81 @@ export function AdminDashboard() {
       toast("Lỗi tải dữ liệu: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Ánh xạ lựa chọn sắp xếp của trang quản trị sang tham số `sort` của API.
+  const PRODUCT_SORT_PARAM = {
+    "price-asc": "price_asc",
+    "price-desc": "price_desc",
+    "stock-asc": "stock_asc",
+    "sold-desc": "sold",
+  };
+
+  const fetchProducts = async (overrides = {}) => {
+    setProductsLoading(true);
+    try {
+      const params = {
+        search: productSearch,
+        categoryId: productCategory === "all" ? "" : productCategory,
+        stock: productStock === "all" ? "" : productStock,
+        sort: PRODUCT_SORT_PARAM[productSort] ?? "",
+        page: productPage,
+        limit: 15,
+        ...overrides,
+      };
+      Object.keys(params).forEach(k => params[k] === "" && delete params[k]);
+      const res = await api.getProductsPaginated(params);
+      setProducts(res.data || []);
+      setProductsMeta(res.meta || { total: 0, page: 1, limit: 15, totalPages: 1 });
+    } catch (err) {
+      toast("Lỗi tải danh sách sản phẩm: " + err.message);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  const fetchOrders = async (overrides = {}) => {
+    setOrdersLoading(true);
+    try {
+      const params = {
+        search: orderSearch,
+        status: orderStatusFilter,
+        from: orderFrom,
+        to: orderTo,
+        page: orderPage,
+        limit: 15,
+        ...overrides,
+      };
+      Object.keys(params).forEach(k => params[k] === "" && delete params[k]);
+      const res = await api.getAllOrders(params);
+      setOrders(res.data || []);
+      setOrdersMeta(res.meta || { total: 0, page: 1, limit: 15, totalPages: 1 });
+    } catch (err) {
+      toast("Lỗi tải danh sách đơn hàng: " + err.message);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  /**
+   * Nạp toàn bộ sản phẩm cho ô chọn của Flash Sale.
+   *
+   * API giới hạn limit tối đa 100 nên phải lật từng trang. Chặn ở 10 vòng
+   * (1000 sản phẩm) để một cửa hàng có danh mục quá lớn không kéo theo hàng
+   * chục request — tới ngưỡng đó thì ô chọn nên đổi thành ô tìm kiếm.
+   */
+  const fetchProductOptions = async () => {
+    try {
+      const all = [];
+      for (let page = 1; page <= 10; page++) {
+        const res = await api.getProductsPaginated({ page, limit: 100 });
+        all.push(...(res.data || []));
+        if (page >= (res.meta?.totalPages ?? 1)) break;
+      }
+      setProductOptions(all);
+    } catch (err) {
+      toast("Lỗi tải danh sách sản phẩm cho Flash Sale: " + err.message);
     }
   };
 
@@ -870,7 +970,7 @@ export function AdminDashboard() {
   useEffect(() => { if (activeTab === "categories") fetchCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === "collections") fetchCollections(); }, [activeTab]);
   useEffect(() => { if (activeTab === "news") { fetchNewsList(); fetchNewsCategories(); } }, [activeTab]);
-  useEffect(() => { if (activeTab === "flash_sales") fetchFlashSales(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "flash_sales") { fetchFlashSales(); fetchProductOptions(); } }, [activeTab]);
   useEffect(() => { if (activeTab === "consultations") fetchConsults(); }, [activeTab]);
   useEffect(() => { if (activeTab === "settings") fetchCompanyInfo(); }, [activeTab]);
 
@@ -1218,11 +1318,11 @@ export function AdminDashboard() {
 
   // ─────────────── FLASH SALE HANDLERS ──────────────────────────────
   const handleOpenAddFlash = () => {
-    if (products.length === 0) {
+    if (productOptions.length === 0) {
       toast("Vui lòng thêm sản phẩm trước khi tạo Flash Sale");
       return;
     }
-    const defaultProduct = products[0];
+    const defaultProduct = productOptions[0];
     setFlashFormData({
       productId: String(defaultProduct.id),
       price: String(Math.round(defaultProduct.price * 0.8)),
@@ -1258,7 +1358,7 @@ export function AdminDashboard() {
   };
 
   const handleFlashProductChange = (prodId) => {
-    const prod = products.find(p => String(p.id) === String(prodId));
+    const prod = productOptions.find(p => String(p.id) === String(prodId));
     if (!prod) return;
     const orig = Number(prod.price || 0);
     const pct = Number(flashFormData.discountPct || 20);
@@ -1314,6 +1414,7 @@ export function AdminDashboard() {
       // Bộ lọc mặc định chỉ hiện "Đang chạy"; chương trình hẹn giờ cho tương lai
       // sẽ nằm ngoài đó, nên chuyển về "Tất cả" để admin thấy cái vừa tạo.
       setFlashFilter("all");
+      setFlashPage(1);
       fetchFlashSales();
     } catch (err) {
       toast("Lỗi tạo Flash Sale: " + err.message);
@@ -1358,12 +1459,16 @@ export function AdminDashboard() {
   // ─────────────── HELPERS ─────────────────────────────────────────
   const getStatusLabel = (s) => ({ pending: "Chờ xử lý", confirmed: "Đã xác nhận", shipped: "Đang giao", delivered: "Đã giao hàng", cancelled: "Đã hủy" }[s] || s);
 
-  const STATUS_RANKS = { pending: 1, confirmed: 2, shipped: 3, delivered: 4, cancelled: 99 };
+  // Thứ hạng và danh sách phải khớp ORDER_STATUSES / STATUS_RANKS phía server.
+  // Trước đây thiếu 'processing' nên dù CSDL cho phép, admin không có cách nào
+  // chuyển đơn sang "Đang chuẩn bị".
+  const STATUS_RANKS = { pending: 1, confirmed: 2, processing: 3, shipped: 4, delivered: 5, cancelled: 99 };
   const ALL_STATUS_OPTIONS = [
     { value: "pending", label: "Chờ xử lý", rank: 1 },
     { value: "confirmed", label: "Xác nhận đơn", rank: 2 },
-    { value: "shipped", label: "Đang giao hàng", rank: 3 },
-    { value: "delivered", label: "Đã giao (Hoàn thành)", rank: 4 },
+    { value: "processing", label: "Đang chuẩn bị", rank: 3 },
+    { value: "shipped", label: "Đang giao hàng", rank: 4 },
+    { value: "delivered", label: "Đã giao (Hoàn thành)", rank: 5 },
     { value: "cancelled", label: "Hủy đơn hàng", rank: 99 }
   ];
 
@@ -1375,6 +1480,19 @@ export function AdminDashboard() {
       const d = FLASH_TONE_ORDER.indexOf(flashStatus(a).tone) - FLASH_TONE_ORDER.indexOf(flashStatus(b).tone);
       return d !== 0 ? d : b.id - a.id;
     });
+
+  // Phân trang ngay trên client: trạng thái chương trình được tính từ
+  // starts_at/ends_at chứ không phải cột trong CSDL nên server không lọc theo
+  // nó được. Bảng chỉ dài thêm mỗi đợt khuyến mãi nên cắt trang ở đây là đủ.
+  const FLASH_PAGE_SIZE = 15;
+  const flashMeta = {
+    total: visibleFlashSales.length,
+    totalPages: Math.ceil(visibleFlashSales.length / FLASH_PAGE_SIZE) || 1,
+  };
+  const pagedFlashSales = visibleFlashSales.slice(
+    (flashPage - 1) * FLASH_PAGE_SIZE,
+    flashPage * FLASH_PAGE_SIZE,
+  );
 
   // Đã có đơn mua theo chương trình -> khoá các trường định giá.
   const pricingLocked = Number(selectedFlash?.order_item_count ?? 0) > 0;
@@ -1414,10 +1532,13 @@ export function AdminDashboard() {
     { tab: "products", label: "Sắp hết hàng", icon: "⚠️", color: "#dc2626", count: ov.todo?.lowStock ?? 0 },
   ].filter(t => t.count > 0);
 
-  const totalRevenue = stats?.totalRevenue ?? orders.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
-  const totalOrders = stats?.totalOrders ?? orders.length;
-  const totalProducts = stats?.totalProducts ?? products.length;
-  const lowStockCount = stats?.lowStockCount ?? products.filter(p => p.stock < 10).length;
+  // Đây là số dự phòng khi API thống kê chưa trả về. Từ khi đơn hàng và sản
+  // phẩm phân trang, cộng trên mảng đang có chỉ ra số của riêng trang hiện tại
+  // nên để 0 còn hơn hiện một con số sai; tổng thì lấy từ meta.
+  const totalRevenue = stats?.totalRevenue ?? 0;
+  const totalOrders = stats?.totalOrders ?? ordersMeta.total;
+  const totalProducts = stats?.totalProducts ?? productsMeta.total;
+  const lowStockCount = stats?.lowStockCount ?? 0;
   const totalUsers = stats?.totalUsers ?? 0;
   const avgOrderValue = stats?.avgOrderValue ?? 0;
   const ordersByStatus = Array.isArray(stats?.ordersByStatus) ? stats.ordersByStatus : [];
@@ -1448,31 +1569,20 @@ export function AdminDashboard() {
     return c ? c.name : "";
   };
 
-  const lowStockProducts = products.filter(p => Number(p.stock) < 10);
-  const filteredProducts = products
-    .filter(p => {
-      const q = productSearch.toLowerCase();
-      const matchesSearch = (p.name || "").toLowerCase().includes(q) || (p.type || "").toLowerCase().includes(q);
-      const matchesCategory = productCategory === "all" || getProductCategoryId(p) === Number(productCategory);
-      const matchesStock =
-        productStock === "all" ||
-        (productStock === "in" && Number(p.stock) >= 10) ||
-        (productStock === "low" && Number(p.stock) > 0 && Number(p.stock) < 10) ||
-        (productStock === "out" && Number(p.stock) === 0);
-      return matchesSearch && matchesCategory && matchesStock;
-    })
-    .sort((a, b) => {
-      switch (productSort) {
-        case "price-asc": return a.price - b.price;
-        case "price-desc": return b.price - a.price;
-        case "stock-asc": return Number(a.stock) - Number(b.stock);
-        case "sold-desc": return (Number(b.sold) || 0) - (Number(a.sold) || 0);
-        default: return 0;
-      }
-    });
-
+  // Lọc và sắp xếp sản phẩm đã chuyển hẳn sang server (xem fetchProducts) nên
+  // `products` chính là trang hiện tại đã lọc sẵn. Cách cũ lọc trên mảng tải về
+  // với limit 100, sản phẩm thứ 101 trở đi không bao giờ hiện ra.
   const productFilterActive = productSearch || productCategory !== "all" || productStock !== "all" || productSort !== "default";
-  const resetProductFilters = () => { setProductSearch(""); setProductCategory("all"); setProductStock("all"); setProductSort("default"); };
+  const resetProductFilters = () => {
+    setProductSearch(""); setProductCategory("all"); setProductStock("all"); setProductSort("default"); setProductPage(1);
+    fetchProducts({ search: "", categoryId: "", stock: "", sort: "", page: 1 });
+  };
+
+  const orderFilterActive = orderSearch || orderStatusFilter || orderFrom || orderTo;
+  const resetOrderFilters = () => {
+    setOrderSearch(""); setOrderStatusFilter(""); setOrderFrom(""); setOrderTo(""); setOrderPage(1);
+    fetchOrders({ search: "", status: "", from: "", to: "", page: 1 });
+  };
 
   if (loading) {
     return (
@@ -1833,30 +1943,45 @@ export function AdminDashboard() {
 
             <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <input type="text" placeholder="Tìm kiếm sản phẩm theo tên hoặc loại..." className="admin-input" style={{ flex: 1, minWidth: 200 }} value={productSearch} onChange={e => setProductSearch(e.target.value)} />
-                <select className="admin-select" style={{ width: 180 }} value={productCategory} onChange={e => setProductCategory(e.target.value)}>
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm sản phẩm theo tên hoặc loại..."
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: 200 }}
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { setProductPage(1); fetchProducts({ page: 1 }); } }}
+                />
+                <select className="admin-select" style={{ width: 180 }} value={productCategory}
+                  onChange={e => { setProductCategory(e.target.value); setProductPage(1); fetchProducts({ categoryId: e.target.value === "all" ? "" : e.target.value, page: 1 }); }}>
                   <option value="all">Tất cả danh mục</option>
                   {displayCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                <select className="admin-select" style={{ width: 160 }} value={productStock} onChange={e => setProductStock(e.target.value)}>
+                <select className="admin-select" style={{ width: 160 }} value={productStock}
+                  onChange={e => { setProductStock(e.target.value); setProductPage(1); fetchProducts({ stock: e.target.value === "all" ? "" : e.target.value, page: 1 }); }}>
                   <option value="all">Tất cả tồn kho</option>
                   <option value="in">Còn hàng (≥ 10)</option>
                   <option value="low">Sắp hết (1 – 9)</option>
                   <option value="out">Hết hàng (0)</option>
                 </select>
-                <select className="admin-select" style={{ width: 170 }} value={productSort} onChange={e => setProductSort(e.target.value)}>
+                <select className="admin-select" style={{ width: 170 }} value={productSort}
+                  onChange={e => { setProductSort(e.target.value); setProductPage(1); fetchProducts({ sort: PRODUCT_SORT_PARAM[e.target.value] ?? "", page: 1 }); }}>
                   <option value="default">Sắp xếp mặc định</option>
                   <option value="price-asc">Giá tăng dần</option>
                   <option value="price-desc">Giá giảm dần</option>
                   <option value="stock-asc">Tồn kho ít nhất</option>
                   <option value="sold-desc">Bán chạy nhất</option>
                 </select>
+                <button className="btn-pill" style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => { setProductPage(1); fetchProducts({ page: 1 }); }}>
+                  Tìm
+                </button>
                 {productFilterActive && (
                   <button className="btn-pill ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={resetProductFilters}>✕ Xóa lọc</button>
                 )}
               </div>
               <div style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
-                Hiển thị <b style={{ color: "var(--green-ink)" }}>{filteredProducts.length}</b> / {products.length} sản phẩm
+                Tìm thấy <b style={{ color: "var(--green-ink)" }}>{productsMeta.total}</b> sản phẩm
               </div>
             </div>
 
@@ -1866,7 +1991,7 @@ export function AdminDashboard() {
                   <tr><th style={{ width: 60 }}>Ảnh</th><th>Tên sản phẩm</th><th>Loại</th><th>Danh mục</th><th>Đơn giá</th><th>Tồn kho</th><th>Đã bán</th><th style={{ width: 180 }}>Hành động</th></tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map(p => (
+                  {products.map(p => (
                     <tr key={p.id}>
                       <td><Img src={p.img} alt={p.name} className="admin-img-thumb" /></td>
                       <td style={{ fontWeight: 600 }}>{p.name}</td>
@@ -1885,10 +2010,21 @@ export function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {filteredProducts.length === 0 && <tr><td colSpan="8" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>Không tìm thấy sản phẩm nào phù hợp bộ lọc</td></tr>}
+                  {products.length === 0 && (
+                    <tr><td colSpan="8" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>
+                      {productsLoading
+                        ? "Đang tải..."
+                        : productFilterActive
+                          ? "Không tìm thấy sản phẩm nào phù hợp bộ lọc"
+                          : "Chưa có sản phẩm nào"}
+                    </td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
+
+            <Pager page={productPage} meta={productsMeta} unit="sản phẩm"
+              onChange={p => { setProductPage(p); fetchProducts({ page: p }); }} />
           </div>
         )}
 
@@ -2186,21 +2322,8 @@ export function AdminDashboard() {
                 </div>
 
                 {/* Phân trang */}
-                {newsMeta.totalPages > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
-                    <button className="page-btn" disabled={newsPage <= 1}
-                      onClick={() => { const p = newsPage - 1; setNewsPage(p); fetchNewsList({ page: p }); }}>‹</button>
-                    {Array.from({ length: newsMeta.totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={`page-btn ${p === newsPage ? "active" : ""}`}
-                        onClick={() => { setNewsPage(p); fetchNewsList({ page: p }); }}>{p}</button>
-                    ))}
-                    <button className="page-btn" disabled={newsPage >= newsMeta.totalPages}
-                      onClick={() => { const p = newsPage + 1; setNewsPage(p); fetchNewsList({ page: p }); }}>›</button>
-                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {newsPage} / {newsMeta.totalPages} ({newsMeta.total} bài viết)
-                    </span>
-                  </div>
-                )}
+                <Pager page={newsPage} meta={newsMeta} unit="bài viết"
+                  onChange={p => { setNewsPage(p); fetchNewsList({ page: p }); }} />
               </>
             )}
           </div>
@@ -2210,10 +2333,65 @@ export function AdminDashboard() {
         {activeTab === "orders" && (
           <div>
             <div className="admin-sec-header"><h2>Quản lý đơn hàng</h2></div>
+
+            <div className="admin-card" style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="text"
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: 220 }}
+                  placeholder="Tìm theo mã đơn, tên / email khách, địa chỉ..."
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { setOrderPage(1); fetchOrders({ page: 1 }); } }}
+                />
+                <select
+                  className="admin-select"
+                  style={{ width: 190 }}
+                  value={orderStatusFilter}
+                  onChange={e => { setOrderStatusFilter(e.target.value); setOrderPage(1); fetchOrders({ status: e.target.value, page: 1 }); }}
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  {ALL_STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  className="admin-input"
+                  style={{ width: 160 }}
+                  value={orderFrom}
+                  max={orderTo || undefined}
+                  onChange={e => { setOrderFrom(e.target.value); setOrderPage(1); fetchOrders({ from: e.target.value, page: 1 }); }}
+                />
+                <span style={{ color: "var(--muted)" }}>→</span>
+                <input
+                  type="date"
+                  className="admin-input"
+                  style={{ width: 160 }}
+                  value={orderTo}
+                  min={orderFrom || undefined}
+                  onChange={e => { setOrderTo(e.target.value); setOrderPage(1); fetchOrders({ to: e.target.value, page: 1 }); }}
+                />
+                <button className="btn-pill" style={{ padding: "9px 18px", fontSize: 13 }}
+                  onClick={() => { setOrderPage(1); fetchOrders({ page: 1 }); }}>
+                  Tìm
+                </button>
+                {orderFilterActive && (
+                  <button className="btn-pill ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={resetOrderFilters}>
+                    ✕ Xóa lọc
+                  </button>
+                )}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+                Tìm thấy <b style={{ color: "var(--green-ink)" }}>{ordersMeta.total}</b> đơn hàng
+              </div>
+            </div>
+
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
-                  <tr><th>Mã đơn hàng</th><th>Ngày mua</th><th>Địa chỉ giao hàng</th><th>Tổng thanh toán</th><th>Trạng thái</th><th style={{ width: 220, textAlign: "center" }}>Thao tác</th></tr>
+                  <tr><th>Mã đơn hàng</th><th>Ngày mua</th><th>Địa chỉ giao hàng</th><th>Tổng thanh toán</th><th>Trạng thái</th><th style={{ width: 230, textAlign: "center" }}>Thao tác</th></tr>
                 </thead>
                 <tbody>
                   {orders.map(o => (
@@ -2223,27 +2401,27 @@ export function AdminDashboard() {
                       <td style={{ fontSize: 13, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.shippingAddress}</td>
                       <td style={{ fontWeight: 700 }}>{vnd(o.total)} đ</td>
                       <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
-                      <td style={{ textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                      <td>
+                        <div className="admin-actions-2col">
                           {/* Đơn đã giao hoặc đã hủy là chốt sổ: không còn
                               trạng thái nào đi tiếp được nên hiện nhãn thay vì
                               nút, tránh mở modal chỉ để nhận lỗi 400. */}
                           {getAvailableNextStatuses(o.status).length > 1 ? (
                             <button
                               className="admin-btn-sm edit"
-                              style={{ background: "var(--green)", color: "#fff", padding: "5px 12px", fontSize: 12.5 }}
+                              style={{ background: "var(--green)", color: "#fff" }}
                               onClick={() => handleOpenStatusEdit(o)}
                             >
                               ✏️ Xử lý ĐH
                             </button>
                           ) : (
-                            <span style={{ padding: "5px 12px", fontSize: 12.5, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                            <span className="admin-actions-note">
                               {o.status === "cancelled" ? "✕ Đã hủy" : "✓ Hoàn thành"}
                             </span>
                           )}
                           <button
                             className="admin-btn-sm edit"
-                            style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)", padding: "5px 12px", fontSize: 12.5 }}
+                            style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}
                             onClick={() => { setSelectedOrder(o); setShowOrderModal(true); }}
                           >
                             👁️ Chi tiết
@@ -2252,10 +2430,21 @@ export function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {orders.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>Chưa có đơn hàng nào</td></tr>}
+                  {orders.length === 0 && (
+                    <tr><td colSpan="6" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>
+                      {ordersLoading
+                        ? "Đang tải..."
+                        : orderFilterActive
+                          ? "Không có đơn hàng nào khớp bộ lọc"
+                          : "Chưa có đơn hàng nào"}
+                    </td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
+
+            <Pager page={orderPage} meta={ordersMeta} unit="đơn hàng"
+              onChange={p => { setOrderPage(p); fetchOrders({ page: p }); }} />
           </div>
         )}
 
@@ -2366,21 +2555,8 @@ export function AdminDashboard() {
                   </table>
                 </div>
 
-                {returnsMeta.totalPages > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
-                    <button className="page-btn" disabled={returnPage <= 1}
-                      onClick={() => { const p = returnPage - 1; setReturnPage(p); fetchReturns({ page: p }); }}>‹</button>
-                    {Array.from({ length: returnsMeta.totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={`page-btn ${p === returnPage ? "active" : ""}`}
-                        onClick={() => { setReturnPage(p); fetchReturns({ page: p }); }}>{p}</button>
-                    ))}
-                    <button className="page-btn" disabled={returnPage >= returnsMeta.totalPages}
-                      onClick={() => { const p = returnPage + 1; setReturnPage(p); fetchReturns({ page: p }); }}>›</button>
-                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {returnPage} / {returnsMeta.totalPages} ({returnsMeta.total} yêu cầu)
-                    </span>
-                  </div>
-                )}
+                <Pager page={returnPage} meta={returnsMeta} unit="yêu cầu"
+                  onChange={p => { setReturnPage(p); fetchReturns({ page: p }); }} />
               </>
             )}
           </div>
@@ -2505,21 +2681,8 @@ export function AdminDashboard() {
                 </div>
 
                 {/* Phân trang */}
-                {usersMeta.totalPages > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
-                    <button className="page-btn" disabled={userPage <= 1}
-                      onClick={() => { const p = userPage - 1; setUserPage(p); fetchUsers({ page: p }); }}>‹</button>
-                    {Array.from({ length: usersMeta.totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={`page-btn ${p === userPage ? "active" : ""}`}
-                        onClick={() => { setUserPage(p); fetchUsers({ page: p }); }}>{p}</button>
-                    ))}
-                    <button className="page-btn" disabled={userPage >= usersMeta.totalPages}
-                      onClick={() => { const p = userPage + 1; setUserPage(p); fetchUsers({ page: p }); }}>›</button>
-                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {userPage} / {usersMeta.totalPages} ({usersMeta.total} khách hàng)
-                    </span>
-                  </div>
-                )}
+                <Pager page={userPage} meta={usersMeta} unit="khách hàng"
+                  onChange={p => { setUserPage(p); fetchUsers({ page: p }); }} />
               </>
             )}
           </div>
@@ -2643,21 +2806,8 @@ export function AdminDashboard() {
                   </table>
                 </div>
 
-                {staffMeta.totalPages > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
-                    <button className="page-btn" disabled={staffPage <= 1}
-                      onClick={() => { const p = staffPage - 1; setStaffPage(p); fetchStaff({ page: p }); }}>‹</button>
-                    {Array.from({ length: staffMeta.totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={`page-btn ${p === staffPage ? "active" : ""}`}
-                        onClick={() => { setStaffPage(p); fetchStaff({ page: p }); }}>{p}</button>
-                    ))}
-                    <button className="page-btn" disabled={staffPage >= staffMeta.totalPages}
-                      onClick={() => { const p = staffPage + 1; setStaffPage(p); fetchStaff({ page: p }); }}>›</button>
-                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {staffPage} / {staffMeta.totalPages} ({staffMeta.total} nhân sự)
-                    </span>
-                  </div>
-                )}
+                <Pager page={staffPage} meta={staffMeta} unit="nhân sự"
+                  onChange={p => { setStaffPage(p); fetchStaff({ page: p }); }} />
               </>
             )}
           </div>
@@ -2682,7 +2832,7 @@ export function AdminDashboard() {
                     <button
                       key={f.tone}
                       className="admin-btn-sm"
-                      onClick={() => setFlashFilter(f.tone)}
+                      onClick={() => { setFlashFilter(f.tone); setFlashPage(1); }}
                       style={{
                         fontWeight: 700,
                         border: on ? "1px solid var(--green)" : "1px solid var(--line)",
@@ -2718,7 +2868,7 @@ export function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFlashSales.map(fs => {
+                    {pagedFlashSales.map(fs => {
                       // Tính trên giá niêm yết hiện tại, cùng cơ sở với trang public.
                       const listPrice = fs.product_price ?? fs.original_price;
                       const discount = discountPct(listPrice, fs.price);
@@ -2803,6 +2953,9 @@ export function AdminDashboard() {
                     )}
                   </tbody>
                 </table>
+
+                <Pager page={flashPage} meta={flashMeta} unit="chương trình"
+                  onChange={setFlashPage} />
               </div>
             )}
           </div>
@@ -2950,21 +3103,8 @@ export function AdminDashboard() {
                 </div>
 
                 {/* Phân trang */}
-                {consultsMeta.totalPages > 1 && (
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
-                    <button className="page-btn" disabled={consultPage <= 1}
-                      onClick={() => { const p = consultPage - 1; setConsultPage(p); fetchConsults({ page: p }); }}>‹</button>
-                    {Array.from({ length: consultsMeta.totalPages }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={`page-btn ${p === consultPage ? "active" : ""}`}
-                        onClick={() => { setConsultPage(p); fetchConsults({ page: p }); }}>{p}</button>
-                    ))}
-                    <button className="page-btn" disabled={consultPage >= consultsMeta.totalPages}
-                      onClick={() => { const p = consultPage + 1; setConsultPage(p); fetchConsults({ page: p }); }}>›</button>
-                    <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
-                      Trang {consultPage} / {consultsMeta.totalPages} ({consultsMeta.total} yêu cầu)
-                    </span>
-                  </div>
-                )}
+                <Pager page={consultPage} meta={consultsMeta} unit="yêu cầu"
+                  onChange={p => { setConsultPage(p); fetchConsults({ page: p }); }} />
               </>
             )}
           </div>
@@ -3827,7 +3967,8 @@ export function AdminDashboard() {
                   </label>
                 </div>
 
-                {/* ── SEO (thu gọn) ──────────────────────────────────── */}
+                {/* ── SEO (thu gọn) — đang ẩn, xem SHOW_NEWS_SEO ─────── */}
+                {SHOW_NEWS_SEO && (
                 <div style={{ border: "1px solid var(--line)", borderRadius: 10, marginBottom: 18, overflow: "hidden" }}>
                   <button
                     type="button"
@@ -3893,6 +4034,7 @@ export function AdminDashboard() {
                     </div>
                   )}
                 </div>
+                )}
 
                 <div className="admin-form-actions">
                   <button type="button" className="btn-pill ghost" disabled={newsSaving} onClick={() => setNewsModal(null)}>
@@ -3922,7 +4064,7 @@ export function AdminDashboard() {
                 <label>Sản phẩm áp dụng *</label>
                 <select className="admin-select" required value={flashFormData.productId} onChange={e => handleFlashProductChange(e.target.value)}>
                   <option value="" disabled>-- Chọn sản phẩm --</option>
-                  {products.map(p => (
+                  {productOptions.map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({vnd(p.price)} đ)</option>
                   ))}
                 </select>
@@ -3982,7 +4124,7 @@ export function AdminDashboard() {
               <div className="admin-form-group">
                 <label>Sản phẩm áp dụng</label>
                 <select className="admin-select" disabled value={flashFormData.productId}>
-                  {products.map(p => (
+                  {productOptions.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>

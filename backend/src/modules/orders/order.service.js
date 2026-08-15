@@ -46,15 +46,62 @@ export async function listOrders(userId) {
   }));
 }
 
-export async function listAllOrders() {
-  const res = await db.query(`
-    SELECT o.*, u.name as customer_name, u.email as customer_email
+/**
+ * Danh sách đơn cho trang quản trị, có lọc và phân trang.
+ *
+ * Trước đây hàm này trả về TOÀN BỘ đơn kèm items của từng đơn — cửa hàng chạy
+ * được vài tháng là mỗi lần mở tab Đơn hàng phải tải hàng nghìn bản ghi.
+ */
+export async function listAllOrders({ status, search, from, to, page = 1, limit = 15 } = {}) {
+  const params = [];
+  const where = [];
+
+  if (status) {
+    params.push(status);
+    where.push(`o.status = $${params.length}`);
+  }
+  if (search) {
+    // Mã đơn hiển thị cho admin là đoạn đầu của UUID nên so khớp dạng text.
+    params.push(`%${search.toLowerCase()}%`);
+    where.push(`(
+      LOWER(o.id::text) LIKE $${params.length}
+      OR LOWER(u.name) LIKE $${params.length}
+      OR LOWER(u.email) LIKE $${params.length}
+      OR LOWER(o.shipping_address) LIKE $${params.length}
+    )`);
+  }
+  if (from) {
+    params.push(from);
+    where.push(`o.created_at >= $${params.length}::date`);
+  }
+  if (to) {
+    // Cộng thêm một ngày để bao trọn ngày kết thúc, tránh cắt mất đơn đặt
+    // trong ngày đó chỉ vì phần giờ lớn hơn 00:00.
+    params.push(to);
+    where.push(`o.created_at < $${params.length}::date + INTERVAL '1 day'`);
+  }
+
+  const fromWhere = `
     FROM orders o
     LEFT JOIN users u ON o.user_id = u.id
-    ORDER BY o.created_at DESC
-  `);
+    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+  `;
+
+  const totalRes = await db.query(`SELECT COUNT(*) ${fromWhere}`, params);
+  const total = parseInt(totalRes.rows[0].count, 10);
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  params.push(limit, (page - 1) * limit);
+  const res = await db.query(
+    `SELECT o.*, u.name AS customer_name, u.email AS customer_email
+     ${fromWhere}
+     ORDER BY o.created_at DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params,
+  );
+
   const itemsMap = await itemsByOrder(res.rows.map(r => r.id));
-  return res.rows.map(row => ({
+  const data = res.rows.map(row => ({
     id: row.id,
     userId: row.user_id,
     customerName: row.customer_name ?? 'Khách mua lẻ',
@@ -69,12 +116,17 @@ export async function listAllOrders() {
     createdAt: row.created_at,
     items: itemsMap[row.id] ?? []
   }));
+
+  return { data, meta: { total, page, limit, totalPages } };
 }
+
+// Thứ hạng phải khớp ORDER_STATUSES: đơn chỉ đi tới, không lùi.
 const STATUS_RANKS = {
   pending: 1,
   confirmed: 2,
-  shipped: 3,
-  delivered: 4,
+  processing: 3,
+  shipped: 4,
+  delivered: 5,
   cancelled: 99
 };
 
