@@ -8,6 +8,7 @@ export const updateOrderStatusSchema = z.object({
 
 export const createOrderSchema = z.object({
   shippingAddress: z.string().min(10).max(500),
+  phone:           z.string().max(20).optional().default(''),
   note:            z.string().max(500).optional().default(''),
   items: z.array(z.object({
     productId: z.number().int().positive(),

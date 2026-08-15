@@ -7,6 +7,7 @@ import { vnd, toast, Img, orderTotals } from "../components/ui.jsx";
 export function Checkout() {
   const { cart, fetchCart, user } = useAppContext();
   const navigate = useNavigate();
+  const [phone, setPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,6 +26,10 @@ export function Checkout() {
 
   const handleCheckout = async (e) => {
     e.preventDefault();
+    if (!phone.trim()) {
+      toast("Vui lòng nhập số điện thoại nhận hàng");
+      return;
+    }
     if (address.length < 10) {
       toast("Địa chỉ giao hàng quá ngắn");
       return;
@@ -33,7 +38,7 @@ export function Checkout() {
     setLoading(true);
     try {
       const items = cart.map(i => ({ productId: i.productId, quantity: i.quantity }));
-      await api.createOrder({ shippingAddress: address, note, items });
+      await api.createOrder({ shippingAddress: address, phone: phone.trim(), note, items });
       toast("🎉 Đặt hàng thành công!");
       fetchCart(); // This will clear the cart as backend deletes it
       navigate("/account/orders");
@@ -66,6 +71,20 @@ export function Checkout() {
               <div>
                 <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Email</label>
                 <input type="email" value={user.email} disabled style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--line-2)', background: '#f5f5f5', color: 'var(--muted)' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                  Số điện thoại nhận hàng <span style={{ color: "red" }}>*</span>
+                </label>
+                <input 
+                  type="tel" 
+                  placeholder="Nhập số điện thoại nhận hàng (ví dụ: 0901 234 567)" 
+                  required 
+                  value={phone} 
+                  onChange={e => setPhone(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--line-2)', background: '#fff' }} 
+                />
               </div>
               
               <div>

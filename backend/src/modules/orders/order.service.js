@@ -216,7 +216,7 @@ export async function getOrderForInvoice(orderId) {
   };
 }
 
-export async function createOrder(userId, { shippingAddress, note, items }) {
+export async function createOrder(userId, { shippingAddress, note, items, phone = '' }) {
   await db.query('BEGIN');
   try {
     let total = 0;
@@ -272,10 +272,23 @@ export async function createOrder(userId, { shippingAddress, note, items }) {
       }
     }
 
-    const orderRes = await db.query(
-      'INSERT INTO orders (user_id, shipping_address, note, total, final_total, status) VALUES ($1, $2, $3, $4, $4, $5) RETURNING id, created_at',
-      [userId, shippingAddress, note ?? '', total, 'pending']
-    );
+    let orderRes;
+    try {
+      orderRes = await db.query(
+        'INSERT INTO orders (user_id, shipping_address, customer_phone, note, total, final_total, status) VALUES ($1, $2, $3, $4, $5, $5, $6) RETURNING id, created_at',
+        [userId, shippingAddress, phone ?? '', note ?? '', total, 'pending']
+      );
+    } catch {
+      orderRes = await db.query(
+        'INSERT INTO orders (user_id, shipping_address, note, total, final_total, status) VALUES ($1, $2, $3, $4, $4, $5) RETURNING id, created_at',
+        [userId, shippingAddress, note ?? '', total, 'pending']
+      );
+    }
+
+    if (phone) {
+      await db.query('UPDATE users SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = \'\')', [phone, userId]).catch(() => {});
+    }
+
     const orderId = orderRes.rows[0].id;
     const createdAt = orderRes.rows[0].created_at;
 
