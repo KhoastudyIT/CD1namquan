@@ -118,7 +118,8 @@ export function ChatWidget({ open, setOpen, product, clearProduct }) {
         if (data.messages?.length) {
           lastIdRef.current = data.messages[data.messages.length - 1].id;
         }
-        return api.markChatRead();
+        const markFn = api.markChatRead || api.markRead;
+        return markFn ? markFn() : Promise.resolve();
       })
       .then(() => setUnread(0))
       .catch((err) => setError(err.message || "Không tải được hội thoại"))
@@ -139,7 +140,8 @@ export function ChatWidget({ open, setOpen, product, clearProduct }) {
 
           if (open) {
             pushMessages(incoming);
-            api.markChatRead().catch(() => {});
+            const markFn = api.markChatRead || api.markRead;
+            if (markFn) markFn().catch(() => {});
           } else {
             // Khung đang đóng: chỉ nhớ mốc để hiện badge, tin sẽ được nạp
             // đầy đủ khi khách mở lại.

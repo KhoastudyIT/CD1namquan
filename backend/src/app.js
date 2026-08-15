@@ -25,6 +25,12 @@ import { uploadRouter } from './modules/uploads/upload.routes.js';
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { consultationRouter } from './modules/consultations/consultation.routes.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export function createApp() {
   // Seed tài khoản admin mặc định vào CSDL
   seedAdmin().catch((err) => console.warn('  Seed Admin: bỏ qua —', err.message));
@@ -42,6 +48,8 @@ export function createApp() {
   app.use(cors({ origin: config.corsOrigin }));
   app.use(express.json());
   if (config.nodeEnv !== 'test') app.use(morgan('dev'));
+
+  app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
   app.get('/api/health', (_req, res) =>
     res.json({ status: 'ok', timestamp: new Date().toISOString() }),

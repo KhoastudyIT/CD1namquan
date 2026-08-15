@@ -872,7 +872,9 @@ export function AdminDashboard() {
 
   // Badge chat chạy nền ở mọi tab để admin thấy khách nhắn dù đang ở trang khác.
   useEffect(() => {
-    const poll = () => api.getChatUnreadCount()
+    const fn = api.getChatUnreadCount || api.getUnreadChatCount;
+    if (!fn) return;
+    const poll = () => fn()
       .then(data => setChatUnread(data?.total ?? 0))
       .catch(() => { });
     poll();

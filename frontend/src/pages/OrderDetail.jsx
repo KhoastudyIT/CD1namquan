@@ -2,19 +2,21 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAppContext } from "../context.js";
-import { vnd, Img, toast, orderTotals } from "../components/ui.jsx";
+import { vnd, Img, toast, orderTotals, confirm } from "../components/ui.jsx";
 import { ReturnRequest } from "../components/ReturnRequest.jsx";
 import { orderStatusLabel, orderStatusClass } from "../utils/orderStatus.js";
 
 export function OrderDetail() {
   const { id } = useParams();
-  const { user } = useAppContext();
+  const { user, fetchCart } = useAppContext();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   // Yêu cầu trả/đổi của chính đơn này, lọc từ danh sách yêu cầu của khách.
   const [myReturn, setMyReturn] = useState(null);
   const [printing, setPrinting] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   const handlePrintInvoice = async () => {
     setPrinting(true);
@@ -24,6 +26,42 @@ export function OrderDetail() {
       toast(err.message);
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    const ok = await confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?", "Xác nhận hủy đơn hàng");
+    if (!ok) return;
+    setCanceling(true);
+    try {
+      await api.cancelOrder(id);
+      toast("Đã hủy đơn hàng thành công");
+      const updated = await api.getOrderById(id);
+      if (updated) setOrder(updated);
+    } catch (err) {
+      toast(err.message || "Hủy đơn hàng thất bại");
+    } finally {
+      setCanceling(false);
+    }
+  };
+
+  const handleReorder = async () => {
+    if (!order || !order.items || order.items.length === 0) return;
+    setReordering(true);
+    try {
+      for (const item of order.items) {
+        const productId = item.productId || item.product_id;
+        if (productId) {
+          await api.addToCart(productId, item.quantity || 1);
+        }
+      }
+      await fetchCart?.();
+      toast("Đã thêm các sản phẩm vào giỏ hàng!");
+      navigate("/account/cart");
+    } catch (err) {
+      toast(err.message || "Đặt lại đơn hàng thất bại");
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -71,6 +109,28 @@ export function OrderDetail() {
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>Ngày đặt: {new Date(order.createdAt).toLocaleString('vi-VN')}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {(order.status === 'pending' || order.status === 'confirmed') && (
+                <button
+                  type="button"
+                  className="btn-pill ghost"
+                  style={{ padding: '6px 14px', fontSize: 13, color: '#dc2626', borderColor: '#fca5a5', background: '#fef2f2' }}
+                  disabled={canceling}
+                  onClick={handleCancelOrder}
+                >
+                  {canceling ? 'Đang hủy...' : '🚫 Hủy đơn hàng'}
+                </button>
+              )}
+              {order.status === 'cancelled' && (
+                <button
+                  type="button"
+                  className="btn-pill"
+                  style={{ padding: '6px 16px', fontSize: 13, background: 'var(--green-ink)', color: '#fff' }}
+                  disabled={reordering}
+                  onClick={handleReorder}
+                >
+                  {reordering ? 'Đang thêm...' : '🔄 Đặt lại đơn hàng'}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-pill ghost"

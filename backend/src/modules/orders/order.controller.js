@@ -97,3 +97,12 @@ export async function updateStatus(req, res, next) {
     next(error);
   }
 }
+
+export async function cancelMyOrder(req, res, next) {
+  try {
+    const order = await orderService.cancelMyOrder(req.user.id, req.params.id);
+    ok(res, order, 'Đã hủy đơn hàng thành công');
+  } catch (error) {
+    next(error);
+  }
+}

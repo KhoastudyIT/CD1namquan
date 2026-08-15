@@ -25,3 +25,4 @@ orderRouter.get('/:id/invoice', orderController.invoice);
 orderRouter.get('/',    orderController.list);
 orderRouter.post('/',   validate(createOrderSchema), orderController.create);
 orderRouter.get('/:id', orderController.getById);
+orderRouter.post('/:id/cancel', orderController.cancelMyOrder);

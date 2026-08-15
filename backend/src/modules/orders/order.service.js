@@ -129,6 +129,17 @@ export async function updateOrderStatus(orderId, status) {
   };
 }
 
+export async function cancelMyOrder(userId, orderId) {
+  const res = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  if (res.rows.length === 0) throw new AppError('Không tìm thấy đơn hàng', 404);
+  const order = res.rows[0];
+  if (order.user_id !== userId) throw new AppError('Bạn không có quyền hủy đơn hàng này', 403);
+  if (order.status !== 'pending' && order.status !== 'confirmed') {
+    throw new AppError('Đơn hàng đã được xử lý hoặc đang giao, không thể tự hủy.', 400);
+  }
+  return await updateOrderStatus(orderId, 'cancelled');
+}
+
 export async function getOrderById(userId, orderId) {
   const res = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
   if (res.rows.length === 0) throw new AppError('Không tìm thấy đơn hàng', 404);

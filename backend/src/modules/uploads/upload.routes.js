@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import * as uploadController from './upload.controller.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { AppError } from '../../middleware/errorHandler.js';
@@ -14,3 +14,4 @@ function restrictUploadFolder(req, _res, next) {
 }
 
 uploadRouter.post('/image-url', authenticate, restrictUploadFolder, uploadController.getImageUploadUrl);
+uploadRouter.put('/file/*', express.raw({ type: '*/*', limit: '20mb' }), uploadController.uploadLocalFile);

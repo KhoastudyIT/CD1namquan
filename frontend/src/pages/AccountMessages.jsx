@@ -56,7 +56,8 @@ export function AccountMessages() {
         const list = data.messages || [];
         setMessages(list);
         if (list.length) lastIdRef.current = list[list.length - 1].id;
-        return api.markChatRead();
+        const markFn = api.markChatRead || api.markRead;
+        return markFn ? markFn() : Promise.resolve();
       })
       .catch((err) => { if (!stale) setError(err.message || "Không tải được hội thoại"); })
       .finally(() => { if (!stale) setLoading(false); });
@@ -72,7 +73,8 @@ export function AccountMessages() {
           const incoming = data.messages || [];
           if (incoming.length === 0) return;
           pushMessages(incoming);
-          api.markChatRead().catch(() => {});
+          const markFn = api.markChatRead || api.markRead;
+          if (markFn) markFn().catch(() => {});
         })
         .catch(() => {}); // lỗi mạng tạm thời: nhịp sau thử lại
     }, POLL_MS);

@@ -23,3 +23,4 @@ returnRouter.put('/:id/status',   backoffice, validate(updateReturnStatusSchema)
 // danh sách trả về ở GET /, còn cho tra theo id sẽ lộ yêu cầu của người khác.
 returnRouter.post('/', validate(createReturnSchema), returnController.create);
 returnRouter.get('/',                                returnController.listMine);
+returnRouter.delete('/:id',                          returnController.cancelMine);

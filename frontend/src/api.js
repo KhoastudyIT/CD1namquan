@@ -216,6 +216,7 @@ export const api = {
   // Trả / đổi hàng — khách hàng
   getMyReturns: () => fetchAPI('/returns'),
   createReturn: (data) => fetchAPI('/returns', { method: 'POST', body: JSON.stringify(data) }),
+  cancelReturn: (id) => fetchAPI(`/returns/${id}`, { method: 'DELETE' }),
 
   // Trả / đổi hàng — admin & nhân viên
   getReturnsAdmin: (params = {}) => {
@@ -280,8 +281,11 @@ export const api = {
   getChatConversation: () => fetchAPI('/chat/conversation'),
   getConversation: () => fetchAPI('/chat/conversation'),
   getMessages: (after = 0) => fetchAPI(`/chat/messages?after=${after}`),
-  sendMessage: (data) => fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify(data) }),
+  pollChatMessages: (after = 0) => fetchAPI(`/chat/messages?after=${after}`),
+  sendMessage: (data) => fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify(typeof data === 'string' ? { message: data } : data) }),
+  sendChatMessage: (message, productId = null) => fetchAPI('/chat/messages', { method: 'POST', body: JSON.stringify({ message, productId }) }),
   markRead: () => fetchAPI('/chat/read', { method: 'PUT' }),
+  markChatRead: () => fetchAPI('/chat/read', { method: 'PUT' }),
 
   // Admin Chat
   getAdminConversations: (params = {}) => {
@@ -291,11 +295,23 @@ export const api = {
     const queryStr = q.toString() ? `?${q.toString()}` : '';
     return fetchAPI(`/chat/admin/conversations${queryStr}`);
   },
-  getAdminConversationDetail: (id) => fetchAPI(`/chat/admin/conversations/${id}`),
-  replyAsStaff: (id, data) => fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(data) }),
+  getChatConversations: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.append('status', params.status);
+    if (params.search) q.append('search', params.search);
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return fetchAPI(`/chat/admin/conversations${queryStr}`);
+  },
+  getAdminConversationDetail: (id, after = 0) => fetchAPI(`/chat/admin/conversations/${id}${after ? `?after=${after}` : ''}`),
+  getChatConversationDetail: (id, after = 0) => fetchAPI(`/chat/admin/conversations/${id}${after ? `?after=${after}` : ''}`),
+  replyAsStaff: (id, data) => fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(typeof data === 'string' ? { message: data } : data) }),
+  replyChatAsStaff: (id, data) => fetchAPI(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(typeof data === 'string' ? { message: data } : data) }),
   updateConversation: (id, data) => fetchAPI(`/chat/admin/conversations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateChatConversation: (id, data) => fetchAPI(`/chat/admin/conversations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   markAdminConversationRead: (id) => fetchAPI(`/chat/admin/conversations/${id}/read`, { method: 'PUT' }),
+  markChatConversationRead: (id) => fetchAPI(`/chat/admin/conversations/${id}/read`, { method: 'PUT' }),
   getUnreadChatCount: () => fetchAPI('/chat/admin/unread-count'),
+  getChatUnreadCount: () => fetchAPI('/chat/admin/unread-count'),
   getQuickChatNotes: () => fetchAPI('/chat/admin/quick-notes'),
   createQuickChatNote: (text) => fetchAPI('/chat/admin/quick-notes', { method: 'POST', body: JSON.stringify({ text }) }),
   deleteQuickChatNote: (id) => fetchAPI(`/chat/admin/quick-notes/${id}`, { method: 'DELETE' }),
@@ -304,6 +320,7 @@ export const api = {
   getOrders: () => fetchAPI('/orders'),
   getOrderById: (id) => fetchAPI(`/orders/${id}`),
   createOrder: (data) => fetchAPI('/orders', { method: 'POST', body: JSON.stringify(data) }),
+  cancelOrder: (id) => fetchAPI(`/orders/${id}/cancel`, { method: 'POST' }),
 
   // Admin — Products & Orders
   createProduct: (data) => fetchAPI('/products', { method: 'POST', body: JSON.stringify(data) }),

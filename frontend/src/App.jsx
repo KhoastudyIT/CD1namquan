@@ -42,6 +42,7 @@ function RedirectOrderDetail() {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(() => !!localStorage.getItem("token"));
   const [cart, setCart] = useState([]);
   const [favs, setFavs] = useState(() => {
     try {
@@ -124,9 +125,13 @@ export default function App() {
         if (data) setUser(data);
       }).catch(() => {
         localStorage.removeItem('token');
+      }).finally(() => {
+        setAuthLoading(false);
       });
       fetchCart();
       fetchNotifs();
+    } else {
+      setAuthLoading(false);
     }
   }, [fetchCart, fetchNotifs]);
 
@@ -203,6 +208,17 @@ export default function App() {
   // Admin và nhân viên dùng chung khu quản trị; phạm vi thao tác của từng vai
   // trò do AdminDashboard và middleware phía server quyết định.
   const isBackoffice = isBackofficeRole(user?.role);
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#fbfdfb" }}>
+        <div style={{ textAlign: "center" }}>
+          <div className="imgph" style={{ width: 44, height: 44, borderRadius: "50%", margin: "0 auto 12px" }}></div>
+          <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: 14 }}>Đang tải hệ thống...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AppContext.Provider value={contextValue}>

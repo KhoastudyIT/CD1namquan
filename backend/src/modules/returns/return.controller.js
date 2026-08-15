@@ -28,6 +28,15 @@ export async function listMine(req, res, next) {
   }
 }
 
+export async function cancelMine(req, res, next) {
+  try {
+    const id = parseId(req);
+    ok(res, await returnService.cancelMyReturn(req.user.id, id), 'Đã hủy yêu cầu trả / đổi hàng');
+  } catch (error) {
+    next(error);
+  }
+}
+
 // ─── Admin / nhân viên ───────────────────────────────────────────────────────
 
 export async function list(req, res, next) {

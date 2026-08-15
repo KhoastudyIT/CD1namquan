@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
-import { vnd, Icon, toast } from "../components/ui.jsx";
+import { vnd, Icon, toast, confirm } from "../components/ui.jsx";
 import { AccountHeader } from "../components/AccountLayout.jsx";
 import { RETURN_STATUS_META, RETURN_TYPE_LABEL } from "../components/ReturnRequest.jsx";
 
@@ -22,6 +22,18 @@ export function AccountReturns() {
       .catch(err => toast(err.message || "Không tải được lịch sử trả hàng"))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCancel = async (id) => {
+    const ok = await confirm("Bạn có chắc chắn muốn hủy yêu cầu trả / đổi hàng này?", "Xác nhận hủy yêu cầu");
+    if (!ok) return;
+    try {
+      await api.cancelReturn(id);
+      toast("Đã hủy yêu cầu trả / đổi hàng");
+      setItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      toast(err.message || "Hủy yêu cầu thất bại");
+    }
+  };
 
   if (loading) {
     return (
@@ -68,6 +80,15 @@ export function AccountReturns() {
                   {RETURN_TYPE_LABEL[r.type]}
                 </span>
                 <span style={{ ...pill, background: meta.bg, color: meta.color }}>{meta.label}</span>
+                {r.status === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => handleCancel(r.id)}
+                    style={{ ...pill, cursor: "pointer", border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626" }}
+                  >
+                    Hủy yêu cầu
+                  </button>
+                )}
                 <Link to={`/account/orders/${r.orderId}`} style={{ fontSize: 13, fontWeight: 700, color: "var(--green-ink)" }}>
                   Đơn #{String(r.orderId).split("-")[0].toUpperCase()}
                 </Link>

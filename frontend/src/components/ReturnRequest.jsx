@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { api } from "../api.js";
-import { Icon, toast } from "./ui.jsx";
+import { Icon, toast, confirm } from "./ui.jsx";
 
 /** Khớp với backend: order_returns.status và return.schema.js */
 export const RETURN_STATUS_META = {
@@ -84,15 +84,44 @@ export function ReturnRequest({ order, existing, onCreated }) {
     }
   };
 
+  const [cancelingReturn, setCancelingReturn] = useState(false);
+
+  const handleCancelReturn = async () => {
+    if (!existing) return;
+    const ok = await confirm("Bạn có chắc chắn muốn hủy yêu cầu trả / đổi hàng này?", "Xác nhận hủy yêu cầu");
+    if (!ok) return;
+    setCancelingReturn(true);
+    try {
+      await api.cancelReturn(existing.id);
+      toast("Đã hủy yêu cầu trả / đổi hàng");
+      onCreated?.(null);
+    } catch (err) {
+      toast(err.message || "Hủy yêu cầu thất bại");
+    } finally {
+      setCancelingReturn(false);
+    }
+  };
+
   // ── Đã có yêu cầu đang mở hoặc đã xử lý ────────────────────────────────────
   if (existing) {
     const meta = RETURN_STATUS_META[existing.status] ?? RETURN_STATUS_META.pending;
     const canResend = existing.status === "rejected";
+    const isPending = existing.status === "pending";
     return (
       <div style={box}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
           <h3 style={heading}>Yêu cầu {RETURN_TYPE_LABEL[existing.type]?.toLowerCase()}</h3>
           <span style={{ ...pill, background: meta.bg, color: meta.color }}>{meta.label}</span>
+          {isPending && (
+            <button
+              type="button"
+              disabled={cancelingReturn}
+              onClick={handleCancelReturn}
+              style={{ ...pill, cursor: "pointer", border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626" }}
+            >
+              {cancelingReturn ? "Đang hủy..." : "Hủy yêu cầu"}
+            </button>
+          )}
           <span style={{ fontSize: 12.5, color: "var(--muted)", marginLeft: "auto" }}>
             Gửi ngày {new Date(existing.createdAt).toLocaleDateString("vi-VN")}
           </span>
