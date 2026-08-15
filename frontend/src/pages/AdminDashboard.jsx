@@ -526,6 +526,22 @@ export function AdminDashboard() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [printingInvoice, setPrintingInvoice] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusOrder, setStatusOrder] = useState(null);
+  const [newStatusValue, setNewStatusValue] = useState("");
+
+  const handleOpenStatusEdit = (order) => {
+    setStatusOrder(order);
+    setNewStatusValue(order.status);
+    setShowStatusModal(true);
+  };
+
+  const handleSaveStatusModal = async () => {
+    if (!statusOrder || !newStatusValue) return;
+    await handleUpdateOrderStatus(statusOrder.id, newStatusValue);
+    setShowStatusModal(false);
+    setStatusOrder(null);
+  };
 
   // ── Xuất báo cáo Excel ────────────────────────────────────────────────────
   // Mặc định 30 ngày gần nhất, trùng với mặc định phía server.
@@ -2187,7 +2203,7 @@ export function AdminDashboard() {
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
-                  <tr><th>Mã đơn hàng</th><th>Ngày mua</th><th>Địa chỉ giao hàng</th><th>Tổng thanh toán</th><th>Trạng thái</th><th style={{ width: 220 }}>Xử lý trạng thái</th><th>Chi tiết</th></tr>
+                  <tr><th>Mã đơn hàng</th><th>Ngày mua</th><th>Địa chỉ giao hàng</th><th>Tổng thanh toán</th><th>Trạng thái</th><th style={{ width: 220, textAlign: "center" }}>Thao tác</th></tr>
                 </thead>
                 <tbody>
                   {orders.map(o => (
@@ -2197,27 +2213,27 @@ export function AdminDashboard() {
                       <td style={{ fontSize: 13, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.shippingAddress}</td>
                       <td style={{ fontWeight: 700 }}>{vnd(o.total)} đ</td>
                       <td><span className={`admin-badge ${o.status}`}>{getStatusLabel(o.status)}</span></td>
-                      <td>
-                        {o.status === "delivered" || o.status === "cancelled" ? (
-                          <span style={{ fontSize: 12.5, fontWeight: 600, color: o.status === "delivered" ? "var(--green-ink)" : "#ff4d4f" }}>
-                            {o.status === "delivered" ? "✓ Hoàn thành" : "✕ Đã hủy"}
-                          </span>
-                        ) : (
-                          <select className="admin-select" style={{ padding: "6px 10px", fontSize: 13 }} value={o.status} onChange={e => handleUpdateOrderStatus(o.id, e.target.value)}>
-                            {getAvailableNextStatuses(o.status).map(opt => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      <td>
-                        <button className="admin-btn-sm edit" style={{ background: "var(--mint-2)" }} onClick={() => { setSelectedOrder(o); setShowOrderModal(true); }}>Chi tiết</button>
+                      <td style={{ textAlign: "center" }}>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                          <button
+                            className="admin-btn-sm edit"
+                            style={{ background: "var(--green)", color: "#fff", padding: "5px 12px", fontSize: 12.5 }}
+                            onClick={() => handleOpenStatusEdit(o)}
+                          >
+                            ✏️ Xử lý ĐH
+                          </button>
+                          <button
+                            className="admin-btn-sm edit"
+                            style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)", padding: "5px 12px", fontSize: 12.5 }}
+                            onClick={() => { setSelectedOrder(o); setShowOrderModal(true); }}
+                          >
+                            👁️ Chi tiết
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
-                  {orders.length === 0 && <tr><td colSpan="7" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>Chưa có đơn hàng nào</td></tr>}
+                  {orders.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>Chưa có đơn hàng nào</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -3241,6 +3257,43 @@ export function AdminDashboard() {
                 <button type="submit" className="btn-pill" disabled={imageUploading}>Cập nhật</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL: XỬ LÝ TRẠNG THÁI ĐƠN HÀNG ===== */}
+      {showStatusModal && statusOrder && (
+        <div className="admin-modal-backdrop" onClick={() => setShowStatusModal(false)}>
+          <div className="admin-modal-panel" style={{ maxWidth: 460, width: "90%", padding: 24 }} onClick={e => e.stopPropagation()}>
+            <button className="admin-modal-close" onClick={() => setShowStatusModal(false)}><Icon name="close" size={14} /></button>
+            <h3 className="admin-modal-title" style={{ margin: "0 0 16px", fontSize: 16 }}>✏️ Xử lý trạng thái đơn #{statusOrder.id.split('-')[0].toUpperCase()}</h3>
+            
+            <div style={{ marginBottom: 16, fontSize: 13.5, background: "var(--paper-2)", padding: 14, borderRadius: 10 }}>
+              <p style={{ margin: "0 0 6px" }}><b>Khách hàng:</b> {statusOrder.customerName || "Khách lẻ"}</p>
+              <p style={{ margin: "0 0 6px" }}><b>Trạng thái hiện tại:</b> <span className={`admin-badge ${statusOrder.status}`}>{getStatusLabel(statusOrder.status)}</span></p>
+              <p style={{ margin: 0 }}><b>Tổng giá trị:</b> <b style={{ color: "var(--green-ink)" }}>{vnd(statusOrder.total)} đ</b></p>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--ink-2)" }}>Chọn trạng thái cập nhật:</label>
+              <select
+                className="admin-select"
+                style={{ width: "100%", padding: "10px 14px", fontSize: 14 }}
+                value={newStatusValue}
+                onChange={e => setNewStatusValue(e.target.value)}
+              >
+                {getAvailableNextStatuses(statusOrder.status).map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button className="btn-pill ghost" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => setShowStatusModal(false)}>Hủy</button>
+              <button className="btn-pill" style={{ padding: "8px 20px", fontSize: 13 }} onClick={handleSaveStatusModal}>Cập nhật trạng thái</button>
+            </div>
           </div>
         </div>
       )}
