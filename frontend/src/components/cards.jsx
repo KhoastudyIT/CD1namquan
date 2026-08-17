@@ -44,7 +44,7 @@ export function ProductCard({ p, fav, onFav, onAdd, onBuy }) {
         <div className="pcard-foot">
           <div className="pcard-meta">
             <Stars value={p.rating} />
-            <ColorDots />
+            <ColorDots colors={p.colors} />
           </div>
           <div className="pcard-price">
             {hasDiscount && <s className="pcard-price-old">{vnd(listPrice)}đ</s>}
@@ -87,7 +87,7 @@ export function FlashCard({ p, fav, onFav, onAdd, onBuy }) {
       <div className="pcard-body">
         <div className="pcard-type">{p.type}</div>
         <Link to={`/product/${p.product_id || p.productId || p.id}`} className="pcard-name" style={{ color: 'inherit' }}>{p.name}</Link>
-        <div className="pcard-foot" style={{ alignItems: "flex-end" }}>
+        <div className="pcard-foot">
           <Stars value={p.rating} />
           <div className="flash-prices">
             <span className="flash-old">{vnd(oldPrice)}đ</span>

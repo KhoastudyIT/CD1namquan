@@ -240,6 +240,7 @@ export const api = {
     return fetchAPI(`/products${q ? `?${q}` : ''}`, {}, true);
   },
   getProductById: (id) => fetchAPI(`/products/${id}`),
+  getProductFilters: () => fetchAPI('/products/filters'),
   getFlashSales: () => fetchAPI('/products/flash-sales'),
   getCategories: () => fetchAPI('/categories'),
   getCollections: () => fetchAPI('/collections'),

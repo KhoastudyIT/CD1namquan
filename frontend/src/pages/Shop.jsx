@@ -15,30 +15,6 @@ const PRICE_PRESETS = [
   { label: "Trên 30 triệu", min: 30000000, max: PRICE_MAX },
 ];
 
-const COLOR_OPTIONS = [
-  { key: "trang",     label: "Trắng",      hex: "#f5f5f0", border: "#ddd" },
-  { key: "be",        label: "Be / Kem",   hex: "#e8d9b5", border: "#c9b88a" },
-  { key: "nau",       label: "Nâu gỗ",     hex: "#8b5e3c", border: "#6b4020" },
-  { key: "den",       label: "Đen",        hex: "#1a1a1a", border: "#555" },
-  { key: "xanh-la",  label: "Xanh lá",    hex: "#2d7a4f", border: "#1f5a38" },
-  { key: "xanh-lam", label: "Xanh lam",   hex: "#3a6b9f", border: "#2a5080" },
-  { key: "vang",     label: "Vàng đồng",  hex: "#c9a843", border: "#9a7c28" },
-  { key: "hong",     label: "Hồng",       hex: "#e8a0a8", border: "#c47880" },
-  { key: "xam",      label: "Xám",        hex: "#9da8b0", border: "#6e7c87" },
-];
-
-const STYLE_OPTIONS = [
-  "Hiện đại", "Tân cổ điển", "Tối giản", "Rustic", "Bắc Âu", "Luxury",
-];
-const MATERIAL_OPTIONS = [
-  "Gỗ tự nhiên", "Gỗ MDF", "Da thật", "Da PU", "Vải linen", "Mây tre", "Kim loại", "Kính cường lực",
-];
-const SIZE_OPTIONS = [
-  "Nhỏ (< 1m)", "Vừa (1 – 1.8m)", "Lớn (> 1.8m)", "2 chỗ", "3 chỗ", "King size",
-];
-const BRAND_OPTIONS = [
-  "Nam Quan", "MOHO", "Nội thất Hòa Phát", "IKEA Style", "Haven", "Homie",
-];
 
 /* ─── Dropdown wrapper ─── */
 function FilterDropdown({ label, active, children, onClear }) {
@@ -98,6 +74,16 @@ export function Shop() {
   const priceMin = PRICE_PRESETS[pricePreset].min;
   const priceMax = PRICE_PRESETS[pricePreset].max;
 
+  // Lựa chọn lọc do máy chủ sinh ra từ dữ liệu thật (GET /products/filters).
+  const [filterOptions, setFilterOptions] = useState({
+    colors: [], materials: [], sizes: [], styles: [], brands: [],
+  });
+  const COLOR_OPTIONS = filterOptions.colors;
+  const MATERIAL_OPTIONS = filterOptions.materials;
+  const SIZE_OPTIONS = filterOptions.sizes;
+  const STYLE_OPTIONS = filterOptions.styles;
+  const BRAND_OPTIONS = filterOptions.brands;
+
   // ── Màu sắc ──
   const [selectedColors, setSelectedColors] = useState([]);
 
@@ -126,6 +112,12 @@ export function Shop() {
   useEffect(() => {
     api.getCategories()
       .then(data => { if (Array.isArray(data)) setCategories(data); })
+      .catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    api.getProductFilters()
+      .then(f => { if (f) setFilterOptions(f); })
       .catch(() => { });
   }, []);
 
@@ -189,8 +181,14 @@ export function Shop() {
     if (c) activeTags.push({ label: c.label, color: c.hex, onRemove: () => toggle(setSelectedColors)(k) });
   });
   selectedStyles.forEach(s => activeTags.push({ label: s, onRemove: () => toggle(setSelectedStyles)(s) }));
-  selectedMaterials.forEach(m => activeTags.push({ label: m, onRemove: () => toggle(setSelectedMaterials)(m) }));
-  selectedSizes.forEach(s => activeTags.push({ label: s, onRemove: () => toggle(setSelectedSizes)(s) }));
+  selectedMaterials.forEach(k => {
+    const m = MATERIAL_OPTIONS.find(o => o.key === k);
+    activeTags.push({ label: m?.label ?? k, onRemove: () => toggle(setSelectedMaterials)(k) });
+  });
+  selectedSizes.forEach(k => {
+    const s = SIZE_OPTIONS.find(o => o.key === k);
+    activeTags.push({ label: s?.label ?? k, onRemove: () => toggle(setSelectedSizes)(k) });
+  });
   selectedBrands.forEach(b => activeTags.push({ label: b, onRemove: () => toggle(setSelectedBrands)(b) }));
 
   return (
@@ -280,7 +278,7 @@ export function Shop() {
                     <span className="fdd-color-dot">
                       {selectedColors.includes(c.key) && <span className="fdd-color-check">✓</span>}
                     </span>
-                    <span>{c.label}</span>
+                    <span>{c.label} ({c.count})</span>
                   </button>
                 ))}
               </div>
@@ -295,12 +293,12 @@ export function Shop() {
               <div className="fdd-list">
                 {STYLE_OPTIONS.map(s => (
                   <button
-                    key={s}
-                    className={"fdd-item fdd-check-item" + (selectedStyles.includes(s) ? " active" : "")}
-                    onClick={() => toggle(setSelectedStyles)(s)}
+                    key={s.value}
+                    className={"fdd-item fdd-check-item" + (selectedStyles.includes(s.value) ? " active" : "")}
+                    onClick={() => toggle(setSelectedStyles)(s.value)}
                   >
-                    <span className={"fdd-checkbox" + (selectedStyles.includes(s) ? " checked" : "")} />
-                    {s}
+                    <span className={"fdd-checkbox" + (selectedStyles.includes(s.value) ? " checked" : "")} />
+                    {s.value} ({s.count})
                   </button>
                 ))}
               </div>
@@ -315,12 +313,12 @@ export function Shop() {
               <div className="fdd-list">
                 {MATERIAL_OPTIONS.map(m => (
                   <button
-                    key={m}
-                    className={"fdd-item fdd-check-item" + (selectedMaterials.includes(m) ? " active" : "")}
-                    onClick={() => toggle(setSelectedMaterials)(m)}
+                    key={m.key}
+                    className={"fdd-item fdd-check-item" + (selectedMaterials.includes(m.key) ? " active" : "")}
+                    onClick={() => toggle(setSelectedMaterials)(m.key)}
                   >
-                    <span className={"fdd-checkbox" + (selectedMaterials.includes(m) ? " checked" : "")} />
-                    {m}
+                    <span className={"fdd-checkbox" + (selectedMaterials.includes(m.key) ? " checked" : "")} />
+                    {m.label} ({m.count})
                   </button>
                 ))}
               </div>
@@ -335,12 +333,12 @@ export function Shop() {
               <div className="fdd-list">
                 {SIZE_OPTIONS.map(s => (
                   <button
-                    key={s}
-                    className={"fdd-item fdd-check-item" + (selectedSizes.includes(s) ? " active" : "")}
-                    onClick={() => toggle(setSelectedSizes)(s)}
+                    key={s.key}
+                    className={"fdd-item fdd-check-item" + (selectedSizes.includes(s.key) ? " active" : "")}
+                    onClick={() => toggle(setSelectedSizes)(s.key)}
                   >
-                    <span className={"fdd-checkbox" + (selectedSizes.includes(s) ? " checked" : "")} />
-                    {s}
+                    <span className={"fdd-checkbox" + (selectedSizes.includes(s.key) ? " checked" : "")} />
+                    {s.label} ({s.count})
                   </button>
                 ))}
               </div>
@@ -355,12 +353,12 @@ export function Shop() {
               <div className="fdd-list">
                 {BRAND_OPTIONS.map(b => (
                   <button
-                    key={b}
-                    className={"fdd-item fdd-check-item" + (selectedBrands.includes(b) ? " active" : "")}
-                    onClick={() => toggle(setSelectedBrands)(b)}
+                    key={b.value}
+                    className={"fdd-item fdd-check-item" + (selectedBrands.includes(b.value) ? " active" : "")}
+                    onClick={() => toggle(setSelectedBrands)(b.value)}
                   >
-                    <span className={"fdd-checkbox" + (selectedBrands.includes(b) ? " checked" : "")} />
-                    {b}
+                    <span className={"fdd-checkbox" + (selectedBrands.includes(b.value) ? " checked" : "")} />
+                    {b.value} ({b.count})
                   </button>
                 ))}
               </div>

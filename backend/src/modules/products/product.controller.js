@@ -12,6 +12,11 @@ export async function getById(req, res) {
   ok(res, product);
 }
 
+export async function listFilters(_req, res) {
+  const filters = await productService.getProductFilters();
+  ok(res, filters);
+}
+
 export async function listFlashSales(_req, res) {
   const items = await productService.listFlashSales();
   ok(res, items);

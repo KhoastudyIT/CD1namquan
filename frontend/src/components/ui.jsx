@@ -208,11 +208,22 @@ export function Stars({ value = 5, size = 12 }) {
   );
 }
 
-export function ColorDots({ colors = ["#c9bfa6", "#2f6b46", "#1d2722"] }) {
+
+export function ColorDots({ colors = [] }) {
+  if (!colors.length) return null;
   return (
     <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
       {colors.map((c, i) => (
-        <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: c, boxShadow: i === 0 ? "0 0 0 1.5px #fff, 0 0 0 2.6px var(--green)" : "0 0 0 1px rgba(0,0,0,.12)" }} />
+        <span
+          key={c.key ?? i}
+          title={c.label}
+          aria-label={c.label}
+          style={{
+            width: 9, height: 9, borderRadius: "50%",
+            background: c.hex,
+            boxShadow: `0 0 0 1px ${c.border || "rgba(0,0,0,.18)"}`,
+          }}
+        />
       ))}
     </span>
   );

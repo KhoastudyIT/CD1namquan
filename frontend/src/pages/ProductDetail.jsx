@@ -51,15 +51,15 @@ export function ProductDetail() {
     <section className="section" style={{ minHeight: "80vh", background: "var(--paper-2)", padding: "40px 0 80px" }}>
       <div className="wrap">
         <div className="pd-layout">
-          
+
           {/* Left: Image */}
           <div style={{ background: "#fff", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}>
             <div style={{ aspectRatio: "1/1", position: "relative" }}>
               <Img src={product.img} alt={product.name} />
-              <button 
+              <button
                 onClick={() => toggleFav(product.id)}
-                style={{ 
-                  position: "absolute", top: 20, right: 20, width: 44, height: 44, 
+                style={{
+                  position: "absolute", top: 20, right: 20, width: 44, height: 44,
                   borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center",
                   boxShadow: "var(--shadow-md)", color: isFav ? "#e6457a" : "var(--muted)"
                 }}
@@ -77,7 +77,7 @@ export function ProductDetail() {
             <h1 className="pd-title" style={{ fontWeight: 800, color: "var(--green-ink)", margin: "0 0 16px", lineHeight: 1.2 }}>
               {product.name}
             </h1>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--mint)", padding: "6px 12px", borderRadius: 999 }}>
                 <Stars value={product.rating} size={15} />
@@ -108,10 +108,11 @@ export function ProductDetail() {
               {product.description || "Chưa có mô tả cho sản phẩm này."}
             </p>
 
-            <div style={{ marginBottom: 30 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>Màu sắc</h4>
-              <ColorDots colors={["#c9bfa6","#2f6b46","#1d2722"]} />
-            </div>
+            {product.colors?.length > 0 && (
+              <div style={{ marginBottom: 30 }}>
+                <ColorDots colors={product.colors} />
+              </div>
+            )}
 
             <div className="pd-actions">
               <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid var(--line-2)", borderRadius: 12, padding: "4px" }}>
@@ -119,14 +120,14 @@ export function ProductDetail() {
                 <div style={{ width: 40, textAlign: "center", fontSize: 16, fontWeight: 600 }}>{quantity}</div>
                 <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} style={{ width: 40, height: 40, fontSize: 20, color: "var(--ink-2)", cursor: "pointer" }}>+</button>
               </div>
-              <button 
+              <button
                 onClick={handleAddToCart}
                 className="btn-pill ghost"
                 style={{ borderColor: "var(--green)", color: "var(--green-ink)" }}
               >
                 <Icon name="cart" size={18} /> Thêm vào giỏ
               </button>
-              <button 
+              <button
                 onClick={handleBuyNow}
                 className="btn-pill btn-buy-now"
               >
@@ -147,11 +148,11 @@ export function ProductDetail() {
             <div className="pd-shipping-grid">
               <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "var(--ink-2)" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--mint)", color: "var(--green-ink)", display: "grid", placeItems: "center" }}><Icon name="truck" size={18} /></div>
-                <div><b>Miễn phí giao hàng</b><br/><span style={{ color: "var(--muted)", fontSize: 12 }}>Cho đơn từ 5.000.000đ</span></div>
+                <div><b>Miễn phí giao hàng</b><br /><span style={{ color: "var(--muted)", fontSize: 12 }}>Cho đơn từ 5.000.000đ</span></div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "var(--ink-2)" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--mint)", color: "var(--green-ink)", display: "grid", placeItems: "center" }}><Icon name="shield" size={18} /></div>
-                <div><b>Bảo hành 2 năm</b><br/><span style={{ color: "var(--muted)", fontSize: 12 }}>Chính hãng NAM QUAN</span></div>
+                <div><b>Bảo hành 2 năm</b><br /><span style={{ color: "var(--muted)", fontSize: 12 }}>Chính hãng NAM QUAN</span></div>
               </div>
             </div>
 

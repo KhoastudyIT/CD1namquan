@@ -2,6 +2,12 @@ import db from '../../db/index.js';
 import { dbCache } from '../../db/store.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { activeFlashJoin, activeFlashWhere, effectivePriceSQL } from '../../utils/price.js';
+import { unaccentSQL, unaccentVN } from '../../utils/vn-text.js';
+import {
+  COLORS, MATERIALS, SIZE_BUCKETS,
+  COLOR_BY_KEY, MATERIAL_BY_KEY, SIZE_BY_KEY,
+  maxDimensionSQL,
+} from './filters.registry.js';
 
 const csv = (s) => (s ? s.split(',').map(v => v.trim()).filter(Boolean) : []);
 
@@ -54,30 +60,43 @@ export async function listProducts({
     whereClauses.push(`${effectivePriceSQL('p')} <= $${params.length}`);
   }
 
-  // Join with specs to filter by colors, styles, materials, sizes
-  let joinSpecs = false;
+  // Bộ lọc gửi lên MÃ nhóm (`nau`, `da`, `lon`) chứ không phải chữ trong dữ liệu.
+  // Mỗi mã ứng với một danh sách từ khoá; so khớp sau khi bỏ dấu cả hai vế vì
+  // ILIKE chỉ bỏ qua hoa/thường ("nau" không bao giờ khớp "Nâu").
+  const keywordClause = (col, keys, registry) => {
+    const patterns = keys
+      .flatMap(k => registry.get(k)?.keywords ?? [k])
+      .map(w => `%${unaccentVN(w)}%`);
+    if (!patterns.length) return;
+    params.push(patterns);
+    whereClauses.push(`${unaccentSQL(col)} LIKE ANY($${params.length})`);
+  };
+
   const fColors = csv(colors);
-  if (fColors.length) {
-    joinSpecs = true;
-    whereClauses.push(`ps.color ILIKE ANY (ARRAY[${fColors.map(c => `'%${c}%'`).join(', ')}])`);
+  if (fColors.length) keywordClause('ps.color', fColors, COLOR_BY_KEY);
+
+  const fMaterials = csv(materials);
+  if (fMaterials.length) keywordClause('ps.material', fMaterials, MATERIAL_BY_KEY);
+
+  // Kích thước lọc theo cạnh dài nhất đọc được trong chuỗi số đo, không so chữ.
+  const fSizes = csv(sizes).map(k => SIZE_BY_KEY.get(k)).filter(Boolean);
+  if (fSizes.length) {
+    const ranges = fSizes.map(b => {
+      params.push(b.min);
+      const lo = `$${params.length}`;
+      if (b.max == null) return `${maxDimensionSQL('ps.dimensions')} >= ${lo}`;
+      params.push(b.max);
+      return `${maxDimensionSQL('ps.dimensions')} BETWEEN ${lo} AND $${params.length}`;
+    });
+    whereClauses.push(`(${ranges.join(' OR ')})`);
   }
+
   const fStyles = csv(styles);
   if (fStyles.length) {
-    joinSpecs = true;
     params.push(fStyles);
     whereClauses.push(`ps.style = ANY($${params.length})`);
   }
-  const fMaterials = csv(materials);
-  if (fMaterials.length) {
-    joinSpecs = true;
-    whereClauses.push(`ps.material ILIKE ANY (ARRAY[${fMaterials.map(c => `'%${c}%'`).join(', ')}])`);
-  }
-  const fSizes = csv(sizes);
-  if (fSizes.length) {
-    joinSpecs = true;
-    whereClauses.push(`ps.dimensions ILIKE ANY (ARRAY[${fSizes.map(c => `'%${c}%'`).join(', ')}])`);
-  }
-  
+
   const fBrands = csv(brands);
   let joinBrands = false;
   if (fBrands.length) {
@@ -86,13 +105,18 @@ export async function listProducts({
     whereClauses.push(`b.name = ANY($${params.length})`);
   }
 
+  // product_specs luôn được join: ngoài việc lọc, cột color còn dùng để dựng
+  // chấm màu ngoài thẻ sản phẩm. Bảng này có UNIQUE trên product_id nên join
+  // một-một, không làm nhân bản dòng.
   let queryStr = `SELECT p.*, c.name AS category, c.slug AS category_slug,
+      ps.color AS spec_color,
       active_flash.price AS flash_price,
       ${effectivePriceSQL('p')} AS effective_price
-    FROM products p LEFT JOIN categories c ON p.category_id = c.id${activeFlashJoin('p')}`;
-  if (joinSpecs) queryStr += ` LEFT JOIN product_specs ps ON p.id = ps.product_id`;
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN product_specs ps ON p.id = ps.product_id${activeFlashJoin('p')}`;
   if (joinBrands) queryStr += ` LEFT JOIN brands b ON p.brand_id = b.id`;
-  
+
   if (whereClauses.length > 0) {
     queryStr += ` WHERE ` + whereClauses.join(' AND ');
   }
@@ -122,9 +146,119 @@ export async function listProducts({
   const res = await db.query(queryStr, params);
   const totalPages = Math.ceil(total / limit);
 
-  const result = { data: res.rows, meta: { total, page, limit, totalPages } };
+  const result = {
+    data: res.rows.map(withColorSwatches),
+    meta: { total, page, limit, totalPages },
+  };
   dbCache.set(cacheKey, result);
   return result;
+}
+
+/**
+ * Các lựa chọn cho thanh lọc trang cửa hàng, sinh từ dữ liệu đang có.
+ *
+ * Mọi nhóm đều kèm `count` và nhóm nào không có sản phẩm nào thì bị loại bỏ —
+ * người dùng sẽ không còn bấm trúng một nút lọc rồi nhận về danh sách rỗng.
+ * `style` và `brand` lấy thẳng DISTINCT vì là giá trị đơn sạch; `color`,
+ * `material`, `size` phải quy về nhóm (xem filters.registry.js).
+ */
+export async function getProductFilters() {
+  const cacheKey = 'products:filters';
+  const cached = dbCache.get(cacheKey);
+  if (cached) return cached;
+
+  const countByKeywords = (col, groups) => `
+    SELECT k.key, COUNT(*)::int AS count
+    FROM products p
+    JOIN product_specs ps ON ps.product_id = p.id
+    JOIN LATERAL (
+      SELECT g.key
+      FROM (VALUES ${groups.map((g, i) => `($${i * 2 + 1}, $${i * 2 + 2}::text[])`).join(', ')}) AS g(key, words)
+      WHERE ${unaccentSQL(col)} LIKE ANY (g.words)
+    ) k ON TRUE
+    WHERE p.status = 'active'
+    GROUP BY k.key`;
+
+  const keywordParams = (groups) =>
+    groups.flatMap(g => [g.key, g.keywords.map(w => `%${unaccentVN(w)}%`)]);
+
+  const [colorRes, materialRes, sizeRes, styleRes, brandRes, priceRes] = await Promise.all([
+    db.query(countByKeywords('ps.color', COLORS), keywordParams(COLORS)),
+    db.query(countByKeywords('ps.material', MATERIALS), keywordParams(MATERIALS)),
+    db.query(`
+      SELECT b.key, COUNT(*)::int AS count
+      FROM products p
+      JOIN product_specs ps ON ps.product_id = p.id
+      JOIN LATERAL (
+        SELECT v.key
+        FROM (VALUES ${SIZE_BUCKETS.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}::int, $${i * 3 + 3}::int)`).join(', ')}) AS v(key, lo, hi)
+        WHERE ${maxDimensionSQL('ps.dimensions')} >= v.lo
+          AND (v.hi IS NULL OR ${maxDimensionSQL('ps.dimensions')} <= v.hi)
+      ) b ON TRUE
+      WHERE p.status = 'active'
+      GROUP BY b.key`,
+      SIZE_BUCKETS.flatMap(b => [b.key, b.min, b.max]),
+    ),
+    db.query(`
+      SELECT ps.style AS value, COUNT(*)::int AS count
+      FROM products p JOIN product_specs ps ON ps.product_id = p.id
+      WHERE p.status = 'active' AND COALESCE(ps.style, '') <> ''
+      GROUP BY ps.style ORDER BY count DESC, value`),
+    db.query(`
+      SELECT b.name AS value, COUNT(*)::int AS count
+      FROM products p JOIN brands b ON b.id = p.brand_id
+      WHERE p.status = 'active'
+      GROUP BY b.name ORDER BY count DESC, value`),
+    db.query(`
+      SELECT MIN(${effectivePriceSQL('p')})::bigint AS min,
+             MAX(${effectivePriceSQL('p')})::bigint AS max
+      FROM products p${activeFlashJoin('p')}
+      WHERE p.status = 'active'`),
+  ]);
+
+  // Ghép số đếm vào từ điển, giữ nguyên thứ tự đã khai báo và bỏ nhóm rỗng.
+  // `keywords`, `min`, `max` là chi tiết cài đặt phía máy chủ, không trả ra ngoài.
+  const merge = (groups, rows) => {
+    const counts = new Map(rows.map(r => [r.key, r.count]));
+    return groups
+      .filter(g => counts.get(g.key) > 0)
+      .map(({ keywords, min, max, ...option }) => ({ ...option, count: counts.get(option.key) }));
+  };
+
+  const price = priceRes.rows[0] ?? {};
+  const result = {
+    colors:    merge(COLORS, colorRes.rows),
+    materials: merge(MATERIALS, materialRes.rows),
+    sizes:     merge(SIZE_BUCKETS, sizeRes.rows),
+    styles:    styleRes.rows,
+    brands:    brandRes.rows,
+    priceRange: {
+      min: Number(price.min ?? 0),
+      max: Number(price.max ?? 0),
+    },
+  };
+  dbCache.set(cacheKey, result);
+  return result;
+}
+
+/**
+ * Suy ra danh sách màu hiển thị của một sản phẩm từ chuỗi mô tả tự do.
+ *
+ * "Nâu gỗ" → [nâu]; "Trắng kem" → [trắng, be]; chuỗi không nhận ra màu nào thì
+ * trả mảng rỗng để giao diện biết mà ẩn hàng chấm màu, thay vì vẽ màu bịa.
+ */
+export function resolveColors(text) {
+  const plain = unaccentVN(text ?? '');
+  if (!plain.trim()) return [];
+  return COLORS
+    .filter(c => c.keywords.some(w => plain.includes(unaccentVN(w))))
+    .map(({ key, label, hex, border }) => ({ key, label, hex, border }));
+}
+
+/** Gắn thêm mảng `colors` cho một dòng sản phẩm lấy từ CSDL. */
+function withColorSwatches(row) {
+  const { spec_color, ...rest } = row;
+  return { ...rest, color: spec_color ?? '', colors: resolveColors(spec_color) };
 }
 
 export async function getProductById(id) {
@@ -144,7 +278,9 @@ export async function getProductById(id) {
   `, [id]);
   
   if (res.rows.length === 0) throw new AppError('Không tìm thấy sản phẩm', 404);
-  const product = res.rows[0];
+  // Kèm luôn mảng màu đã suy ra để trang chi tiết dùng chung một cách hiển thị
+  // với thẻ sản phẩm ngoài danh sách.
+  const product = { ...res.rows[0], colors: resolveColors(res.rows[0].color) };
   dbCache.set(cacheKey, product);
   return product;
 }

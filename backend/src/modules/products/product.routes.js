@@ -9,6 +9,8 @@ export const productRouter = Router();
 
 // Public routes (order matters: specific before parameterized)
 productRouter.get('/',            validateQuery(productQuerySchema), productController.list);
+// Các lựa chọn cho thanh lọc, sinh từ dữ liệu đang có — phải đứng trước '/:id'.
+productRouter.get('/filters',     productController.listFilters);
 productRouter.get('/flash-sales', productController.listFlashSales);
 
 // Admin Flash Sales routes
